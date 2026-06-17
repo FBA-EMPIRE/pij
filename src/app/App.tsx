@@ -22,6 +22,8 @@ import Investments from "./components/Investments";
 import AdminFormations from "./components/AdminFormations";
 import AdminInvestments from "./components/AdminInvestments";
 import SystemMonitoring from "./components/SystemMonitoring";
+import ProfilePage from "./components/ProfilePage";
+import MemberSettings from "./components/MemberSettings";
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -165,7 +167,15 @@ export default function App() {
           path="/profile"
           element={
             <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <ProfilePlaceholder lang={lang} />
+              <ProfilePage lang={lang} />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <MemberSettings lang={lang} darkMode={darkMode} onToggleDark={toggleDark} onToggleLang={toggleLang} />
             </MemberLayout>
           }
         />
@@ -278,41 +288,6 @@ function NotificationsPlaceholder({ lang }: { lang: string }) {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function ProfilePlaceholder({ lang }: { lang: string }) {
-  const fr = lang === "fr";
-  return (
-    <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-      <h2 className="mb-6" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mon profil" : "My profile"}</h2>
-      <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-xl font-bold">AD</div>
-          <div>
-            <p className="font-semibold">Amara Diallo</p>
-            <p className="text-sm text-muted-foreground">PIJ-2024-001</p>
-            <p className="text-xs text-[#4CAF68] font-medium mt-0.5">{fr ? "Membre vérifié ✓" : "Verified member ✓"}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            { label: "Email", value: "amara.diallo@email.com" },
-            { label: fr ? "Téléphone" : "Phone", value: "+237 6 70 12 34 56" },
-            { label: fr ? "Ville" : "City", value: "Yaoundé" },
-            { label: fr ? "Membre depuis" : "Member since", value: "15 janvier 2024" },
-          ].map((f) => (
-            <div key={f.label}>
-              <label className="text-xs text-muted-foreground">{f.label}</label>
-              <input defaultValue={f.value} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
-            </div>
-          ))}
-        </div>
-        <button className="px-5 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90" style={{ background: "#4CAF68" }}>
-          {fr ? "Sauvegarder" : "Save changes"}
-        </button>
       </div>
     </div>
   );
