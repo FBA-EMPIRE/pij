@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, Users, ShieldCheck, Wallet, TrendingUp,
   FileText, ScrollText, Settings, LogOut, Menu, X,
-  ChevronRight, Sun, Moon, Bell, Shield
+  ChevronRight, Sun, Moon, Bell, Shield, BookOpen
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 
@@ -37,6 +37,8 @@ const navGroups = [
     items: [
       { icon: Wallet, label: "Comptes", labelEn: "Accounts", path: "/admin/accounts" },
       { icon: TrendingUp, label: "Tontines", labelEn: "Tontines", path: "/admin/tontines" },
+      { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/admin/formations" },
+      { icon: TrendingUp, label: "Investissements", labelEn: "Investments", path: "/admin/investissements" },
     ],
   },
   {
@@ -87,7 +89,7 @@ export function AdminLayout({ children, darkMode, onToggleDark, lang, onToggleLa
                 {lang === "fr" ? group.group : group.groupEn}
               </p>
               {group.items.map((item) => {
-                const active = location.pathname === item.path;
+                  const active = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
                 return (
                   <Link
                     key={item.path}

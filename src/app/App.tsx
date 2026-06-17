@@ -19,6 +19,8 @@ import AdminTontines from "./components/AdminTontines";
 import AdminReports from "./components/AdminReports";
 import Formations from "./components/Formations";
 import Investments from "./components/Investments";
+import AdminFormations from "./components/AdminFormations";
+import AdminInvestments from "./components/AdminInvestments";
 import SystemMonitoring from "./components/SystemMonitoring";
 
 export default function App() {
@@ -72,10 +74,58 @@ export default function App() {
           }
         />
         <Route
+          path="/formations/courses/:id"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Formations lang={lang} view="course" />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/formations/learning"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Formations lang={lang} view="learning" />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/formations/consultation"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Formations lang={lang} view="consultation" />
+            </MemberLayout>
+          }
+        />
+        <Route
           path="/investissements"
           element={
             <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
               <Investments lang={lang} />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/investissements/portfolio"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Investments lang={lang} view="portfolio" />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/investissements/wallet"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Investments lang={lang} view="wallet" />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/investissements/:id"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Investments lang={lang} view="detail" />
             </MemberLayout>
           }
         />
@@ -158,6 +208,22 @@ export default function App() {
           element={
             <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
               <AdminTontines lang={lang} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/formations"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminFormations lang={lang} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/investissements"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminInvestments lang={lang} />
             </AdminLayout>
           }
         />

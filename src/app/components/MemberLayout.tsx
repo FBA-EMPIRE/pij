@@ -65,7 +65,7 @@ export function MemberLayout({ children, darkMode, onToggleDark, lang, onToggleL
               </p>
             </div>
             {navItems.map((item) => {
-              const active = location.pathname === item.path;
+              const active = location.pathname === item.path || (item.path !== "/dashboard" && location.pathname.startsWith(`${item.path}/`));
               return (
                 <Link
                   key={item.path}

@@ -4,7 +4,7 @@ type Status =
   | "Approved" | "Active" | "Paid" | "Completed" | "Open"
   | "Pending" | "Almost Full"
   | "Rejected" | "Suspended" | "Unpaid" | "Closed"
-  | "High" | "Normal";
+  | "High" | "Normal" | "Published" | "Draft" | "Archived" | "Scheduled";
 
 interface StatusBadgeProps {
   status: Status;
@@ -18,8 +18,12 @@ const CONFIG: Record<Status, { label: string; bg: string; text: string; Icon: Re
   Paid: { label: "Payé", bg: "bg-[#E8F5EC]", text: "text-[#1F9D55]", Icon: CheckCircle },
   Completed: { label: "Terminé", bg: "bg-[#E8F5EC]", text: "text-[#1F9D55]", Icon: ShieldCheck },
   Open: { label: "Ouvert", bg: "bg-[#F0E8FF]", text: "text-[#6E3A9A]", Icon: CheckCircle },
+  Published: { label: "Publié", bg: "bg-[#E8F5EC]", text: "text-[#1F9D55]", Icon: CheckCircle },
   Pending: { label: "En attente", bg: "bg-amber-50", text: "text-amber-600", Icon: Clock },
+  Scheduled: { label: "Planifié", bg: "bg-[#F0E8FF]", text: "text-[#6E3A9A]", Icon: Clock },
   "Almost Full": { label: "Presque complet", bg: "bg-orange-50", text: "text-orange-600", Icon: AlertCircle },
+  Draft: { label: "Brouillon", bg: "bg-gray-100", text: "text-gray-500", Icon: Clock },
+  Archived: { label: "Archivé", bg: "bg-gray-100", text: "text-gray-500", Icon: Ban },
   Rejected: { label: "Rejeté", bg: "bg-red-50", text: "text-[#E5484D]", Icon: XCircle },
   Suspended: { label: "Suspendu", bg: "bg-red-50", text: "text-[#E5484D]", Icon: Ban },
   Unpaid: { label: "Non payé", bg: "bg-red-50", text: "text-[#E5484D]", Icon: XCircle },

@@ -185,3 +185,54 @@ export const formatXAF = (amount: number) => {
     maximumFractionDigits: 0,
   }).format(Math.abs(amount)) + ' XAF';
 };
+
+export const FORMATION_CATEGORIES = [
+  { id: "entrepreneurship", name: "Entrepreneuriat", nameEn: "Entrepreneurship", description: "Créer et structurer une activité rentable", color: "#4CAF68", status: "Active" },
+  { id: "marketing", name: "Marketing", nameEn: "Marketing", description: "Trouver, convaincre et fidéliser ses clients", color: "#6E3A9A", status: "Active" },
+  { id: "leadership", name: "Leadership", nameEn: "Leadership", description: "Piloter une équipe et décider avec clarté", color: "#F2994A", status: "Active" },
+  { id: "investment", name: "Investissement", nameEn: "Investment", description: "Comprendre le risque, le rendement et la croissance", color: "#1F9D55", status: "Active" },
+];
+
+export const FORMATION_COURSES = [
+  { id: "course-entreprendre", categoryId: "entrepreneurship", title: "Fondements de l'Entrepreneuriat", titleEn: "Entrepreneurship Fundamentals", description: "De l'idée au modèle économique: valider un problème, définir une offre et préparer son lancement.", instructor: "Jean-Pierre M.", duration: "1h 45min", lessonCount: 8, level: "Débutant", progress: 62, featured: true, status: "Published", image: "linear-gradient(135deg, #2d5a27 0%, #4a7c44 50%, #6b9e65 100%)" },
+  { id: "course-tresorerie", categoryId: "entrepreneurship", title: "Gestion de Trésorerie", titleEn: "Cash Flow Management", description: "Suivre les entrées, anticiper les sorties et protéger son fonds de roulement.", instructor: "Aminata S.", duration: "2h 10min", lessonCount: 10, level: "Intermédiaire", progress: 28, featured: true, status: "Published", image: "linear-gradient(135deg, #1a3a4a 0%, #2d5a6a 50%, #4a7c8a 100%)" },
+  { id: "course-marketing-local", categoryId: "marketing", title: "Marketing Digital Local", titleEn: "Local Digital Marketing", description: "Acquérir ses premiers clients avec WhatsApp Business, Facebook local et recommandations.", instructor: "Marc O.", duration: "55min", lessonCount: 6, level: "Débutant", progress: 100, featured: true, status: "Published", image: "linear-gradient(135deg, #3d2a5c 0%, #5a4a7c 50%, #7a6a9c 100%)" },
+  { id: "course-investir", categoryId: "investment", title: "Investir avec Discipline", titleEn: "Disciplined Investing", description: "Comparer les opportunités, lire le risque et décider selon ses objectifs.", instructor: "Ruth N.", duration: "1h 20min", lessonCount: 7, level: "Intermédiaire", progress: 0, featured: false, status: "Draft", image: "linear-gradient(135deg, #1E2530 0%, #3A4558 55%, #4CAF68 100%)" },
+];
+
+export const FORMATION_CONTENT = [
+  { id: "vid-1", courseId: "course-entreprendre", type: "video", title: "Identifier un vrai problème client", duration: "14 min", format: "MP4", completed: true },
+  { id: "vid-2", courseId: "course-entreprendre", type: "video", title: "Construire une proposition de valeur", duration: "18 min", format: "URL", completed: true },
+  { id: "book-1", courseId: "course-entreprendre", type: "book", title: "Guide PIJ du business plan", duration: "42 pages", format: "PDF", completed: false },
+  { id: "note-1", courseId: "course-entreprendre", type: "note", title: "Checklist de validation marché", duration: "Lecture 6 min", format: "Note", completed: false },
+  { id: "assign-1", courseId: "course-entreprendre", type: "assignment", title: "Décrire son client cible", duration: "20 min", format: "Devoir", completed: false },
+  { id: "vid-3", courseId: "course-tresorerie", type: "video", title: "Tableau simple de flux de trésorerie", duration: "22 min", format: "MP4", completed: true },
+  { id: "book-2", courseId: "course-tresorerie", type: "book", title: "Modèle budget mensuel", duration: "12 pages", format: "Document", completed: false },
+];
+
+export const CONSULTATION_REQUESTS = [
+  { id: "CONS-001", type: "Mentorat", member: "Amara Diallo", project: "Boutique alimentation locale", status: "Scheduled", consultant: "Jean-Pierre M.", meetingDate: "2024-06-21 10:00" },
+  { id: "CONS-002", type: "Business Review", member: "Fatoumata Koné", project: "Transformation manioc", status: "Pending", consultant: "Non assigné", meetingDate: "À planifier" },
+];
+
+export const INVESTMENT_OPPORTUNITIES = [
+  { id: "INV-001", title: "Coopérative Cacao Douala", titleEn: "Douala Cocoa Cooperative", category: "Agriculture", description: "Modernisation des équipements de séchage pour 50 petits exploitants.", roi: "12%", duration: "12 mois", risk: "Faible", minAmount: 50000, maxAmount: 1000000, goal: 5000000, raised: 3750000, status: "Published", featured: true, image: "linear-gradient(135deg, #2d5a27 0%, #4a7c44 50%, #6b9e65 100%)" },
+  { id: "INV-002", title: "FinTech Jeune Yaoundé", titleEn: "FinTech Youth Yaoundé", category: "Technologie", description: "Application de micro-credit instantané pour jeunes entrepreneurs vérifiés.", roi: "18%", duration: "18 mois", risk: "Modéré", minAmount: 100000, maxAmount: 2000000, goal: 12000000, raised: 5040000, status: "Published", featured: true, image: "linear-gradient(135deg, #1a2a4a 0%, #2d4a6a 50%, #4a6a8a 100%)" },
+  { id: "INV-003", title: "Solaire pour le Nord", titleEn: "Solar for the North", category: "Énergie", description: "Installation de kits solaires résidentiels dans trois villages de l'Extrême-Nord.", roi: "10%", duration: "10 mois", risk: "Faible", minAmount: 75000, maxAmount: 1500000, goal: 8500000, raised: 7650000, status: "Published", featured: false, image: "linear-gradient(135deg, #5a3a0a 0%, #8a5a1a 50%, #c48a2a 100%)" },
+];
+
+export const INVESTMENT_PORTFOLIO = [
+  { id: "PORT-001", opportunityId: "INV-001", title: "Coopérative Cacao Douala", amount: 125000, currentValue: 134500, returns: 9500, status: "Active", started: "2024-04-15" },
+  { id: "PORT-002", opportunityId: "INV-003", title: "Solaire pour le Nord", amount: 80000, currentValue: 88000, returns: 8000, status: "Completed", started: "2023-11-02" },
+];
+
+export const INVESTMENT_WALLET = {
+  available: 450000,
+  invested: 205000,
+  earnings: 17500,
+};
+
+export const INVESTMENT_REQUESTS = [
+  { id: "IREQ-001", member: "Amara Diallo", opportunity: "FinTech Jeune Yaoundé", amount: 150000, status: "Pending", submitted: "2024-06-12" },
+  { id: "IREQ-002", member: "Aïssatou Bah", opportunity: "Coopérative Cacao Douala", amount: 300000, status: "Approved", submitted: "2024-06-08" },
+];

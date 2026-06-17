@@ -285,7 +285,7 @@ export default function LandingPage({ darkMode, onToggleDark, lang, onToggleLang
         <footer className="bg-card border-t border-border py-10">
           <div className="max-w-7xl mx-auto px-4 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <PIJLogo variant="full" size="sm" theme={darkMode ? "dark" : "light"} />
-            <p>© 2024 Programme d'Investissement des Jeunes · {fr ? "Tous droits réservés" : "All rights reserved"}</p>
+            <p>© 2026 Programme d'Investissement des Jeunes · {fr ? "Tous droits réservés" : "All rights reserved"}</p>
             <div className="flex gap-4">
               <a href="#" className="hover:text-foreground">{fr ? "Confidentialité" : "Privacy"}</a>
               <a href="#" className="hover:text-foreground">{fr ? "Conditions" : "Terms"}</a>
