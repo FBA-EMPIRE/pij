@@ -17,7 +17,9 @@ import KYCReview from "./components/KYCReview";
 import AccountManagement from "./components/AccountManagement";
 import AdminTontines from "./components/AdminTontines";
 import AdminReports from "./components/AdminReports";
-import AuditLogs from "./components/AuditLogs";
+import Formations from "./components/Formations";
+import Investments from "./components/Investments";
+import SystemMonitoring from "./components/SystemMonitoring";
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -58,6 +60,22 @@ export default function App() {
           element={
             <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
               <SavingsGoals lang={lang} />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/formations"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Formations lang={lang} />
+            </MemberLayout>
+          }
+        />
+        <Route
+          path="/investissements"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <Investments lang={lang} />
             </MemberLayout>
           }
         />
@@ -152,10 +170,10 @@ export default function App() {
           }
         />
         <Route
-          path="/admin/audit"
+          path="/admin/system-audit"
           element={
             <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AuditLogs lang={lang} />
+              <SystemMonitoring lang={lang} />
             </AdminLayout>
           }
         />

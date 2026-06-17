@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, CreditCard, PiggyBank, Users, Bell, User,
   LogOut, Menu, X, Sun, Moon, ChevronRight,
-  TrendingUp, Settings
+  TrendingUp, Settings, BookOpen, FileText
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 
@@ -17,11 +17,12 @@ interface MemberLayoutProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", labelEn: "Dashboard", path: "/dashboard" },
-  { icon: CreditCard, label: "Transactions", labelEn: "Transactions", path: "/transactions" },
-  { icon: PiggyBank, label: "Objectifs épargne", labelEn: "Savings Goals", path: "/savings" },
-  { icon: Users, label: "Mes Tontines", labelEn: "My Tontines", path: "/tontines" },
-  { icon: TrendingUp, label: "Marketplace", labelEn: "Marketplace", path: "/marketplace" },
-  { icon: Bell, label: "Notifications", labelEn: "Notifications", path: "/notifications" },
+  { icon: CreditCard, label: "Comptes", labelEn: "Accounts", path: "/transactions" },
+  { icon: Users, label: "Tontines", labelEn: "Tontines", path: "/tontines" },
+  { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/formations" },
+  { icon: TrendingUp, label: "Investissements", labelEn: "Investments", path: "/investissements" },
+  { icon: FileText, label: "Rapports", labelEn: "Reports", path: "/reports" },
+  { icon: Settings, label: "Paramètres", labelEn: "Settings", path: "/settings" },
 ];
 
 export function MemberLayout({ children, darkMode, onToggleDark, lang, onToggleLang }: MemberLayoutProps) {
@@ -55,10 +56,14 @@ export function MemberLayout({ children, darkMode, onToggleDark, lang, onToggleL
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
-          <div className="mb-1">
-            <p className="px-3 py-1 text-xs uppercase tracking-widest text-sidebar-foreground/40 mb-1">
-              {lang === "fr" ? "Menu principal" : "Main Menu"}
-            </p>
+            <div className="px-3 mb-4">
+              <p className="font-bold text-sidebar-foreground" style={{ color: "#1F9D55" }}>
+                {lang === "fr" ? "Portail Membre" : "Member Portal"}
+              </p>
+              <p className="text-xs text-sidebar-foreground/60">
+                Youth Investment
+              </p>
+            </div>
             {navItems.map((item) => {
               const active = location.pathname === item.path;
               return (
@@ -78,7 +83,6 @@ export function MemberLayout({ children, darkMode, onToggleDark, lang, onToggleL
                 </Link>
               );
             })}
-          </div>
         </nav>
 
         {/* Bottom */}

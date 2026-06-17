@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, Users, ShieldCheck, Wallet, TrendingUp,
   FileText, ScrollText, Settings, LogOut, Menu, X,
-  ChevronRight, Sun, Moon, Bell
+  ChevronRight, Sun, Moon, Bell, Shield
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 
@@ -44,7 +44,7 @@ const navGroups = [
     groupEn: "Analytics",
     items: [
       { icon: FileText, label: "Rapports", labelEn: "Reports", path: "/admin/reports" },
-      { icon: ScrollText, label: "Logs d'audit", labelEn: "Audit Logs", path: "/admin/audit" },
+      { icon: Shield, label: "System Audit", labelEn: "System Audit", path: "/admin/system-audit" },
     ],
   },
   {

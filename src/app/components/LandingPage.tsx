@@ -5,6 +5,7 @@ import {
   CheckCircle, Star, Sun, Moon
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
+import heroBgImage from "../../../images/background 1.jpeg";
 
 interface LandingPageProps {
   darkMode: boolean;
@@ -79,21 +80,28 @@ export default function LandingPage({ darkMode, onToggleDark, lang, onToggleLang
         </header>
 
         {/* Hero */}
-        <section className="relative overflow-hidden py-20 lg:py-32">
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #4CAF68 0%, transparent 70%)", transform: "translate(30%, -30%)" }} />
-            <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-8" style={{ background: "radial-gradient(circle, #6E3A9A 0%, transparent 70%)", transform: "translate(-30%, 30%)" }} />
+        <section className="relative overflow-hidden py-20 lg:py-32" style={{ minHeight: "80vh" }}>
+          {/* Background image */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src={heroBgImage}
+              alt=""
+              className="w-full h-full"
+              style={{ objectFit: "cover", objectPosition: "center" }}
+            />
+            {/* Dark gradient overlay for readability */}
+            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(30,37,48,0.82) 0%, rgba(30,37,48,0.65) 40%, rgba(110,58,154,0.45) 100%)" }} />
           </div>
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 relative">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8 relative z-10">
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#4CAF68]/30 bg-[#E8F5EC] text-[#1F9D55] text-xs font-medium mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#4CAF68]/50 bg-[#4CAF68]/15 text-[#8FFFB0] text-xs font-medium mb-6 backdrop-blur-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#4CAF68] animate-pulse" />
                 {fr ? "Plateforme digitale · Afrique Centrale" : "Digital Platform · Central Africa"}
               </div>
-              <h1 className="mb-6 leading-tight" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700, fontSize: "clamp(2rem, 5vw, 3.5rem)", color: "var(--foreground)" }}>
+              <h1 className="mb-6 leading-tight" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700, fontSize: "clamp(2rem, 5vw, 3.5rem)", color: "#FFFFFF" }}>
                 {fr ? "Investir aujourd'hui pour construire l'avenir" : "Invest today to build the future"}
               </h1>
-              <p className="text-lg text-muted-foreground mb-8 max-w-xl leading-relaxed">
+              <p className="text-lg mb-8 max-w-xl leading-relaxed" style={{ color: "rgba(255,255,255,0.8)" }}>
                 {fr
                   ? "PIJ digitalise l'épargne communautaire et les tontines pour les jeunes entrepreneurs d'Afrique Centrale. Transparent, sécurisé, accessible."
                   : "PIJ digitizes community savings and tontines for young entrepreneurs in Central Africa. Transparent, secure, accessible."}
@@ -103,18 +111,15 @@ export default function LandingPage({ darkMode, onToggleDark, lang, onToggleLang
                   {fr ? "Commencer gratuitement" : "Get started free"}
                   <ArrowRight size={16} />
                 </button>
-                <button onClick={() => navigate("/admin/dashboard")} className="flex items-center gap-2 px-6 py-3 rounded-xl border border-[#6E3A9A] text-[#6E3A9A] font-medium text-sm transition-all hover:bg-[#F0E8FF]">
-                  {fr ? "Portail Admin" : "Admin Portal"}
-                </button>
               </div>
-              <div className="flex flex-wrap gap-6 mt-10 text-sm text-muted-foreground">
+              <div className="flex flex-wrap gap-6 mt-10 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
                 {[
                   { n: "847+", l: fr ? "Membres actifs" : "Active members" },
                   { n: "7", l: fr ? "Tontines actives" : "Active tontines" },
                   { n: "284M+", l: "XAF " + (fr ? "en épargne" : "in savings") },
                 ].map((stat) => (
                   <div key={stat.l} className="flex items-center gap-2">
-                    <span className="font-bold text-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{stat.n}</span>
+                    <span className="font-bold text-white" style={{ fontFamily: "Geist Mono, monospace" }}>{stat.n}</span>
                     <span>{stat.l}</span>
                   </div>
                 ))}
