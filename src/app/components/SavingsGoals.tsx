@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Target, Calendar, TrendingUp } from "lucide-react";
+import { Plus, Target, Calendar, TrendingUp, Bike, House, Book, Briefcase, Shield, Plane, Car, Pill, GraduationCap, Sprout, Baby, Dumbbell } from "lucide-react";
 import { SAVINGS_GOALS, formatXAF } from "./mockData";
 
 interface SavingsGoalsProps {
@@ -102,8 +102,14 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
               <div>
                 <label className="text-sm font-medium">{fr ? "Icône" : "Icon"}</label>
                 <div className="mt-1.5 grid grid-cols-4 sm:grid-cols-6 gap-2">
-                  {["🏍️", "🏠", "📚", "💼", "🛡️", "✈️", "🚗", "💊", "🎓", "🌱", "👶", "🏋️"].map((icon) => (
-                    <button key={icon} className="text-lg sm:text-xl py-2 rounded-xl border border-border hover:border-[#4CAF68] hover:bg-[#E8F5EC] transition-all min-h-[44px]">{icon}</button>
+                  {[
+                    Bike, House, Book, Briefcase,
+                    Shield, Plane, Car, Pill,
+                    GraduationCap, Sprout, Baby, Dumbbell,
+                  ].map((Icon, i) => (
+                    <button key={i} className="flex items-center justify-center py-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-[#4CAF68] hover:bg-[#E8F5EC] transition-all min-h-[44px]">
+                      <Icon size={20} className="sm:w-6 sm:h-6" />
+                    </button>
                   ))}
                 </div>
               </div>
