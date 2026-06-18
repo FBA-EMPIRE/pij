@@ -19,13 +19,13 @@ export default function TransactionHistory({ lang = "fr" }: TransactionHistoryPr
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
         <div>
-          <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Historique des transactions" : "Transaction history"}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{filtered.length} {fr ? "transactions" : "transactions"}</p>
+          <h2 className="text-lg sm:text-xl" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Historique des transactions" : "Transaction history"}</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{filtered.length} {fr ? "transactions" : "transactions"}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <Download size={15} /> {fr ? "Exporter" : "Export"}
+        <button className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto min-h-[44px]">
+          <Download size={15} /> <span className="sm:hidden">{fr ? "Exporter" : "Export"}</span><span className="hidden sm:inline">{fr ? "Exporter" : "Export"}</span>
         </button>
       </div>
 
@@ -84,15 +84,15 @@ export default function TransactionHistory({ lang = "fr" }: TransactionHistoryPr
             {filtered.map((txn) => {
               const isCredit = txn.amount > 0;
               return (
-                <div key={txn.id} className="grid grid-cols-12 items-center px-5 py-4 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                  <div className="col-span-1">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isCredit ? "bg-[#E8F5EC]" : "bg-red-50"}`}>
-                      {isCredit ? <ArrowDownRight size={14} color="#4CAF68" /> : <ArrowUpRight size={14} color="#E5484D" />}
+                <div key={txn.id} className="grid grid-cols-12 items-center gap-1 sm:gap-0 px-3 sm:px-5 py-3 sm:py-4 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                  <div className="col-span-1 flex justify-center">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center ${isCredit ? "bg-[#E8F5EC]" : "bg-red-50"}`}>
+                      {isCredit ? <ArrowDownRight size={12} className="sm:w-[14px] sm:h-[14px]" color="#4CAF68" /> : <ArrowUpRight size={12} className="sm:w-[14px] sm:h-[14px]" color="#E5484D" />}
                     </div>
                   </div>
-                  <div className="col-span-5 min-w-0 pr-4">
-                    <p className="text-sm font-medium truncate">{txn.description}</p>
-                    <p className="text-xs text-muted-foreground sm:hidden mt-0.5">{txn.date}</p>
+                  <div className="col-span-6 sm:col-span-5 min-w-0 pr-1 sm:pr-4">
+                    <p className="text-xs sm:text-sm font-medium truncate">{txn.description}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground sm:hidden mt-0.5">{txn.date} · {txn.account}</p>
                   </div>
                   <div className="col-span-2 hidden sm:block">
                     <p className="text-sm text-muted-foreground">{txn.date}</p>
@@ -101,7 +101,7 @@ export default function TransactionHistory({ lang = "fr" }: TransactionHistoryPr
                     <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">{txn.account}</span>
                   </div>
                   <div className="col-span-4 sm:col-span-2 text-right">
-                    <span className={`text-sm font-bold ${isCredit ? "text-[#1F9D55]" : "text-[#E5484D]"}`} style={{ fontFamily: "Geist Mono, monospace" }}>
+                    <span className={`text-xs sm:text-sm font-bold ${isCredit ? "text-[#1F9D55]" : "text-[#E5484D]"}`} style={{ fontFamily: "Geist Mono, monospace" }}>
                       {isCredit ? "+" : "−"}{formatXAF(txn.amount)}
                     </span>
                   </div>

@@ -12,12 +12,12 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
-          <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Objectifs d'épargne" : "Savings goals"}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{SAVINGS_GOALS.length} {fr ? "objectifs actifs" : "active goals"}</p>
+          <h2 className="text-lg sm:text-xl" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Objectifs d'épargne" : "Savings goals"}</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{SAVINGS_GOALS.length} {fr ? "objectifs actifs" : "active goals"}</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+        <button onClick={() => setShowCreate(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all w-full sm:w-auto min-h-[44px]" style={{ background: "#4CAF68" }}>
           <Plus size={16} /> {fr ? "Nouvel objectif" : "New goal"}
         </button>
       </div>
@@ -27,7 +27,7 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
         {SAVINGS_GOALS.map((goal) => {
           const pct = Math.round((goal.current / goal.target) * 100);
           return (
-            <div key={goal.id} className="bg-card rounded-2xl border border-border p-6 hover:border-[#4CAF68]/40 transition-all cursor-pointer group">
+            <div key={goal.id} className="bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-[#4CAF68]/40 transition-all cursor-pointer group">
               <div className="flex items-center gap-3 mb-5">
                 <span className="text-3xl">{goal.icon}</span>
                 <div>
@@ -72,7 +72,7 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
         })}
 
         {/* Add goal card */}
-        <button onClick={() => setShowCreate(true)} className="bg-card rounded-2xl border-2 border-dashed border-border p-6 flex flex-col items-center justify-center gap-3 hover:border-[#4CAF68]/50 hover:bg-[#E8F5EC]/30 transition-all group min-h-[200px]">
+        <button onClick={() => setShowCreate(true)} className="bg-card rounded-2xl border-2 border-dashed border-border p-4 sm:p-6 flex flex-col items-center justify-center gap-3 hover:border-[#4CAF68]/50 hover:bg-[#E8F5EC]/30 transition-all group min-h-[160px] sm:min-h-[200px]">
           <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-[#E8F5EC] transition-colors">
             <Plus size={18} className="text-muted-foreground group-hover:text-[#4CAF68]" />
           </div>
@@ -101,9 +101,9 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
               </div>
               <div>
                 <label className="text-sm font-medium">{fr ? "Icône" : "Icon"}</label>
-                <div className="mt-1.5 grid grid-cols-6 gap-2">
+                <div className="mt-1.5 grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {["🏍️", "🏠", "📚", "💼", "🛡️", "✈️", "🚗", "💊", "🎓", "🌱", "👶", "🏋️"].map((icon) => (
-                    <button key={icon} className="text-xl py-2 rounded-xl border border-border hover:border-[#4CAF68] hover:bg-[#E8F5EC] transition-all">{icon}</button>
+                    <button key={icon} className="text-lg sm:text-xl py-2 rounded-xl border border-border hover:border-[#4CAF68] hover:bg-[#E8F5EC] transition-all min-h-[44px]">{icon}</button>
                   ))}
                 </div>
               </div>
