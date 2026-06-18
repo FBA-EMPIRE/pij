@@ -27,7 +27,7 @@ export default function MemberDashboard({ lang = "fr" }: MemberDashboardProps) {
       </div>
 
       {/* Account Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
         <div className="p-4 sm:p-6 rounded-2xl text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1E2530 0%, #2A3444 100%)" }}>
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10" style={{ background: "#4CAF68", transform: "translate(30%, -30%)" }} />
           <p className="text-white/60 text-xs uppercase tracking-wider mb-1">{fr ? "Compte Courant" : "Current Account"}</p>
@@ -45,6 +45,18 @@ export default function MemberDashboard({ lang = "fr" }: MemberDashboardProps) {
           <p className="text-white/70 text-xs uppercase tracking-wider mb-1">{fr ? "Compte Épargne" : "Savings Account"}</p>
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
             1 200 000 <span className="text-sm sm:text-lg font-normal text-white/70">XAF</span>
+          </p>
+          <p className="text-xs text-white/60">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
+          <div className="mt-4 flex items-center gap-2">
+            <StatusBadge status="Active" size="sm" />
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-6 rounded-2xl text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg, #6E3A9A 0%, #4A2570 100%)" }}>
+          <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: "#FFFFFF", transform: "translate(30%, -30%)" }} />
+          <p className="text-white/70 text-xs uppercase tracking-wider mb-1">{fr ? "Compte Investissement" : "Investment Account"}</p>
+          <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
+            205 000 <span className="text-sm sm:text-lg font-normal text-white/70">XAF</span>
           </p>
           <p className="text-xs text-white/60">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, Filter, Plus, MoreHorizontal, Eye, Edit, UserX } from "lucide-react";
 import { MEMBERS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import MemberDetailModal from "./MemberDetailModal";
 
 interface UserManagementProps {
   lang?: "fr" | "en";
@@ -12,6 +13,7 @@ export default function UserManagement({ lang = "fr" }: UserManagementProps) {
   const [search, setSearch] = useState("");
   const [kycFilter, setKycFilter] = useState("all");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
 
   const filtered = MEMBERS.filter((m) => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search) || m.phone.includes(search);
@@ -100,7 +102,7 @@ export default function UserManagement({ lang = "fr" }: UserManagementProps) {
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">
-                      <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Voir" : "View"}>
+                      <button onClick={() => setDetailMemberId(m.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Voir" : "View"}>
                         <Eye size={14} />
                       </button>
                       <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Modifier" : "Edit"}>
@@ -117,6 +119,10 @@ export default function UserManagement({ lang = "fr" }: UserManagementProps) {
           </table>
         </div>
       </div>
+
+      {detailMemberId && (
+        <MemberDetailModal memberId={detailMemberId} lang={lang} onClose={() => setDetailMemberId(null)} />
+      )}
     </div>
   );
 }

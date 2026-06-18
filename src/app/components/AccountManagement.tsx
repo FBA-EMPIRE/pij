@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, ArrowDownLeft, ArrowUpRight, Search } from "lucide-react";
-import { MEMBERS, TRANSACTIONS, formatXAF } from "./mockData";
+import { Plus, ArrowDownLeft, ArrowUpRight, Check } from "lucide-react";
+import { MEMBERS, SAVINGS_GOALS, AUDIT_LOGS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { ACCOUNT_TYPES, ACCOUNT_TYPE_MAP } from "../constants";
 
 interface AccountManagementProps {
   lang?: "fr" | "en";
@@ -10,12 +11,37 @@ interface AccountManagementProps {
 export default function AccountManagement({ lang = "fr" }: AccountManagementProps) {
   const fr = lang === "fr";
   const [tab, setTab] = useState<"accounts" | "deposit" | "withdrawal">("accounts");
+
+  // Wizard state
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedMember, setSelectedMember] = useState(MEMBERS[0].id);
+  const [accountType, setAccountType] = useState<string>("current");
+  const [goalId, setGoalId] = useState<string>("");
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [done, setDone] = useState(false);
 
-  const handleSubmit = () => setDone(true);
+  const reset = () => {
+    setStep(1);
+    setSelectedMember(MEMBERS[0].id);
+    setAccountType("current");
+    setGoalId("");
+    setAmount("");
+    setDesc("");
+    setDone(false);
+  };
+
+  const handleSubmit = () => {
+    AUDIT_LOGS.unshift({
+      id: `LOG-${String(AUDIT_LOGS.length + 1).padStart(3, "0")}`,
+      actor: "Admin Kone",
+      action: tab === "deposit" ? "Deposit Recorded" : "Withdrawal Recorded",
+      entity: `${tab === "deposit" ? "Dépôt" : "Retrait"} — ${selectedMember} — ${formatXAF(Number(amount))}`,
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
+      ip: "192.168.1.45",
+    });
+    setDone(true);
+  };
 
   return (
     <div className="p-4 lg:p-6">
@@ -23,7 +49,7 @@ export default function AccountManagement({ lang = "fr" }: AccountManagementProp
         <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des comptes" : "Account management"}</h2>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         {[
           { key: "accounts", label: fr ? "Tous les comptes" : "All accounts" },
           { key: "deposit", label: fr ? "Enregistrer un dépôt" : "Record deposit" },
@@ -31,7 +57,7 @@ export default function AccountManagement({ lang = "fr" }: AccountManagementProp
         ].map((t) => (
           <button
             key={t.key}
-            onClick={() => { setTab(t.key as any); setDone(false); }}
+            onClick={() => { setTab(t.key as any); reset(); }}
             className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}
           >
             {t.label}
@@ -46,8 +72,9 @@ export default function AccountManagement({ lang = "fr" }: AccountManagementProp
               <thead>
                 <tr className="text-xs text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/20">
                   <th className="px-5 py-3 text-left">{fr ? "Membre" : "Member"}</th>
-                  <th className="px-5 py-3 text-right">{fr ? "Solde courant" : "Current balance"}</th>
-                  <th className="px-5 py-3 text-right">{fr ? "Solde épargne" : "Savings balance"}</th>
+                  <th className="px-5 py-3 text-right">{fr ? "Solde courant" : "Current"}</th>
+                  <th className="px-5 py-3 text-right">{fr ? "Épargne" : "Savings"}</th>
+                  <th className="px-5 py-3 text-right">{fr ? "Investissement" : "Investment"}</th>
                   <th className="px-5 py-3 text-left">KYC</th>
                 </tr>
               </thead>
@@ -67,6 +94,7 @@ export default function AccountManagement({ lang = "fr" }: AccountManagementProp
                     </td>
                     <td className="px-5 py-4 text-right text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.balance_current)}</td>
                     <td className="px-5 py-4 text-right text-sm font-bold text-[#1F9D55]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.balance_savings)}</td>
+                    <td className="px-5 py-4 text-right text-sm font-bold text-[#6E3A9A]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.balance_investment)}</td>
                     <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
                   </tr>
                 ))}
@@ -87,48 +115,143 @@ export default function AccountManagement({ lang = "fr" }: AccountManagementProp
                 {tab === "deposit" ? (fr ? "Dépôt enregistré" : "Deposit recorded") : (fr ? "Retrait enregistré" : "Withdrawal recorded")}
               </h3>
               <p className="text-sm text-muted-foreground mb-5">{fr ? "La transaction a été enregistrée avec succès." : "The transaction has been recorded successfully."}</p>
-              <button onClick={() => { setDone(false); setAmount(""); setDesc(""); }} className="px-5 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>
+              <button onClick={reset} className="px-5 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>
                 {fr ? "Enregistrer une autre" : "Record another"}
               </button>
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 mb-2">
+                {[1, 2, 3].map((s) => (
+                  <div key={s} className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      step === s ? "bg-[#4CAF68] text-white" : step > s ? "bg-[#4CAF68]/20 text-[#4CAF68]" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {step > s ? <Check size={14} /> : s}
+                    </div>
+                    {s < 3 && <div className={`w-8 h-0.5 ${step > s ? "bg-[#4CAF68]" : "bg-muted"}`} />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Header */}
               <div className="flex items-center gap-3 p-4 rounded-xl border border-border mb-2" style={{ background: tab === "deposit" ? "#E8F5EC" : "#FEE2E2" }}>
                 {tab === "deposit" ? <ArrowDownLeft size={18} color="#4CAF68" /> : <ArrowUpRight size={18} color="#E5484D" />}
                 <span className="text-sm font-medium" style={{ color: tab === "deposit" ? "#1F9D55" : "#E5484D" }}>
-                  {tab === "deposit" ? (fr ? "Enregistrer un dépôt" : "Record a deposit") : (fr ? "Enregistrer un retrait" : "Record a withdrawal")}
+                  {tab === "deposit" ? (fr ? "Nouveau dépôt" : "New deposit") : (fr ? "Nouveau retrait" : "New withdrawal")}
                 </span>
               </div>
-              <div>
-                <label className="text-sm font-medium">{fr ? "Membre" : "Member"}</label>
-                <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                  {MEMBERS.filter((m) => m.status === "Active").map((m) => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">{fr ? "Type de compte" : "Account type"}</label>
-                <select className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                  <option>{fr ? "Compte courant" : "Current account"}</option>
-                  <option>{fr ? "Compte épargne" : "Savings account"}</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">{fr ? "Montant (XAF)" : "Amount (XAF)"}</label>
-                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="100 000" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{fr ? "Description" : "Description"}</label>
-                <input value={desc} onChange={(e) => setDesc(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={tab === "deposit" ? (fr ? "Dépôt mensuel..." : "Monthly deposit...") : (fr ? "Retrait courant..." : "Regular withdrawal...")} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{fr ? "Référence (optionnel)" : "Reference (optional)"}</label>
-                <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="REF-XXXX" />
-              </div>
-              <button onClick={handleSubmit} disabled={!amount} className="w-full py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all" style={{ background: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>
-                {tab === "deposit" ? (fr ? "Enregistrer le dépôt" : "Record deposit") : (fr ? "Enregistrer le retrait" : "Record withdrawal")}
-              </button>
+
+              {/* Step 1: Member + Account Type */}
+              {step === 1 && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium">{fr ? "Membre" : "Member"}</label>
+                    <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                      {MEMBERS.filter((m) => m.status === "Active").map((m) => (
+                        <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">{fr ? "Type de compte" : "Account type"}</label>
+                    <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                      {ACCOUNT_TYPES.map((a) => (
+                        <option key={a.value} value={a.value}>{fr ? a.label : a.labelEn}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {tab === "deposit" && accountType === "savings" && (
+                    <div>
+                      <label className="text-sm font-medium">{fr ? "Objectif d'épargne (optionnel)" : "Savings goal (optional)"}</label>
+                      <select value={goalId} onChange={(e) => setGoalId(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                        <option value="">{fr ? "Aucun objectif" : "No goal"}</option>
+                        {SAVINGS_GOALS.filter((g) => g.memberId === selectedMember).map((g) => (
+                          <option key={g.id} value={g.id}>{g.name} — {formatXAF(g.target - g.current)} {fr ? "restant" : "remaining"}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <button onClick={() => setStep(2)} className="w-full py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+                    {fr ? "Continuer" : "Continue"}
+                  </button>
+                </>
+              )}
+
+              {/* Step 2: Amount + Description */}
+              {step === 2 && (
+                <>
+                  <div className="text-sm text-muted-foreground p-3 rounded-xl bg-muted">
+                    <span className="font-medium text-foreground">{fr ? "Compte" : "Account"}: </span>
+                    {fr ? ACCOUNT_TYPE_MAP[accountType] || "Courant" : accountType}
+                    {goalId && (
+                      <span className="ml-3">
+                        <span className="font-medium text-foreground">{fr ? "Objectif" : "Goal"}: </span>
+                        {SAVINGS_GOALS.find((g) => g.id === goalId)?.name}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">{fr ? "Montant (XAF)" : "Amount (XAF)"}</label>
+                    <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="100 000" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">{fr ? "Description" : "Description"}</label>
+                    <input value={desc} onChange={(e) => setDesc(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={tab === "deposit" ? (fr ? "Dépôt mensuel..." : "Monthly deposit...") : (fr ? "Retrait courant..." : "Regular withdrawal...")} />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl text-sm font-medium border border-border hover:bg-muted transition-all">
+                      {fr ? "Retour" : "Back"}
+                    </button>
+                    <button onClick={() => setStep(3)} disabled={!amount} className="flex-1 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all" style={{ background: "#4CAF68" }}>
+                      {fr ? "Vérifier" : "Review"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3: Confirmation */}
+              {step === 3 && (
+                <>
+                  <div className="rounded-xl border border-border p-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{fr ? "Membre" : "Member"}</span>
+                      <span className="font-medium">{MEMBERS.find((m) => m.id === selectedMember)?.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{fr ? "Compte" : "Account"}</span>
+                      <span className="font-medium">{fr ? ACCOUNT_TYPE_MAP[accountType] || "Courant" : accountType}</span>
+                    </div>
+                    {goalId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{fr ? "Objectif" : "Goal"}</span>
+                        <span className="font-medium">{SAVINGS_GOALS.find((g) => g.id === goalId)?.name}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{fr ? "Montant" : "Amount"}</span>
+                      <span className="font-bold text-lg" style={{ fontFamily: "Geist Mono, monospace", color: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>
+                        {tab === "deposit" ? "+" : "−"}{formatXAF(Number(amount))}
+                      </span>
+                    </div>
+                    {desc && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{fr ? "Description" : "Description"}</span>
+                        <span className="font-medium text-right max-w-[200px] truncate">{desc}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl text-sm font-medium border border-border hover:bg-muted transition-all">
+                      {fr ? "Retour" : "Back"}
+                    </button>
+                    <button onClick={handleSubmit} className="flex-1 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all" style={{ background: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>
+                      {fr ? "Confirmer" : "Confirm"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

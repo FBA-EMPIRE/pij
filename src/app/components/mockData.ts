@@ -1,33 +1,33 @@
 // PIJ Platform — Mock Data
 
 export const MEMBERS = [
-  { id: "PIJ-2024-001", name: "Amara Diallo", email: "amara.diallo@email.com", phone: "+237 6 70 12 34 56", kyc: "Approved", status: "Active", balance_current: 450000, balance_savings: 1200000, joined: "2024-01-15" },
-  { id: "PIJ-2024-002", name: "Fatoumata Koné", email: "fatoumata.kone@email.com", phone: "+237 6 82 23 45 67", kyc: "Approved", status: "Active", balance_current: 125000, balance_savings: 340000, joined: "2024-02-03" },
-  { id: "PIJ-2024-003", name: "Moussa Traoré", email: "moussa.traore@email.com", phone: "+237 6 91 34 56 78", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, joined: "2024-06-10" },
-  { id: "PIJ-2024-004", name: "Aïssatou Bah", email: "aissatou.bah@email.com", phone: "+237 6 55 45 67 89", kyc: "Approved", status: "Active", balance_current: 890000, balance_savings: 2100000, joined: "2024-01-28" },
-  { id: "PIJ-2024-005", name: "Ibrahim Coulibaly", email: "ibrahim.coulibaly@email.com", phone: "+237 6 44 56 78 90", kyc: "Rejected", status: "Suspended", balance_current: 0, balance_savings: 0, joined: "2024-03-12" },
-  { id: "PIJ-2024-006", name: "Mariama Sow", email: "mariama.sow@email.com", phone: "+237 6 33 67 89 01", kyc: "Approved", status: "Active", balance_current: 220000, balance_savings: 780000, joined: "2024-04-05" },
-  { id: "PIJ-2024-007", name: "Ousmane Dembélé", email: "ousmane.dembele@email.com", phone: "+237 6 22 78 90 12", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, joined: "2024-06-08" },
-  { id: "PIJ-2024-008", name: "Kadiatou Baldé", email: "kadiatou.balde@email.com", phone: "+237 6 11 89 01 23", kyc: "Approved", status: "Active", balance_current: 560000, balance_savings: 1500000, joined: "2024-02-19" },
+  { id: "PIJ-2024-001", name: "Amara Diallo", email: "amara.diallo@email.com", phone: "+237 6 70 12 34 56", kyc: "Approved", status: "Active", balance_current: 450000, balance_savings: 1200000, balance_investment: 205000, joined: "2024-01-15" },
+  { id: "PIJ-2024-002", name: "Fatoumata Koné", email: "fatoumata.kone@email.com", phone: "+237 6 82 23 45 67", kyc: "Approved", status: "Active", balance_current: 125000, balance_savings: 340000, balance_investment: 0, joined: "2024-02-03" },
+  { id: "PIJ-2024-003", name: "Moussa Traoré", email: "moussa.traore@email.com", phone: "+237 6 91 34 56 78", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-06-10" },
+  { id: "PIJ-2024-004", name: "Aïssatou Bah", email: "aissatou.bah@email.com", phone: "+237 6 55 45 67 89", kyc: "Approved", status: "Active", balance_current: 890000, balance_savings: 2100000, balance_investment: 0, joined: "2024-01-28" },
+  { id: "PIJ-2024-005", name: "Ibrahim Coulibaly", email: "ibrahim.coulibaly@email.com", phone: "+237 6 44 56 78 90", kyc: "Rejected", status: "Suspended", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-03-12" },
+  { id: "PIJ-2024-006", name: "Mariama Sow", email: "mariama.sow@email.com", phone: "+237 6 33 67 89 01", kyc: "Approved", status: "Active", balance_current: 220000, balance_savings: 780000, balance_investment: 0, joined: "2024-04-05" },
+  { id: "PIJ-2024-007", name: "Ousmane Dembélé", email: "ousmane.dembele@email.com", phone: "+237 6 22 78 90 12", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-06-08" },
+  { id: "PIJ-2024-008", name: "Kadiatou Baldé", email: "kadiatou.balde@email.com", phone: "+237 6 11 89 01 23", kyc: "Approved", status: "Active", balance_current: 560000, balance_savings: 1500000, balance_investment: 0, joined: "2024-02-19" },
 ];
 
 export const TRANSACTIONS = [
-  { id: "TXN-001", date: "2024-06-10", type: "Deposit", amount: 150000, description: "Dépôt mensuel", account: "Épargne", status: "Completed" },
+  { id: "TXN-001", date: "2024-06-10", type: "Deposit", amount: 150000, description: "Dépôt mensuel", account: "Épargne", status: "Completed", goalId: "SG-002" },
   { id: "TXN-002", date: "2024-06-08", type: "Withdrawal", amount: -50000, description: "Retrait courant", account: "Courant", status: "Completed" },
   { id: "TXN-003", date: "2024-06-05", type: "Tontine", amount: -75000, description: "Contribution Tontine Alpha - Semaine 8", account: "Courant", status: "Completed" },
-  { id: "TXN-004", date: "2024-05-28", type: "Deposit", amount: 200000, description: "Dépôt épargne objectif moto", account: "Épargne", status: "Completed" },
+  { id: "TXN-004", date: "2024-05-28", type: "Deposit", amount: 200000, description: "Dépôt épargne objectif moto", account: "Épargne", status: "Completed", goalId: "SG-001" },
   { id: "TXN-005", date: "2024-05-20", type: "Tontine", amount: 900000, description: "Paiement tontine reçu - Tour #3", account: "Courant", status: "Completed" },
   { id: "TXN-006", date: "2024-05-15", type: "Withdrawal", amount: -100000, description: "Retrait courant", account: "Courant", status: "Completed" },
-  { id: "TXN-007", date: "2024-05-10", type: "Deposit", amount: 150000, description: "Dépôt mensuel", account: "Épargne", status: "Completed" },
+  { id: "TXN-007", date: "2024-05-10", type: "Deposit", amount: 150000, description: "Dépôt mensuel", account: "Épargne", status: "Completed", goalId: "SG-002" },
   { id: "TXN-008", date: "2024-04-30", type: "Tontine", amount: -75000, description: "Contribution Tontine Alpha - Semaine 4", account: "Courant", status: "Completed" },
   { id: "TXN-009", date: "2024-04-22", type: "Deposit", amount: 75000, description: "Dépôt courant", account: "Courant", status: "Completed" },
-  { id: "TXN-010", date: "2024-04-10", type: "Deposit", amount: 150000, description: "Dépôt mensuel", account: "Épargne", status: "Completed" },
+  { id: "TXN-010", date: "2024-04-10", type: "Deposit", amount: 150000, description: "Dépôt mensuel", account: "Épargne", status: "Completed", goalId: "SG-001" },
 ];
 
 export const SAVINGS_GOALS = [
-  { id: "SG-001", name: "Acheter une moto", target: 1000000, current: 700000, deadline: "2024-09-30", icon: "🏍️", color: "#4CAF68" },
-  { id: "SG-002", name: "Fonds d'urgence", target: 500000, current: 320000, deadline: "2024-12-31", icon: "🛡️", color: "#6E3A9A" },
-  { id: "SG-003", name: "Formation professionnelle", target: 750000, current: 180000, deadline: "2025-03-15", icon: "📚", color: "#F2994A" },
+  { id: "SG-001", memberId: "PIJ-2024-001", name: "Acheter une moto", target: 1000000, current: 700000, deadline: "2024-09-30", icon: "🏍️", color: "#4CAF68" },
+  { id: "SG-002", memberId: "PIJ-2024-001", name: "Fonds d'urgence", target: 500000, current: 320000, deadline: "2024-12-31", icon: "🛡️", color: "#6E3A9A" },
+  { id: "SG-003", memberId: "PIJ-2024-002", name: "Formation professionnelle", target: 750000, current: 180000, deadline: "2025-03-15", icon: "📚", color: "#F2994A" },
 ];
 
 export const TONTINES = [
@@ -235,4 +235,16 @@ export const INVESTMENT_WALLET = {
 export const INVESTMENT_REQUESTS = [
   { id: "IREQ-001", member: "Amara Diallo", opportunity: "FinTech Jeune Yaoundé", amount: 150000, status: "Pending", submitted: "2024-06-12" },
   { id: "IREQ-002", member: "Aïssatou Bah", opportunity: "Coopérative Cacao Douala", amount: 300000, status: "Approved", submitted: "2024-06-08" },
+];
+
+export const INVESTMENT_ACCOUNTS = [
+  { id: "IA-001", memberId: "PIJ-2024-001", productId: "INV-001", amount: 125000, currentValue: 134500, returns: 9500, status: "Active", startedAt: "2024-04-15" },
+  { id: "IA-002", memberId: "PIJ-2024-001", productId: "INV-003", amount: 80000, currentValue: 88000, returns: 8000, status: "Completed", startedAt: "2023-11-02" },
+];
+
+export const INVESTMENT_TRANSACTIONS = [
+  { id: "ITXN-001", accountId: "IA-001", type: "Deposit", amount: 125000, description: "Investissement Coopérative Cacao Douala", createdAt: "2024-04-15" },
+  { id: "ITXN-002", accountId: "IA-001", type: "Return", amount: 9500, description: "Retour sur investissement (trimestre 1)", createdAt: "2024-07-15" },
+  { id: "ITXN-003", accountId: "IA-002", type: "Deposit", amount: 80000, description: "Investissement Solaire pour le Nord", createdAt: "2023-11-02" },
+  { id: "ITXN-004", accountId: "IA-002", type: "Return", amount: 8000, description: "Retour sur investissement (final)", createdAt: "2024-09-02" },
 ];
