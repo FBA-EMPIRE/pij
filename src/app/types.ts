@@ -1,10 +1,51 @@
 export type AccountType = "current" | "savings" | "investment";
 
+export type AdminRole = "super_admin" | "admin";
+
+export interface Admin {
+  id: string;
+  initials: string;
+  initialsColor: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: AdminRole;
+  lastLogin: string;
+  lastLoginFr: string;
+  status: "Active" | "Suspended";
+  created: string;
+}
+
+export interface AdminInvitation {
+  id: string;
+  email: string;
+  role: AdminRole;
+  token: string;
+  status: "Pending" | "Accepted" | "Expired" | "Revoked";
+  sentAt: string;
+  expiresAt: string;
+  createdBy: string;
+}
+
+export interface TontineType {
+  id: string;
+  name: string;
+  nameEn: string;
+  frequency: Frequency;
+  description: string;
+  descriptionEn: string;
+  defaultContribution: number;
+  defaultCapacity: number;
+  status: "Active" | "Inactive";
+}
+
 export interface Member {
   id: string;
   name: string;
   email: string;
   phone: string;
+  emailVerified: boolean;
+  verificationCode?: string;
   kyc: "Approved" | "Pending" | "Rejected";
   status: "Active" | "Pending" | "Suspended";
   balance_current: number;
@@ -83,7 +124,7 @@ export interface InvestmentTransaction {
 export type TontineStatus = "Draft" | "Open" | "In Progress" | "Completed" | "Archived";
 export type JoinRequestStatus = "Pending" | "Pending Entry Fee" | "Approved" | "Rejected";
 export type Frequency = "weekly" | "biweekly" | "monthly";
-export type NotificationType = "join_request" | "entry_fee" | "contribution" | "payout" | "completion" | "general";
+export type NotificationType = "join_request" | "entry_fee" | "contribution" | "payout" | "completion" | "general" | "info" | "warning" | "success";
 
 export interface TontineMember {
   id: number;

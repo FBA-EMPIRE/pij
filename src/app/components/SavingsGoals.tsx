@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Plus, Target, Calendar, TrendingUp, Bike, House, Book, Briefcase, Shield, Plane, Car, Pill, GraduationCap, Sprout, Baby, Dumbbell } from "lucide-react";
+import { Plus, Calendar, Bike, House, Book, Briefcase, Shield, Plane, Car, Pill, GraduationCap, Sprout, Baby, Dumbbell } from "lucide-react";
 import { SAVINGS_GOALS, formatXAF } from "./mockData";
+import GoalDetailModal from "./GoalDetailModal";
+import type { SavingsGoal } from "../types";
 
 interface SavingsGoalsProps {
   lang?: "fr" | "en";
@@ -9,6 +11,7 @@ interface SavingsGoalsProps {
 export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
   const fr = lang === "fr";
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -27,7 +30,7 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
         {SAVINGS_GOALS.map((goal) => {
           const pct = Math.round((goal.current / goal.target) * 100);
           return (
-            <div key={goal.id} className="bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-[#4CAF68]/40 transition-all cursor-pointer group">
+            <button key={goal.id} onClick={() => setSelectedGoal(goal)} className="bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-[#4CAF68]/40 transition-all cursor-pointer group text-left w-full">
               <div className="flex items-center gap-3 mb-5">
                 <span className="text-3xl">{goal.icon}</span>
                 <div>
@@ -67,7 +70,7 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
                   <span className="font-medium text-[#E5484D]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goal.target - goal.current)}</span>
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
 
@@ -124,6 +127,10 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedGoal && (
+        <GoalDetailModal goal={selectedGoal} lang={lang} onClose={() => setSelectedGoal(null)} />
       )}
     </div>
   );

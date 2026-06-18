@@ -143,7 +143,7 @@ export function RegisterPage({ darkMode, lang = "fr" }: AuthPageProps) {
             <input type="checkbox" className="mt-0.5 rounded border-border accent-[#4CAF68]" />
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
-          <button onClick={() => navigate("/kyc")} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+          <button onClick={() => navigate("/verify-email")} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
             {fr ? "Créer mon compte" : "Create my account"}
           </button>
         </div>

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import LandingPage from "./components/LandingPage";
 import { LoginPage, RegisterPage, ForgotPasswordPage } from "./components/AuthPages";
 import KYCOnboarding from "./components/KYCOnboarding";
+import VerifyEmail from "./components/VerifyEmail";
 import { MemberLayout } from "./components/MemberLayout";
 import MemberDashboard from "./components/MemberDashboard";
 import TransactionHistory from "./components/TransactionHistory";
@@ -19,9 +20,15 @@ import AdminTontines from "./components/AdminTontines";
 import AdminTontineDetail from "./components/AdminTontineDetail";
 import AdminTontineParticipants from "./components/AdminTontineParticipants";
 import AdminTontineArchives from "./components/AdminTontineArchives";
+import AdminTontineTypes from "./components/AdminTontineTypes";
 import TontineArchiveDetail from "./components/TontineArchiveDetail";
 import NotificationsPage from "./components/NotificationsPage";
 import AdminReports from "./components/AdminReports";
+import AdminProfile from "./components/AdminProfile";
+import AdminNotifications from "./components/AdminNotifications";
+import AdminAdministrators from "./components/AdminAdministrators";
+import AdminInviteAccept from "./components/AdminInviteAccept";
+import SuperAdminRoute from "./components/SuperAdminRoute";
 import Formations from "./components/Formations";
 import Investments from "./components/Investments";
 import AdminFormations from "./components/AdminFormations";
@@ -45,6 +52,8 @@ export default function App() {
         <Route path="/login" element={<LoginPage darkMode={darkMode} lang={lang} />} />
         <Route path="/register" element={<RegisterPage darkMode={darkMode} lang={lang} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage darkMode={darkMode} lang={lang} />} />
+        <Route path="/verify-email" element={<VerifyEmail darkMode={darkMode} lang={lang} />} />
+        <Route path="/admin/invite/:token" element={<AdminInviteAccept darkMode={darkMode} lang={lang} />} />
         <Route path="/kyc" element={<KYCOnboarding darkMode={darkMode} lang={lang} />} />
 
         {/* Member portal */}
@@ -251,6 +260,14 @@ export default function App() {
           }
         />
         <Route
+          path="/admin/tontine-types"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminTontineTypes lang={lang} />
+            </AdminLayout>
+          }
+        />
+        <Route
           path="/admin/tontines/archives"
           element={
             <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
@@ -283,10 +300,38 @@ export default function App() {
           }
         />
         <Route
+          path="/admin/admins"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <SuperAdminRoute lang={lang}>
+                <AdminAdministrators lang={lang} />
+              </SuperAdminRoute>
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/notifications"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminNotifications lang={lang} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/profile"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminProfile lang={lang} darkMode={darkMode} onToggleDark={toggleDark} onToggleLang={toggleLang} />
+            </AdminLayout>
+          }
+        />
+        <Route
           path="/admin/system-audit"
           element={
             <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <SystemMonitoring lang={lang} />
+              <SuperAdminRoute lang={lang}>
+                <SystemMonitoring lang={lang} />
+              </SuperAdminRoute>
             </AdminLayout>
           }
         />
@@ -294,7 +339,9 @@ export default function App() {
           path="/admin/settings"
           element={
             <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminSettingsPlaceholder lang={lang} darkMode={darkMode} onToggleDark={toggleDark} onToggleLang={toggleLang} lang2={lang} />
+              <SuperAdminRoute lang={lang}>
+                <AdminSettingsPlaceholder lang={lang} darkMode={darkMode} onToggleDark={toggleDark} onToggleLang={toggleLang} lang2={lang} />
+              </SuperAdminRoute>
             </AdminLayout>
           }
         />

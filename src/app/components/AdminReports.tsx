@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Download, FileText, TrendingUp, Users, Layers } from "lucide-react";
 import {
-  LineChart, Line, BarChart, Bar, AreaChart, Area,
+  BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 import { MEMBER_GROWTH_DATA, CONTRIBUTION_DATA, KYC_TREND_DATA, ADMIN_KPI, formatXAF } from "./mockData";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
 
 interface AdminReportsProps {
   lang?: "fr" | "en";
@@ -20,6 +22,72 @@ export default function AdminReports({ lang = "fr" }: AdminReportsProps) {
     { key: "tontines", label: fr ? "Rapport Tontines" : "Tontine Report", icon: Layers },
   ];
 
+  const exportPDF = useCallback(() => {
+    const doc = new jsPDF();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const reportName = reportTypes.find((r) => r.key === activeReport)?.label || "Report";
+    doc.setFontSize(16);
+    doc.text(`PIJ - ${reportName}`, 14, 20);
+    doc.setFontSize(10);
+    doc.text(`${fr ? "Généré le" : "Generated on"}: ${dateStr}`, 14, 28);
+
+    if (activeReport === "financial") {
+      doc.setFontSize(12);
+      doc.text(`${fr ? "Épargne totale" : "Total savings"}: ${ADMIN_KPI.total_savings.toLocaleString()} XAF`, 14, 40);
+      doc.text(`${fr ? "Comptes courants" : "Current accounts"}: ${ADMIN_KPI.total_current.toLocaleString()} XAF`, 14, 48);
+      doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${ADMIN_KPI.monthly_growth}%`, 14, 56);
+      CONTRIBUTION_DATA.forEach((d, i) => {
+        doc.text(`${d.month}: ${(d.amount / 1000000).toFixed(1)}M XAF`, 14, 68 + i * 7);
+      });
+    } else if (activeReport === "members") {
+      doc.setFontSize(12);
+      doc.text(`${fr ? "Total membres" : "Total members"}: ${ADMIN_KPI.total_members}`, 14, 40);
+      doc.text(`${fr ? "Membres actifs" : "Active members"}: ${ADMIN_KPI.active_members}`, 14, 48);
+      doc.text(`${fr ? "Taux KYC" : "KYC rate"}: ${ADMIN_KPI.kyc_approval_rate}%`, 14, 56);
+      MEMBER_GROWTH_DATA.forEach((d, i) => {
+        doc.text(`${d.month}: ${d.members}`, 14, 68 + i * 7);
+      });
+    } else {
+      doc.setFontSize(12);
+      doc.text(`${fr ? "Tontines actives" : "Active tontines"}: ${ADMIN_KPI.active_tontines}`, 14, 40);
+      doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${ADMIN_KPI.monthly_growth}%`, 14, 48);
+    }
+    doc.save(`PIJ_${reportName.replace(/\s+/g, "_")}_${dateStr}.pdf`);
+  }, [activeReport, fr]);
+
+  const exportExcel = useCallback(() => {
+    const wb = XLSX.utils.book_new();
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    if (activeReport === "financial") {
+      const data = [
+        { [fr ? "Métrique" : "Metric"]: fr ? "Épargne totale" : "Total savings", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.total_savings.toLocaleString()} XAF` },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Comptes courants" : "Current accounts", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.total_current.toLocaleString()} XAF` },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Croissance mensuelle" : "Monthly growth", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.monthly_growth}%` },
+        ...CONTRIBUTION_DATA.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, [fr ? "Montant" : "Amount"]: d.amount })),
+      ];
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, fr ? "Financier" : "Financial");
+    } else if (activeReport === "members") {
+      const data = [
+        { [fr ? "Métrique" : "Metric"]: fr ? "Total membres" : "Total members", [fr ? "Valeur" : "Value"]: ADMIN_KPI.total_members },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Membres actifs" : "Active members", [fr ? "Valeur" : "Value"]: ADMIN_KPI.active_members },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Taux KYC" : "KYC rate", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.kyc_approval_rate}%` },
+        ...MEMBER_GROWTH_DATA.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, Membres: d.members })),
+      ];
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, fr ? "Membres" : "Members");
+    } else {
+      const data = [
+        { [fr ? "Métrique" : "Metric"]: fr ? "Tontines actives" : "Active tontines", [fr ? "Valeur" : "Value"]: ADMIN_KPI.active_tontines },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Taux de croissance" : "Growth rate", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.monthly_growth}%` },
+      ];
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, fr ? "Tontines" : "Tontines");
+    }
+    XLSX.writeFile(wb, `PIJ_${activeReport}_${dateStr}.xlsx`);
+  }, [activeReport, fr]);
+
   return (
     <div className="p-4 lg:p-6">
       <div className="flex items-center justify-between mb-6">
@@ -28,10 +96,10 @@ export default function AdminReports({ lang = "fr" }: AdminReportsProps) {
           <p className="text-sm text-muted-foreground mt-1">{fr ? "Centre de rapports PIJ" : "PIJ reporting center"}</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={exportPDF} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
             <Download size={15} /> PDF
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={exportExcel} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
             <Download size={15} /> Excel
           </button>
         </div>

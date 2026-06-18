@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { ArrowUpRight, ArrowDownRight, Search, Filter, Download } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Search, Download } from "lucide-react";
 import { TRANSACTIONS, formatXAF } from "./mockData";
+import TransactionDetailModal from "./TransactionDetailModal";
+import type { Transaction } from "../types";
 
 interface TransactionHistoryProps {
   lang?: "fr" | "en";
@@ -10,6 +12,7 @@ export default function TransactionHistory({ lang = "fr" }: TransactionHistoryPr
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
 
   const filtered = TRANSACTIONS.filter((t) => {
     const matchSearch = t.description.toLowerCase().includes(search.toLowerCase());
@@ -84,7 +87,7 @@ export default function TransactionHistory({ lang = "fr" }: TransactionHistoryPr
             {filtered.map((txn) => {
               const isCredit = txn.amount > 0;
               return (
-                <div key={txn.id} className="grid grid-cols-12 items-center gap-1 sm:gap-0 px-3 sm:px-5 py-3 sm:py-4 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                <button key={txn.id} onClick={() => setSelectedTxn(txn)} className="w-full text-left grid grid-cols-12 items-center gap-1 sm:gap-0 px-3 sm:px-5 py-3 sm:py-4 border-b border-border last:border-0 hover:bg-muted/20 transition-colors min-h-[44px]">
                   <div className="col-span-1 flex justify-center">
                     <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center ${isCredit ? "bg-[#E8F5EC]" : "bg-red-50"}`}>
                       {isCredit ? <ArrowDownRight size={12} className="sm:w-[14px] sm:h-[14px]" color="#4CAF68" /> : <ArrowUpRight size={12} className="sm:w-[14px] sm:h-[14px]" color="#E5484D" />}
@@ -105,12 +108,16 @@ export default function TransactionHistory({ lang = "fr" }: TransactionHistoryPr
                       {isCredit ? "+" : "−"}{formatXAF(txn.amount)}
                     </span>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         )}
       </div>
+
+      {selectedTxn && (
+        <TransactionDetailModal transaction={selectedTxn} lang={lang} onClose={() => setSelectedTxn(null)} />
+      )}
     </div>
   );
 }

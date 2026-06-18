@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, Users, ShieldCheck, Wallet, TrendingUp,
   FileText, ScrollText, Settings, LogOut, Menu, X,
-  ChevronRight, Sun, Moon, Bell, Shield, BookOpen
+  ChevronRight, Sun, Moon, Bell, Shield, BookOpen, UserCog
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 
@@ -53,6 +53,7 @@ const navGroups = [
     group: "Système",
     groupEn: "System",
     items: [
+      { icon: UserCog, label: "Administrateurs", labelEn: "Admins", path: "/admin/admins" },
       { icon: Settings, label: "Paramètres", labelEn: "Settings", path: "/admin/settings" },
     ],
   },
@@ -114,13 +115,13 @@ export function AdminLayout({ children, darkMode, onToggleDark, lang, onToggleLa
 
         {/* Admin profile */}
         <div className="p-3 border-t" style={{ borderColor: "var(--sidebar-border)" }}>
-          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1" style={{ background: "var(--sidebar-accent)" }}>
+          <button onClick={() => navigate("/admin/profile")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 hover:opacity-80 transition-opacity" style={{ background: "var(--sidebar-accent)" }}>
             <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">KA</div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <p className="text-xs font-medium text-white truncate">Koné Aminata</p>
               <p className="text-xs" style={{ color: "rgba(244,245,247,0.5)" }}>Super Admin</p>
             </div>
-          </div>
+          </button>
           <button
             onClick={() => navigate("/")}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-950/30 w-full transition-all"
@@ -155,7 +156,7 @@ export function AdminLayout({ children, darkMode, onToggleDark, lang, onToggleLa
             >
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground relative">
+            <button onClick={() => navigate("/admin/notifications")} className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground relative">
               <Bell size={16} />
               <span className="absolute top-1 right-1 w-2 h-2 bg-[#4CAF68] rounded-full"></span>
             </button>

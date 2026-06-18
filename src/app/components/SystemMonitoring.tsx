@@ -4,49 +4,16 @@ import {
   Clock, Edit, XCircle, RefreshCw, Landmark, UserMinus,
   ChevronRight
 } from "lucide-react";
+import { ADMINS } from "./mockData";
 
 interface SystemMonitoringProps {
   lang?: "fr" | "en";
 }
 
-const ADMINS = [
-  {
-    initials: "JD",
-    initialsColor: "#6E3A9A",
-    name: "Jean-Paul Diallo",
-    email: "jp.diallo@pij-platform.cm",
-    role: "Compliance Officer",
-    roleColor: "#E8F5EC",
-    roleTextColor: "#1F9D55",
-    lastActivity: "2 mins ago",
-    lastActivityFr: "Il y a 2 min",
-    status: "Active",
-  },
-  {
-    initials: "MK",
-    initialsColor: "#4CAF68",
-    name: "Marie Kamga",
-    email: "m.kamga@pij-platform.cm",
-    role: "Finance Admin",
-    roleColor: "#E8F5EC",
-    roleTextColor: "#1F9D55",
-    lastActivity: "4 hours ago",
-    lastActivityFr: "Il y a 4h",
-    status: "Active",
-  },
-  {
-    initials: "AS",
-    initialsColor: "#E8A317",
-    name: "Alain Sissoko",
-    email: "a.sissoko@pij-platform.cm",
-    role: "Support Tier 2",
-    roleColor: "#F0E8FF",
-    roleTextColor: "#6E3A9A",
-    lastActivity: "2 days ago",
-    lastActivityFr: "Il y a 2 jours",
-    status: "Suspended",
-  },
-];
+const roleDisplay = (role: string, fr: boolean) => {
+  if (role === "super_admin") return fr ? "Super Admin" : "Super Admin";
+  return fr ? "Administrateur" : "Admin";
+};
 
 const AUDIT_LOGS = [
   {
@@ -205,16 +172,15 @@ export default function SystemMonitoring({ lang = "fr" }: SystemMonitoringProps)
               {/* Role */}
               <div>
                 <span
-                  className="px-2.5 py-1 rounded-md text-xs font-medium"
-                  style={{ background: admin.roleColor, color: admin.roleTextColor }}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium ${admin.role === "super_admin" ? "bg-[#F0E8FF] text-[#6E3A9A]" : "bg-[#E8F5EC] text-[#1F9D55]"}`}
                 >
-                  {admin.role}
+                  {roleDisplay(admin.role, fr)}
                 </span>
               </div>
 
               {/* Last Activity */}
               <div className="text-sm text-muted-foreground">
-                {fr ? admin.lastActivityFr : admin.lastActivity}
+                {fr ? admin.lastLoginFr : admin.lastLogin}
               </div>
 
               {/* Status */}

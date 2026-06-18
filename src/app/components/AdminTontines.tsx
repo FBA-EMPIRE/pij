@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Plus, Users, CheckCircle, XCircle, Eye, Archive } from "lucide-react";
-import { TONTINES, formatXAF } from "./mockData";
+import { Plus, CheckCircle, XCircle, Eye, Archive } from "lucide-react";
+import { TONTINES, TONTINE_TYPES, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 
 interface AdminTontinesProps {
@@ -13,28 +13,36 @@ export default function AdminTontines({ lang = "fr" }: AdminTontinesProps) {
   const fr = lang === "fr";
   const [tab, setTab] = useState<"list" | "create">("list");
 
+  const activeTypes = TONTINE_TYPES.filter((t) => t.status === "Active");
+
   // Create form state
   const [formName, setFormName] = useState("");
   const [formDesc, setFormDesc] = useState("");
-  const [formFrequency, setFormFrequency] = useState<"weekly" | "biweekly" | "monthly">("weekly");
+  const [formTypeId, setFormTypeId] = useState(activeTypes[0]?.id || "");
   const [formCapacity, setFormCapacity] = useState("");
   const [formContribution, setFormContribution] = useState("");
   const [formEntryFee, setFormEntryFee] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
 
-  const freqLabels: Record<string, { fr: string; en: string }> = {
-    weekly: { fr: "Hebdomadaire", en: "Weekly" },
-    biweekly: { fr: "Bihebdomadaire", en: "Biweekly" },
-    monthly: { fr: "Mensuel", en: "Monthly" },
+  const selectedType = TONTINE_TYPES.find((t) => t.id === formTypeId);
+
+  const handleTypeChange = (id: string) => {
+    setFormTypeId(id);
+    const t = TONTINE_TYPES.find((tt) => tt.id === id);
+    if (t) {
+      setFormContribution(String(t.defaultContribution));
+      setFormCapacity(String(t.defaultCapacity));
+    }
   };
 
   const handleCreate = () => {
+    if (!selectedType) return;
     const nextNum = String(TONTINES.length + 1).padStart(3, "0");
     const newTontine = {
       id: `TON-${nextNum}`,
       name: formName,
       description: formDesc,
-      type: freqLabels[formFrequency][fr ? "fr" : "en"],
+      type: fr ? selectedType.name : selectedType.nameEn,
       contribution: Number(formContribution),
       entry_fee: Number(formEntryFee),
       capacity: Number(formCapacity),
@@ -42,14 +50,14 @@ export default function AdminTontines({ lang = "fr" }: AdminTontinesProps) {
       total_weeks: Number(formCapacity),
       current_week: 0,
       start_date: formStartDate,
-      frequency: formFrequency,
+      frequency: selectedType.frequency,
       status: "Draft" as const,
       pool_amount: 0,
       members: [],
     };
     TONTINES.push(newTontine);
     setTab("list");
-    setFormName(""); setFormDesc(""); setFormFrequency("weekly");
+    setFormName(""); setFormDesc(""); setFormTypeId(activeTypes[0]?.id || "");
     setFormCapacity(""); setFormContribution(""); setFormEntryFee(""); setFormStartDate("");
   };
 
@@ -61,6 +69,9 @@ export default function AdminTontines({ lang = "fr" }: AdminTontinesProps) {
           <p className="text-sm text-muted-foreground mt-1">{TONTINES.length} {fr ? "tontines" : "tontines"}</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => navigate("/admin/tontine-types")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+            <Archive size={16} /> {fr ? "Types" : "Types"}
+          </button>
           <button onClick={() => navigate("/admin/tontines/archives")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
             <Archive size={16} /> {fr ? "Archives" : "Archives"}
           </button>
@@ -168,18 +179,18 @@ export default function AdminTontines({ lang = "fr" }: AdminTontinesProps) {
             <input value={formName} onChange={(e) => setFormName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Ex: Tontine Entrepreneurs Yaoundé" : "E.g. Tontine Entrepreneurs Yaoundé"} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">{fr ? "Fréquence" : "Frequency"}</label>
-              <select value={formFrequency} onChange={(e) => setFormFrequency(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                <option value="weekly">{fr ? "Hebdomadaire" : "Weekly"}</option>
-                <option value="biweekly">{fr ? "Bihebdomadaire" : "Biweekly"}</option>
-                <option value="monthly">{fr ? "Mensuel" : "Monthly"}</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">{fr ? "Nombre de participants" : "Number of participants"}</label>
-              <input type="number" value={formCapacity} onChange={(e) => setFormCapacity(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="12" />
-            </div>
+          <div>
+            <label className="text-sm font-medium">{fr ? "Type de tontine" : "Tontine type"}</label>
+            <select value={formTypeId} onChange={(e) => handleTypeChange(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+              {activeTypes.map((t) => (
+                <option key={t.id} value={t.id}>{fr ? t.name : t.nameEn}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">{fr ? "Nombre de participants" : "Number of participants"}</label>
+            <input type="number" value={formCapacity} onChange={(e) => setFormCapacity(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="12" />
+          </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

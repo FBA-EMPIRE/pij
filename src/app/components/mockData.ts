@@ -1,16 +1,38 @@
 // PIJ Platform — Mock Data
 
+import type { NotificationType, Notification } from "../types";
+
 export const CURRENT_USER_ID = "PIJ-2024-001";
 
 export const MEMBERS = [
-  { id: "PIJ-2024-001", name: "Amara Diallo", email: "amara.diallo@email.com", phone: "+237 6 70 12 34 56", kyc: "Approved", status: "Active", balance_current: 450000, balance_savings: 1200000, balance_investment: 205000, joined: "2024-01-15" },
-  { id: "PIJ-2024-002", name: "Fatoumata Koné", email: "fatoumata.kone@email.com", phone: "+237 6 82 23 45 67", kyc: "Approved", status: "Active", balance_current: 125000, balance_savings: 340000, balance_investment: 0, joined: "2024-02-03" },
-  { id: "PIJ-2024-003", name: "Moussa Traoré", email: "moussa.traore@email.com", phone: "+237 6 91 34 56 78", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-06-10" },
-  { id: "PIJ-2024-004", name: "Aïssatou Bah", email: "aissatou.bah@email.com", phone: "+237 6 55 45 67 89", kyc: "Approved", status: "Active", balance_current: 890000, balance_savings: 2100000, balance_investment: 0, joined: "2024-01-28" },
-  { id: "PIJ-2024-005", name: "Ibrahim Coulibaly", email: "ibrahim.coulibaly@email.com", phone: "+237 6 44 56 78 90", kyc: "Rejected", status: "Suspended", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-03-12" },
-  { id: "PIJ-2024-006", name: "Mariama Sow", email: "mariama.sow@email.com", phone: "+237 6 33 67 89 01", kyc: "Approved", status: "Active", balance_current: 220000, balance_savings: 780000, balance_investment: 0, joined: "2024-04-05" },
-  { id: "PIJ-2024-007", name: "Ousmane Dembélé", email: "ousmane.dembele@email.com", phone: "+237 6 22 78 90 12", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-06-08" },
-  { id: "PIJ-2024-008", name: "Kadiatou Baldé", email: "kadiatou.balde@email.com", phone: "+237 6 11 89 01 23", kyc: "Approved", status: "Active", balance_current: 560000, balance_savings: 1500000, balance_investment: 0, joined: "2024-02-19" },
+  { id: "PIJ-2024-001", name: "Amara Diallo", email: "amara.diallo@email.com", phone: "+237 6 70 12 34 56", emailVerified: true, verificationCode: "48291", kyc: "Approved", status: "Active", balance_current: 450000, balance_savings: 1200000, balance_investment: 205000, joined: "2024-01-15" },
+  { id: "PIJ-2024-002", name: "Fatoumata Koné", email: "fatoumata.kone@email.com", phone: "+237 6 82 23 45 67", emailVerified: true, verificationCode: "73528", kyc: "Approved", status: "Active", balance_current: 125000, balance_savings: 340000, balance_investment: 0, joined: "2024-02-03" },
+  { id: "PIJ-2024-003", name: "Moussa Traoré", email: "moussa.traore@email.com", phone: "+237 6 91 34 56 78", emailVerified: false, verificationCode: "61934", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-06-10" },
+  { id: "PIJ-2024-004", name: "Aïssatou Bah", email: "aissatou.bah@email.com", phone: "+237 6 55 45 67 89", emailVerified: true, verificationCode: "84216", kyc: "Approved", status: "Active", balance_current: 890000, balance_savings: 2100000, balance_investment: 0, joined: "2024-01-28" },
+  { id: "PIJ-2024-005", name: "Ibrahim Coulibaly", email: "ibrahim.coulibaly@email.com", phone: "+237 6 44 56 78 90", emailVerified: true, verificationCode: "90347", kyc: "Rejected", status: "Suspended", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-03-12" },
+  { id: "PIJ-2024-006", name: "Mariama Sow", email: "mariama.sow@email.com", phone: "+237 6 33 67 89 01", emailVerified: true, verificationCode: "56102", kyc: "Approved", status: "Active", balance_current: 220000, balance_savings: 780000, balance_investment: 0, joined: "2024-04-05" },
+  { id: "PIJ-2024-007", name: "Ousmane Dembélé", email: "ousmane.dembele@email.com", phone: "+237 6 22 78 90 12", emailVerified: false, verificationCode: "27834", kyc: "Pending", status: "Pending", balance_current: 0, balance_savings: 0, balance_investment: 0, joined: "2024-06-08" },
+  { id: "PIJ-2024-008", name: "Kadiatou Baldé", email: "kadiatou.balde@email.com", phone: "+237 6 11 89 01 23", emailVerified: true, verificationCode: "39485", kyc: "Approved", status: "Active", balance_current: 560000, balance_savings: 1500000, balance_investment: 0, joined: "2024-02-19" },
+];
+
+export const CURRENT_ADMIN = { id: "ADM-001", initials: "KA", initialsColor: "#6E3A9A", name: "Koné Aminata", email: "k.aminata@pij-platform.cm", phone: "+237 6 77 00 00 01", role: "super_admin" as const, lastLogin: "Just now", lastLoginFr: "À l'instant", status: "Active" as const, created: "2023-01-15" };
+
+export const ADMINS = [
+  { id: "ADM-001", initials: "KA", initialsColor: "#6E3A9A", name: "Koné Aminata", email: "k.aminata@pij-platform.cm", phone: "+237 6 77 00 00 01", role: "super_admin" as const, lastLogin: "Just now", lastLoginFr: "À l'instant", status: "Active" as const, created: "2023-01-15" },
+  { id: "ADM-002", initials: "JD", initialsColor: "#6E3A9A", name: "Jean-Paul Diallo", email: "jp.diallo@pij-platform.cm", phone: "+237 6 77 00 00 02", role: "admin" as const, lastLogin: "2 mins ago", lastLoginFr: "Il y a 2 min", status: "Active" as const, created: "2023-06-01" },
+  { id: "ADM-003", initials: "MK", initialsColor: "#4CAF68", name: "Marie Kamga", email: "m.kamga@pij-platform.cm", phone: "+237 6 77 00 00 03", role: "admin" as const, lastLogin: "4 hours ago", lastLoginFr: "Il y a 4h", status: "Active" as const, created: "2024-02-10" },
+  { id: "ADM-004", initials: "AS", initialsColor: "#E8A317", name: "Alain Sissoko", email: "a.sissoko@pij-platform.cm", phone: "+237 6 77 00 00 04", role: "admin" as const, lastLogin: "2 days ago", lastLoginFr: "Il y a 2 jours", status: "Suspended" as const, created: "2023-09-20" },
+];
+
+export const ADMIN_INVITATIONS = [
+  { id: "AINV-001", email: "n.nguyen@pij-platform.cm", role: "admin" as const, token: "tok_pij_a1b2c3d4", status: "Pending" as const, sentAt: "2024-06-15T08:00:00", expiresAt: "2024-06-18T08:00:00", createdBy: "ADM-001" },
+  { id: "AINV-002", email: "s.sy@pij-platform.cm", role: "admin" as const, token: "tok_pij_e5f6g7h8", status: "Accepted" as const, sentAt: "2024-06-01T10:00:00", expiresAt: "2024-06-04T10:00:00", createdBy: "ADM-001" },
+];
+
+export const TONTINE_TYPES = [
+  { id: "TT-001", name: "Hebdomadaire", nameEn: "Weekly", frequency: "weekly" as const, description: "Tontine hebdomadaire — cotisation chaque semaine", descriptionEn: "Weekly tontine — contribution every week", defaultContribution: 50000, defaultCapacity: 12, status: "Active" as const },
+  { id: "TT-002", name: "Bihebdomadaire", nameEn: "Biweekly", frequency: "biweekly" as const, description: "Tontine bihebdomadaire — cotisation toutes les deux semaines", descriptionEn: "Biweekly tontine — contribution every two weeks", defaultContribution: 75000, defaultCapacity: 10, status: "Active" as const },
+  { id: "TT-003", name: "Mensuel", nameEn: "Monthly", frequency: "monthly" as const, description: "Tontine mensuelle — cotisation chaque mois", descriptionEn: "Monthly tontine — contribution every month", defaultContribution: 100000, defaultCapacity: 8, status: "Active" as const },
 ];
 
 export const TRANSACTIONS = [
@@ -311,3 +333,21 @@ export const NOTIFICATIONS = [
   { id: "NOTIF-004", userId: "PIJ-2024-002", type: "join_request" as const, title: "Demande d'adhésion soumise", titleEn: "Join request submitted", message: "Votre demande pour rejoindre Tontine Jeunes Femmes a été soumise.", messageEn: "Your request to join Tontine Jeunes Femmes has been submitted.", read: false, createdAt: "2024-06-12T10:30:00" },
   { id: "NOTIF-005", userId: "PIJ-2024-002", type: "entry_fee" as const, title: "Frais d'entrée en attente", titleEn: "Entry fee pending", message: "Veuillez payer les frais d'entrée de 15 000 XAF pour valider votre adhésion.", messageEn: "Please pay the entry fee of 15,000 XAF to validate your membership.", read: false, createdAt: "2024-06-12T10:30:00" },
 ];
+
+let notifCounter = 5;
+export function sendNotification(data: { userId: string; type: NotificationType; title: string; titleEn: string; message: string; messageEn: string }) {
+  notifCounter++;
+  const notif: Notification = {
+    id: `NOTIF-${String(notifCounter).padStart(3, "0")}`,
+    userId: data.userId,
+    type: data.type,
+    title: data.title,
+    titleEn: data.titleEn,
+    message: data.message,
+    messageEn: data.messageEn,
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+  NOTIFICATIONS.push(notif);
+  return notif;
+}
