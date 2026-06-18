@@ -1,7 +1,7 @@
 # PIJ Platform — Supabase Configuration
 # Refer to https://supabase.com/docs/guides/cli/config for all options
 
-project_id = "pij-platform"
+project_id = "ktyzbrrbukpzrcokdmpu"
 
 [api]
 enabled = true
@@ -22,6 +22,9 @@ enabled = true
 jwt_expiry = 3600
 # Enable MFA for admin users
 enable_signup = true
+
+[auth.settings]
+jwt_secret = "aT/LGDtg2rCQhsezL6TfkeNE4qJhnGwnJpAkoAsqXxrAZHqcCOwjWfvYt+zfmbqo0wYIrvf2IZ1TZw1DXZqIPQ=="
 
 [auth.email]
 enable_signup = true
