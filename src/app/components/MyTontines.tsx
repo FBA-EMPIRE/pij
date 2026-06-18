@@ -24,7 +24,7 @@ export default function MyTontines({ lang = "fr" }: MyTontinesProps) {
           return (
             <div
               key={t.id}
-              className="bg-card rounded-2xl border border-border p-5 hover:border-[#4CAF68]/40 cursor-pointer transition-all"
+              className="bg-card rounded-2xl border border-border p-4 sm:p-5 hover:border-[#4CAF68]/40 cursor-pointer transition-all"
               onClick={() => navigate(`/tontines/${t.id}`)}
             >
               <div className="flex items-start justify-between mb-4">
@@ -37,20 +37,20 @@ export default function MyTontines({ lang = "fr" }: MyTontinesProps) {
                   <ChevronRight size={16} className="text-muted-foreground" />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{fr ? "Votre position" : "Your position"}</p>
-                  <p className="text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#1</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+                <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Votre position" : "Your position"}</p>
+                  <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#1</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{fr ? "Membres" : "Members"}</p>
-                  <p className="text-sm font-bold flex items-center gap-1" style={{ fontFamily: "Geist Mono, monospace" }}>
+                <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Membres" : "Members"}</p>
+                  <p className="text-xs sm:text-sm font-bold flex items-center gap-1" style={{ fontFamily: "Geist Mono, monospace" }}>
                     <Users size={12} /> {t.enrolled}/{t.capacity}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{fr ? "Pot du tour" : "Round pool"}</p>
-                  <p className="text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.pool_amount)}</p>
+                <div className="bg-muted/30 rounded-xl p-2 sm:p-3 col-span-2 sm:col-span-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Pot du tour" : "Round pool"}</p>
+                  <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.pool_amount)}</p>
                 </div>
               </div>
               <div>
