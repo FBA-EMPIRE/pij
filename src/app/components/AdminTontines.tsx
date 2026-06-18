@@ -54,7 +54,7 @@ export default function AdminTontines({ lang = "fr" }: AdminTontinesProps) {
                     </div>
                     <p className="text-xs text-muted-foreground">{t.type} · {t.duration} · {fr ? "Début:" : "Start:"} {t.start_date}</p>
                   </div>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <button onClick={() => navigate(`/admin/tontines/${t.id}`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
                     <Eye size={13} /> {fr ? "Détails" : "Details"}
                   </button>
                 </div>

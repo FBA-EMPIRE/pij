@@ -3,6 +3,7 @@ import { Search, Filter, Plus, MoreHorizontal, Eye, Edit, UserX } from "lucide-r
 import { MEMBERS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 import MemberDetailModal from "./MemberDetailModal";
+import MemberEditModal from "./MemberEditModal";
 
 interface UserManagementProps {
   lang?: "fr" | "en";
@@ -14,6 +15,7 @@ export default function UserManagement({ lang = "fr" }: UserManagementProps) {
   const [kycFilter, setKycFilter] = useState("all");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
+  const [editMemberId, setEditMemberId] = useState<string | null>(null);
 
   const filtered = MEMBERS.filter((m) => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search) || m.phone.includes(search);
@@ -105,7 +107,7 @@ export default function UserManagement({ lang = "fr" }: UserManagementProps) {
                       <button onClick={() => setDetailMemberId(m.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Voir" : "View"}>
                         <Eye size={14} />
                       </button>
-                      <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Modifier" : "Edit"}>
+                      <button onClick={() => setEditMemberId(m.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Modifier" : "Edit"}>
                         <Edit size={14} />
                       </button>
                       <button className="p-1.5 rounded-lg text-muted-foreground hover:text-[#E5484D] hover:bg-red-50 transition-all" title={fr ? "Suspendre" : "Suspend"}>
@@ -122,6 +124,9 @@ export default function UserManagement({ lang = "fr" }: UserManagementProps) {
 
       {detailMemberId && (
         <MemberDetailModal memberId={detailMemberId} lang={lang} onClose={() => setDetailMemberId(null)} />
+      )}
+      {editMemberId && (
+        <MemberEditModal memberId={editMemberId} lang={lang} onClose={() => setEditMemberId(null)} onSave={() => setEditMemberId(null)} />
       )}
     </div>
   );

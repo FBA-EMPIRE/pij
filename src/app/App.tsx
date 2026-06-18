@@ -16,6 +16,7 @@ import UserManagement from "./components/UserManagement";
 import KYCReview from "./components/KYCReview";
 import AccountManagement from "./components/AccountManagement";
 import AdminTontines from "./components/AdminTontines";
+import AdminTontineDetail from "./components/AdminTontineDetail";
 import AdminReports from "./components/AdminReports";
 import Formations from "./components/Formations";
 import Investments from "./components/Investments";
@@ -218,6 +219,14 @@ export default function App() {
           element={
             <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
               <AdminTontines lang={lang} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/tontines/:id"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminTontineDetail lang={lang} />
             </AdminLayout>
           }
         />
