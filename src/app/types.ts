@@ -77,3 +77,93 @@ export interface InvestmentTransaction {
   description: string;
   createdAt: string;
 }
+
+// ── Tontine types ──
+
+export type TontineStatus = "Draft" | "Open" | "In Progress" | "Completed" | "Archived";
+export type JoinRequestStatus = "Pending" | "Pending Entry Fee" | "Approved" | "Rejected";
+export type Frequency = "weekly" | "biweekly" | "monthly";
+export type NotificationType = "join_request" | "entry_fee" | "contribution" | "payout" | "completion" | "general";
+
+export interface TontineMember {
+  id: number;
+  name: string;
+  avatar: string;
+  position: number;
+  payout_received: boolean;
+  contributions: boolean[];
+}
+
+export interface Tontine {
+  id: string;
+  name: string;
+  description: string;
+  contribution: number;
+  entry_fee: number;
+  capacity: number;
+  enrolled: number;
+  total_weeks: number;
+  current_week: number;
+  start_date: string;
+  frequency: Frequency;
+  status: TontineStatus;
+  pool_amount: number;
+  members: TontineMember[];
+}
+
+export interface JoinRequest {
+  id: string;
+  userId: string;
+  tontineId: string;
+  status: JoinRequestStatus;
+  createdAt: string;
+}
+
+export interface ContributionLog {
+  id: string;
+  adminId: string;
+  memberId: number;
+  tontineId: string;
+  round: number;
+  previousStatus: boolean;
+  newStatus: boolean;
+  timestamp: string;
+}
+
+export interface RoundRecipient {
+  id: string;
+  tontineId: string;
+  round: number;
+  memberId: number;
+  amount: number;
+  assignedAt: string;
+}
+
+export interface TontineArchive {
+  id: string;
+  originalId: string;
+  name: string;
+  description: string;
+  contribution: number;
+  entry_fee: number;
+  capacity: number;
+  total_weeks: number;
+  start_date: string;
+  end_date: string;
+  frequency: Frequency;
+  members: TontineMember[];
+  recipients: RoundRecipient[];
+  total_collected: number;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  titleEn?: string;
+  message: string;
+  messageEn?: string;
+  read: boolean;
+  createdAt: string;
+}

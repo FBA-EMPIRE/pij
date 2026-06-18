@@ -10,7 +10,7 @@ interface TontineMarketplaceProps {
 export default function TontineMarketplace({ lang = "fr" }: TontineMarketplaceProps) {
   const navigate = useNavigate();
   const fr = lang === "fr";
-  const openTontines = TONTINES.filter((t) => t.status !== "Closed");
+  const openTontines = TONTINES.filter((t) => t.status === "Open");
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">

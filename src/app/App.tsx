@@ -17,6 +17,10 @@ import KYCReview from "./components/KYCReview";
 import AccountManagement from "./components/AccountManagement";
 import AdminTontines from "./components/AdminTontines";
 import AdminTontineDetail from "./components/AdminTontineDetail";
+import AdminTontineParticipants from "./components/AdminTontineParticipants";
+import AdminTontineArchives from "./components/AdminTontineArchives";
+import TontineArchiveDetail from "./components/TontineArchiveDetail";
+import NotificationsPage from "./components/NotificationsPage";
 import AdminReports from "./components/AdminReports";
 import Formations from "./components/Formations";
 import Investments from "./components/Investments";
@@ -157,10 +161,18 @@ export default function App() {
           }
         />
         <Route
+          path="/tontines/archives/:id"
+          element={
+            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <TontineArchiveDetail lang={lang} />
+            </MemberLayout>
+          }
+        />
+        <Route
           path="/notifications"
           element={
             <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <NotificationsPlaceholder lang={lang} />
+              <NotificationsPage lang={lang} />
             </MemberLayout>
           }
         />
@@ -231,6 +243,22 @@ export default function App() {
           }
         />
         <Route
+          path="/admin/tontines/:id/participants"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminTontineParticipants lang={lang} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/tontines/archives"
+          element={
+            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
+              <AdminTontineArchives lang={lang} />
+            </AdminLayout>
+          }
+        />
+        <Route
           path="/admin/formations"
           element={
             <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
@@ -274,31 +302,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
-  );
-}
-
-function NotificationsPlaceholder({ lang }: { lang: string }) {
-  const fr = lang === "fr";
-  return (
-    <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-      <h2 className="text-lg sm:text-xl mb-6" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Notifications" : "Notifications"}</h2>
-      <div className="space-y-3">
-        {[
-          { title: fr ? "Contribution enregistrée" : "Contribution recorded", desc: fr ? "Votre cotisation pour la Tontine Alpha - Semaine 8 a été enregistrée." : "Your contribution for Tontine Alpha - Week 8 has been recorded.", time: fr ? "Il y a 2 heures" : "2 hours ago", read: false, color: "#4CAF68" },
-          { title: fr ? "Tour prochain: Semaine 9" : "Next round: Week 9", desc: fr ? "La prochaine contribution est due le 17 juin 2024." : "The next contribution is due June 17, 2024.", time: fr ? "Il y a 1 jour" : "1 day ago", read: true, color: "#6E3A9A" },
-          { title: fr ? "Dépôt confirmé" : "Deposit confirmed", desc: fr ? "Un dépôt de 150 000 XAF a été enregistré sur votre compte épargne." : "A deposit of 150,000 XAF has been recorded on your savings account.", time: fr ? "Il y a 2 jours" : "2 days ago", read: true, color: "#4CAF68" },
-        ].map((n, i) => (
-          <div key={i} className={`bg-card rounded-xl border p-3 sm:p-4 flex gap-3 ${!n.read ? "border-[#4CAF68]/30" : "border-border"}`}>
-            <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: !n.read ? n.color : "var(--muted)" }} />
-            <div className="flex-1 min-w-0">
-              <p className={`text-xs sm:text-sm font-medium ${!n.read ? "text-foreground" : "text-muted-foreground"}`}>{n.title}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{n.desc}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground/60 mt-1">{n.time}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 

@@ -1,5 +1,7 @@
 // PIJ Platform — Mock Data
 
+export const CURRENT_USER_ID = "PIJ-2024-001";
+
 export const MEMBERS = [
   { id: "PIJ-2024-001", name: "Amara Diallo", email: "amara.diallo@email.com", phone: "+237 6 70 12 34 56", kyc: "Approved", status: "Active", balance_current: 450000, balance_savings: 1200000, balance_investment: 205000, joined: "2024-01-15" },
   { id: "PIJ-2024-002", name: "Fatoumata Koné", email: "fatoumata.kone@email.com", phone: "+237 6 82 23 45 67", kyc: "Approved", status: "Active", balance_current: 125000, balance_savings: 340000, balance_investment: 0, joined: "2024-02-03" },
@@ -40,7 +42,7 @@ export const TONTINES = [
     capacity: 12,
     enrolled: 10,
     duration: "12 semaines",
-    status: "Active",
+    status: "In Progress",
     start_date: "2024-03-04",
     frequency: "weekly",
     description: "Tontine hebdomadaire pour entrepreneurs locaux. Rejoignez une communauté solidaire et faites fructifier votre épargne.",
@@ -87,7 +89,7 @@ export const TONTINES = [
     capacity: 10,
     enrolled: 10,
     duration: "10 semaines",
-    status: "Almost Full",
+    status: "Open",
     start_date: "2024-06-17",
     frequency: "weekly",
     description: "Tontine exclusive pour les femmes entrepreneures de la région. Réseau de soutien et financement rotatif.",
@@ -247,4 +249,65 @@ export const INVESTMENT_TRANSACTIONS = [
   { id: "ITXN-002", accountId: "IA-001", type: "Return", amount: 9500, description: "Retour sur investissement (trimestre 1)", createdAt: "2024-07-15" },
   { id: "ITXN-003", accountId: "IA-002", type: "Deposit", amount: 80000, description: "Investissement Solaire pour le Nord", createdAt: "2023-11-02" },
   { id: "ITXN-004", accountId: "IA-002", type: "Return", amount: 8000, description: "Retour sur investissement (final)", createdAt: "2024-09-02" },
+];
+
+// ── Tontine Lifecycle ──
+
+export const JOIN_REQUESTS = [
+  { id: "JREQ-001", userId: "PIJ-2024-002", tontineId: "TON-003", status: "Pending Entry Fee" as const, createdAt: "2024-06-12T10:30:00" },
+  { id: "JREQ-002", userId: "PIJ-2024-004", tontineId: "TON-004", status: "Pending" as const, createdAt: "2024-06-14T14:00:00" },
+  { id: "JREQ-003", userId: "PIJ-2024-006", tontineId: "TON-002", status: "Approved" as const, createdAt: "2024-06-10T09:15:00" },
+];
+
+export const CONTRIBUTION_LOGS = [
+  { id: "CLOG-001", adminId: "Admin Kone", memberId: 1, tontineId: "TON-001", round: 8, previousStatus: false, newStatus: true, timestamp: "2024-06-10T14:30:00" },
+  { id: "CLOG-002", adminId: "Admin Diallo", memberId: 3, tontineId: "TON-001", round: 8, previousStatus: false, newStatus: true, timestamp: "2024-06-10T15:00:00" },
+  { id: "CLOG-003", adminId: "Admin Kone", memberId: 5, tontineId: "TON-001", round: 7, previousStatus: false, newStatus: true, timestamp: "2024-06-05T09:30:00" },
+];
+
+export const ROUND_RECIPIENTS = [
+  { id: "RR-001", tontineId: "TON-001", round: 1, memberId: 1, amount: 750000, assignedAt: "2024-03-04" },
+  { id: "RR-002", tontineId: "TON-001", round: 2, memberId: 2, amount: 750000, assignedAt: "2024-03-11" },
+  { id: "RR-003", tontineId: "TON-001", round: 3, memberId: 3, amount: 750000, assignedAt: "2024-03-18" },
+];
+
+export const ARCHIVES = [
+  {
+    id: "ARC-001",
+    originalId: "TON-ARCH-2023",
+    name: "Tontine Test 2023",
+    description: "Tontine test terminée avec tous les versements effectués.",
+    contribution: 50000,
+    entry_fee: 10000,
+    capacity: 6,
+    total_weeks: 6,
+    start_date: "2023-07-01",
+    end_date: "2023-08-05",
+    frequency: "weekly" as const,
+    total_collected: 1800000,
+    members: [
+      { id: 1, name: "Amara Diallo", avatar: "AD", position: 1, payout_received: true, contributions: [true, true, true, true, true, true] },
+      { id: 2, name: "Fatoumata Koné", avatar: "FK", position: 2, payout_received: true, contributions: [true, true, true, true, true, true] },
+      { id: 3, name: "Aïssatou Bah", avatar: "AB", position: 3, payout_received: true, contributions: [true, true, true, true, true, true] },
+      { id: 4, name: "Mariama Sow", avatar: "MS", position: 4, payout_received: true, contributions: [true, true, true, true, true, true] },
+      { id: 5, name: "Kadiatou Baldé", avatar: "KB", position: 5, payout_received: true, contributions: [true, true, true, true, true, true] },
+      { id: 6, name: "Seydou Ndiaye", avatar: "SN", position: 6, payout_received: true, contributions: [true, true, true, true, true, true] },
+    ],
+    recipients: [
+      { id: "ARC-RR-001", tontineId: "TON-ARCH-2023", round: 1, memberId: 1, amount: 300000, assignedAt: "2023-07-01" },
+      { id: "ARC-RR-002", tontineId: "TON-ARCH-2023", round: 2, memberId: 2, amount: 300000, assignedAt: "2023-07-08" },
+      { id: "ARC-RR-003", tontineId: "TON-ARCH-2023", round: 3, memberId: 3, amount: 300000, assignedAt: "2023-07-15" },
+      { id: "ARC-RR-004", tontineId: "TON-ARCH-2023", round: 4, memberId: 4, amount: 300000, assignedAt: "2023-07-22" },
+      { id: "ARC-RR-005", tontineId: "TON-ARCH-2023", round: 5, memberId: 5, amount: 300000, assignedAt: "2023-07-29" },
+      { id: "ARC-RR-006", tontineId: "TON-ARCH-2023", round: 6, memberId: 6, amount: 300000, assignedAt: "2023-08-05" },
+    ],
+  },
+];
+
+export const NOTIFICATIONS = [
+  { id: "NOTIF-001", userId: "PIJ-2024-001", type: "contribution" as const, title: "Contribution marquée comme payée", titleEn: "Contribution marked as paid", message: "Votre cotisation pour la Tontine Alpha - Semaine 8 a été marquée comme payée.", messageEn: "Your contribution for Tontine Alpha - Week 8 has been marked as paid.", read: false, createdAt: "2024-06-10T14:30:00" },
+  { id: "NOTIF-002", userId: "PIJ-2024-001", type: "payout" as const, title: "Tour de paiement reçu", titleEn: "Payout round received", message: "Vous avez reçu votre paiement pour le Tour #3 de la Tontine Alpha (750 000 XAF).", messageEn: "You received your payout for Round #3 of Tontine Alpha (750,000 XAF).", read: false, createdAt: "2024-06-05T09:30:00" },
+  { id: "NOTIF-003", userId: "PIJ-2024-001", type: "completion" as const, title: "Tontine terminée", titleEn: "Tontine completed", message: "La Tontine Test 2023 est terminée. Consultez vos archives pour les détails.", messageEn: "Tontine Test 2023 is completed. Check your archives for details.", read: true, createdAt: "2023-08-05T12:00:00" },
+  { id: "NOTIF-004", userId: "PIJ-2024-002", type: "join_request" as const, title: "Demande d'adhésion soumise", titleEn: "Join request submitted", message: "Votre demande pour rejoindre Tontine Jeunes Femmes a été soumise.", messageEn: "Your request to join Tontine Jeunes Femmes has been submitted.", read: false, createdAt: "2024-06-12T10:30:00" },
+  { id: "NOTIF-005", userId: "PIJ-2024-002", type: "entry_fee" as const, title: "Frais d'entrée en attente", titleEn: "Entry fee pending", message: "Veuillez payer les frais d'entrée de 15 000 XAF pour valider votre adhésion.", messageEn: "Please pay the entry fee of 15,000 XAF to validate your membership.", read: false, createdAt: "2024-06-12T10:30:00" },
 ];
