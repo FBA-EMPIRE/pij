@@ -1,0 +1,56 @@
+# PIJ Platform — Supabase Configuration
+# Refer to https://supabase.com/docs/guides/cli/config for all options
+
+project_id = "pij-platform"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "auth"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[auth]
+enabled = true
+# JWT expiry
+jwt_expiry = 3600
+# Enable MFA for admin users
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[storage]
+enabled = true
+
+[edge_functions]
+enabled = true
+
+[analytics]
+enabled = true
+port = 54327
+
+# Custom configuration for PIJ platform
+[analytics.keys]
+# Add your API keys here in production
+
+# ─────────────────────────────────────────
+# Rate limiting & security
+# ─────────────────────────────────────────
+[auth.security]
+max_failed_login_attempts = 5
+session_timeout = 86400 # 24h
+
+# ─────────────────────────────────────────
+# Logging & audit
+# ─────────────────────────────────────────
+[analytics.logs]
+retention_days = 30
