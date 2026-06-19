@@ -1,4 +1,4 @@
-import { getSupabaseClient, extractUserId } from "../_shared/supabase-client.ts";
+import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
 import { validateKycAction } from "../_shared/validators.ts";
 
 const corsHeaders = {
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const supabase = getSupabaseClient(authHeader);
+    const supabase = getServiceClient();
 
     const body = await req.json();
     const validated = validateKycAction(body);

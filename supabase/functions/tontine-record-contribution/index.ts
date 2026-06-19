@@ -1,4 +1,4 @@
-import { getSupabaseClient, extractUserId } from "../_shared/supabase-client.ts";
+import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const supabase = getSupabaseClient(authHeader);
+    const supabase = getServiceClient();
 
     const body = await req.json();
 

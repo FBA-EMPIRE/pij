@@ -1,1 +1,1 @@
-export { getSupabaseClient, extractUserId } from "./supabase.ts";
+export { getSupabaseClient, getServiceClient, extractUserId } from "./supabase.ts";
