@@ -48,7 +48,7 @@ Ces modules ont été développés mais ne figurent pas dans le cahier de charge
 
 | Aspect | Cahier de Charge | Réalité |
 |--------|-----------------|---------|
-| Framework | Next.js 15 (SSR + App Router) | Vite + React 18 (SPA) |
+| Framework | REACT.js 15 (SSR + App Router) | Vite + React 18 (SPA) |
 | State management | TanStack Query + Zustand | Aucun |
 | Backend | Supabase | Aucun (mocké) |
 | Hosting | Vercel | Non configuré |
