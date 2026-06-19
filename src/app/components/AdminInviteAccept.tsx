@@ -3,11 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { Eye, EyeOff, CheckCircle, Shield, XCircle } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { ADMIN_INVITATIONS, ADMINS } from "./mockData";
-
-interface AdminInviteAcceptProps {
-  darkMode?: boolean;
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
   return (
@@ -33,7 +29,8 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
   );
 }
 
-export default function AdminInviteAccept({ darkMode, lang = "fr" }: AdminInviteAcceptProps) {
+export default function AdminInviteAccept() {
+  const { darkMode, lang } = useAppContext();
   const { token } = useParams();
   const navigate = useNavigate();
   const fr = lang === "fr";

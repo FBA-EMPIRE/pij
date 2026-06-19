@@ -2,11 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
-
-interface AuthPageProps {
-  darkMode?: boolean;
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
   return (
@@ -39,7 +35,8 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
   );
 }
 
-export function LoginPage({ darkMode, lang = "fr" }: AuthPageProps) {
+export function LoginPage() {
+  const { darkMode, lang, loginUser, loginAdmin } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
   const fr = lang === "fr";
@@ -74,7 +71,7 @@ export function LoginPage({ darkMode, lang = "fr" }: AuthPageProps) {
               {fr ? "Mot de passe oublié ?" : "Forgot password?"}
             </button>
           </div>
-          <button onClick={() => navigate("/dashboard")} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+          <button onClick={() => { loginUser("PIJ-2024-001"); navigate("/dashboard"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
             {fr ? "Se connecter" : "Log in"}
           </button>
         </div>
@@ -87,7 +84,7 @@ export function LoginPage({ darkMode, lang = "fr" }: AuthPageProps) {
         </p>
         <p className="text-center text-xs text-muted-foreground/60 mt-4">
           {fr ? "Accès admin ?" : "Admin access?"}{" "}
-          <button onClick={() => navigate("/admin/dashboard")} className="text-[#6E3A9A] hover:underline">
+          <button onClick={() => { loginAdmin("ADM-001"); navigate("/admin/dashboard"); }} className="text-[#6E3A9A] hover:underline">
             {fr ? "Portail Admin →" : "Admin Portal →"}
           </button>
         </p>
@@ -96,7 +93,8 @@ export function LoginPage({ darkMode, lang = "fr" }: AuthPageProps) {
   );
 }
 
-export function RegisterPage({ darkMode, lang = "fr" }: AuthPageProps) {
+export function RegisterPage() {
+  const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
   const fr = lang === "fr";
@@ -159,7 +157,8 @@ export function RegisterPage({ darkMode, lang = "fr" }: AuthPageProps) {
   );
 }
 
-export function ForgotPasswordPage({ darkMode, lang = "fr" }: AuthPageProps) {
+export function ForgotPasswordPage() {
+  const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [sent, setSent] = useState(false);
   const fr = lang === "fr";

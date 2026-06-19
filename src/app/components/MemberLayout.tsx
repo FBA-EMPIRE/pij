@@ -6,13 +6,10 @@ import {
   TrendingUp, Settings, BookOpen
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
+import { useAppContext } from "../context/AppContext";
 
 interface MemberLayoutProps {
   children: React.ReactNode;
-  darkMode: boolean;
-  onToggleDark: () => void;
-  lang: "fr" | "en";
-  onToggleLang: () => void;
 }
 
 const navItems = [
@@ -24,7 +21,8 @@ const navItems = [
   { icon: Settings, label: "Paramètres", labelEn: "Settings", path: "/settings" },
 ];
 
-export function MemberLayout({ children, darkMode, onToggleDark, lang, onToggleLang }: MemberLayoutProps) {
+export function MemberLayout({ children }: MemberLayoutProps) {
+  const { darkMode, toggleDark, lang, toggleLang, user, logout } = useAppContext();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -94,7 +92,7 @@ export function MemberLayout({ children, darkMode, onToggleDark, lang, onToggleL
             {lang === "fr" ? "Profil" : "Profile"}
           </Link>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => { logout(); navigate("/"); }}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-all w-full"
           >
             <LogOut size={18} />
@@ -114,25 +112,25 @@ export function MemberLayout({ children, darkMode, onToggleDark, lang, onToggleL
             <div className="hidden lg:block">
               <p className="text-sm text-muted-foreground">
                 {lang === "fr" ? "Bienvenue," : "Welcome,"}{" "}
-                <span className="text-foreground font-medium">Amara Diallo</span>
+                <span className="text-foreground font-medium">{user?.name ?? "Membre"}</span>
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onToggleLang}
+              onClick={toggleLang}
               className="px-2.5 py-1 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors"
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
             <button
-              onClick={onToggleDark}
+              onClick={toggleDark}
               className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
             >
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <div className="w-8 h-8 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-xs font-bold">
-              AD
+              {user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "AD"}
             </div>
           </div>
         </header>

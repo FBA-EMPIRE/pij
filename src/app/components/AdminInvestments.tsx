@@ -2,8 +2,7 @@ import { useState } from "react";
 import { BarChart3, CheckCircle, Plus, TrendingUp, Wallet, XCircle } from "lucide-react";
 import { INVESTMENT_OPPORTUNITIES, INVESTMENT_REQUESTS, INVESTMENT_WALLET, MEMBERS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
-
-interface AdminInvestmentsProps { lang?: "fr" | "en"; }
+import { useAppContext } from "../context/AppContext";
 
 type Opportunity = typeof INVESTMENT_OPPORTUNITIES[number];
 type Request = typeof INVESTMENT_REQUESTS[number];
@@ -12,7 +11,8 @@ type TabKey = "opportunities" | "investors" | "approvals" | "returns";
 type FormMode = "create" | "edit" | null;
 type AuditEntry = { id: string; action: string; detail: string; time: string };
 
-export default function AdminInvestments({ lang = "fr" }: AdminInvestmentsProps) {
+export default function AdminInvestments() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<TabKey>("opportunities");
   const [formMode, setFormMode] = useState<FormMode>(null);

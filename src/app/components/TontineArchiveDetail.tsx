@@ -1,14 +1,12 @@
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Trophy, CheckCircle, Users, Calendar, Archive } from "lucide-react";
 import { ARCHIVES, CURRENT_USER_ID, formatXAF } from "./mockData";
+import { useAppContext } from "../context/AppContext";
 
-interface TontineArchiveDetailProps {
-  lang?: "fr" | "en";
-}
-
-export default function TontineArchiveDetail({ lang = "fr" }: TontineArchiveDetailProps) {
+export default function TontineArchiveDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
 
   const archive = ARCHIVES.find((a) => a.id === id);

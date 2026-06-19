@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { User, Camera, Lock, Bell, Mail, Smartphone, Check, X } from "lucide-react";
 
-interface ProfilePageProps {
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 const NOTIFICATION_CATEGORIES = [
   { id: "contributions", icon: Bell, fr: "Contributions", en: "Contributions" },
@@ -12,7 +10,8 @@ const NOTIFICATION_CATEGORIES = [
   { id: "promotions", icon: Bell, fr: "Promotions", en: "Promotions" },
 ] as const;
 
-export default function ProfilePage({ lang = "fr" }: ProfilePageProps) {
+export default function ProfilePage() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [editing, setEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

@@ -2,14 +2,15 @@ import { useState } from "react";
 import { X, Calendar, Plus, TrendingUp, History, Edit3, ArrowDownRight } from "lucide-react";
 import { SAVINGS_GOALS, TRANSACTIONS, formatXAF } from "./mockData";
 import type { SavingsGoal } from "../types";
+import { useAppContext } from "../context/AppContext";
 
 interface GoalDetailModalProps {
   goal: SavingsGoal;
-  lang?: "fr" | "en";
   onClose: () => void;
 }
 
-export default function GoalDetailModal({ goal, lang = "fr", onClose }: GoalDetailModalProps) {
+export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"overview" | "history" | "edit">("overview");
   const [editName, setEditName] = useState(goal.name);

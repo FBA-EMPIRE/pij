@@ -3,12 +3,10 @@ import { Plus, Calendar, Bike, House, Book, Briefcase, Shield, Plane, Car, Pill,
 import { SAVINGS_GOALS, formatXAF } from "./mockData";
 import GoalDetailModal from "./GoalDetailModal";
 import type { SavingsGoal } from "../types";
+import { useAppContext } from "../context/AppContext";
 
-interface SavingsGoalsProps {
-  lang?: "fr" | "en";
-}
-
-export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
+export default function SavingsGoals() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [showCreate, setShowCreate] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
@@ -130,7 +128,7 @@ export default function SavingsGoals({ lang = "fr" }: SavingsGoalsProps) {
       )}
 
       {selectedGoal && (
-        <GoalDetailModal goal={selectedGoal} lang={lang} onClose={() => setSelectedGoal(null)} />
+        <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} />
       )}
     </div>
   );

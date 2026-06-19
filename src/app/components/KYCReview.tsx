@@ -2,12 +2,10 @@ import { useState } from "react";
 import { CheckCircle, XCircle, MessageSquare, Eye, FileText, Camera, Clock, ArrowLeft } from "lucide-react";
 import { KYC_QUEUE } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface KYCReviewProps {
-  lang?: "fr" | "en";
-}
-
-export default function KYCReview({ lang = "fr" }: KYCReviewProps) {
+export default function KYCReview() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [selected, setSelected] = useState<typeof KYC_QUEUE[0] | null>(null);
   const [decision, setDecision] = useState<"approved" | "rejected" | "info" | null>(null);

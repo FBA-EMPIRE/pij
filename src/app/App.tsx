@@ -1,5 +1,6 @@
-import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { AppProvider } from "./context/AppContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./components/LandingPage";
 import { LoginPage, RegisterPage, ForgotPasswordPage } from "./components/AuthPages";
 import KYCOnboarding from "./components/KYCOnboarding";
@@ -36,323 +37,10 @@ import AdminInvestments from "./components/AdminInvestments";
 import SystemMonitoring from "./components/SystemMonitoring";
 import ProfilePage from "./components/ProfilePage";
 import MemberSettings from "./components/MemberSettings";
+import { useAppContext } from "./context/AppContext";
 
-export default function App() {
-  const [darkMode, setDarkMode] = useState(false);
-  const [lang, setLang] = useState<"fr" | "en">("fr");
-
-  const toggleDark = () => setDarkMode((d) => !d);
-  const toggleLang = () => setLang((l) => (l === "fr" ? "en" : "fr"));
-
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<LandingPage darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang} />} />
-        <Route path="/login" element={<LoginPage darkMode={darkMode} lang={lang} />} />
-        <Route path="/register" element={<RegisterPage darkMode={darkMode} lang={lang} />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage darkMode={darkMode} lang={lang} />} />
-        <Route path="/verify-email" element={<VerifyEmail darkMode={darkMode} lang={lang} />} />
-        <Route path="/admin/invite/:token" element={<AdminInviteAccept darkMode={darkMode} lang={lang} />} />
-        <Route path="/kyc" element={<KYCOnboarding darkMode={darkMode} lang={lang} />} />
-
-        {/* Member portal */}
-        <Route
-          path="/dashboard"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <MemberDashboard lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/transactions"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <TransactionHistory lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/savings"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <SavingsGoals lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/formations"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Formations lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/formations/courses/:id"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Formations lang={lang} view="course" />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/formations/learning"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Formations lang={lang} view="learning" />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/formations/consultation"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Formations lang={lang} view="consultation" />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/investissements"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Investments lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/investissements/portfolio"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Investments lang={lang} view="portfolio" />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/investissements/wallet"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Investments lang={lang} view="wallet" />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/investissements/:id"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <Investments lang={lang} view="detail" />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/marketplace"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <TontineMarketplace lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/tontines"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <MyTontines lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/tontines/:id"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <TontineDetail lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/tontines/archives/:id"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <TontineArchiveDetail lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <NotificationsPage lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <ProfilePage lang={lang} />
-            </MemberLayout>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <MemberLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <MemberSettings lang={lang} darkMode={darkMode} onToggleDark={toggleDark} onToggleLang={toggleLang} />
-            </MemberLayout>
-          }
-        />
-
-        {/* Admin portal */}
-        <Route
-          path="/admin/dashboard"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminDashboard lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <UserManagement lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/kyc"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <KYCReview lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/accounts"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AccountManagement lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/tontines"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminTontines lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/tontines/:id"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminTontineDetail lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/tontines/:id/participants"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminTontineParticipants lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/tontine-types"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminTontineTypes lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/tontines/archives"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminTontineArchives lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/formations"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminFormations lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/investissements"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminInvestments lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/reports"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminReports lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/admins"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <SuperAdminRoute lang={lang}>
-                <AdminAdministrators lang={lang} />
-              </SuperAdminRoute>
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/notifications"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminNotifications lang={lang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/profile"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <AdminProfile lang={lang} darkMode={darkMode} onToggleDark={toggleDark} onToggleLang={toggleLang} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/system-audit"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <SuperAdminRoute lang={lang}>
-                <SystemMonitoring lang={lang} />
-              </SuperAdminRoute>
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/admin/settings"
-          element={
-            <AdminLayout darkMode={darkMode} onToggleDark={toggleDark} lang={lang} onToggleLang={toggleLang}>
-              <SuperAdminRoute lang={lang}>
-                <AdminSettingsPlaceholder lang={lang} darkMode={darkMode} onToggleDark={toggleDark} onToggleLang={toggleLang} lang2={lang} />
-              </SuperAdminRoute>
-            </AdminLayout>
-          }
-        />
-
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
-
-function AdminSettingsPlaceholder({ lang, darkMode, onToggleDark, onToggleLang, lang2 }: { lang: string; darkMode: boolean; onToggleDark: () => void; onToggleLang: () => void; lang2: string }) {
+function AdminSettingsPlaceholder() {
+  const { darkMode, toggleDark, toggleLang, lang } = useAppContext();
   const fr = lang === "fr";
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
@@ -365,7 +53,7 @@ function AdminSettingsPlaceholder({ lang, darkMode, onToggleDark, onToggleLang, 
               <p className="text-sm font-medium">{fr ? "Mode sombre" : "Dark mode"}</p>
               <p className="text-xs text-muted-foreground">{fr ? "Basculer entre clair et sombre" : "Toggle between light and dark"}</p>
             </div>
-            <button onClick={onToggleDark} className={`relative w-11 h-6 rounded-full transition-colors ${darkMode ? "bg-[#4CAF68]" : "bg-muted"}`}>
+            <button onClick={toggleDark} className={`relative w-11 h-6 rounded-full transition-colors ${darkMode ? "bg-[#4CAF68]" : "bg-muted"}`}>
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${darkMode ? "left-6" : "left-1"}`} />
             </button>
           </div>
@@ -374,8 +62,8 @@ function AdminSettingsPlaceholder({ lang, darkMode, onToggleDark, onToggleLang, 
               <p className="text-sm font-medium">{fr ? "Langue" : "Language"}</p>
               <p className="text-xs text-muted-foreground">{fr ? "Français / Anglais" : "French / English"}</p>
             </div>
-            <button onClick={onToggleLang} className="px-3 py-1.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
-              {lang2 === "fr" ? "🇫🇷 FR" : "🇬🇧 EN"}
+            <button onClick={toggleLang} className="px-3 py-1.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
+              {lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN"}
             </button>
           </div>
         </div>
@@ -399,5 +87,386 @@ function AdminSettingsPlaceholder({ lang, darkMode, onToggleDark, onToggleLang, 
         </div>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/admin/invite/:token" element={<AdminInviteAccept />} />
+          <Route path="/kyc" element={<KYCOnboarding />} />
+
+          {/* Member portal */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <MemberDashboard />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <TransactionHistory />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/savings"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <SavingsGoals />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formations"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Formations />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formations/courses/:id"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Formations view="course" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formations/learning"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Formations view="learning" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/formations/consultation"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Formations view="consultation" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investissements"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Investments />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investissements/portfolio"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Investments view="portfolio" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investissements/wallet"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Investments view="wallet" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investissements/:id"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <Investments view="detail" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <TontineMarketplace />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tontines"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <MyTontines />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tontines/:id"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <TontineDetail />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tontines/archives/:id"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <TontineArchiveDetail />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <NotificationsPage />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <ProfilePage />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute type="member">
+                <MemberLayout>
+                  <MemberSettings />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin portal */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminDashboard />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <UserManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/kyc"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <KYCReview />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/accounts"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AccountManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/tontines"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminTontines />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/tontines/:id"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminTontineDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/tontines/:id/participants"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminTontineParticipants />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/tontine-types"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminTontineTypes />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/tontines/archives"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminTontineArchives />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/formations"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminFormations />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/investissements"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminInvestments />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminReports />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/admins"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <SuperAdminRoute>
+                    <AdminAdministrators />
+                  </SuperAdminRoute>
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/notifications"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminNotifications />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/profile"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <AdminProfile />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/system-audit"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <SuperAdminRoute>
+                    <SystemMonitoring />
+                  </SuperAdminRoute>
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <SuperAdminRoute>
+                    <AdminSettingsPlaceholder />
+                  </SuperAdminRoute>
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </BrowserRouter>
+    </AppProvider>
   );
 }

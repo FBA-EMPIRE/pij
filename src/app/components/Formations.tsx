@@ -3,19 +3,22 @@ import { useNavigate, useParams } from "react-router";
 import { Award, BookOpen, CheckCircle, ChevronRight, Clock, FileText, GraduationCap, Play, Send, Star, Users } from "lucide-react";
 import { CONSULTATION_REQUESTS, FORMATION_CATEGORIES, FORMATION_CONTENT, FORMATION_COURSES } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface FormationsProps { lang?: "fr" | "en"; view?: "dashboard" | "course" | "learning" | "consultation"; }
+interface FormationsProps { view?: "dashboard" | "course" | "learning" | "consultation"; }
 
 const consultationTypes = ["Mentorat", "Consultation", "Business Review", "Évaluation de Projet"];
 
-export default function Formations({ lang = "fr", view = "dashboard" }: FormationsProps) {
-  if (view === "course") return <CourseDetail lang={lang} />;
-  if (view === "learning") return <MyLearning lang={lang} />;
-  if (view === "consultation") return <ConsultationRequest lang={lang} />;
-  return <FormationDashboard lang={lang} />;
+export default function Formations({ view = "dashboard" }: FormationsProps) {
+  const { lang } = useAppContext();
+  if (view === "course") return <CourseDetail />;
+  if (view === "learning") return <MyLearning />;
+  if (view === "consultation") return <ConsultationRequest />;
+  return <FormationDashboard />;
 }
 
-function FormationDashboard({ lang }: { lang: "fr" | "en" }) {
+function FormationDashboard() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
   const inProgress = FORMATION_COURSES.filter((c) => c.progress > 0 && c.progress < 100);
@@ -50,7 +53,7 @@ function FormationDashboard({ lang }: { lang: "fr" | "en" }) {
       {inProgress[0] && (
         <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 mb-8">
           <div className="flex items-center justify-between mb-4"><h2 className="text-sm sm:text-lg font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Continuer l'apprentissage" : "Continue learning"}</h2><button onClick={() => navigate("/formations/learning")} className="text-xs text-[#4CAF68] font-medium flex items-center gap-1 hover:underline shrink-0">{fr ? "Mon apprentissage" : "My learning"}<ChevronRight size={12} /></button></div>
-          <CourseRow course={inProgress[0]} lang={lang} />
+          <CourseRow course={inProgress[0]} />
         </div>
       )}
 
@@ -68,25 +71,28 @@ function FormationDashboard({ lang }: { lang: "fr" | "en" }) {
 
       <section>
         <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold text-[#4CAF68]" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Formations à la une" : "Featured courses"}</h2><button onClick={() => navigate("/formations/learning")} className="text-xs text-[#4CAF68] font-medium flex items-center gap-1 hover:underline">{fr ? "Voir tout" : "View all"}<ChevronRight size={12} /></button></div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">{FORMATION_COURSES.filter((c) => c.featured).map((course) => <CourseCard key={course.id} course={course} lang={lang} />)}</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">{FORMATION_COURSES.filter((c) => c.featured).map((course) => <CourseCard key={course.id} course={course} />)}</div>
       </section>
     </div>
   );
 }
 
-function CourseCard({ course, lang }: { course: typeof FORMATION_COURSES[number]; lang: "fr" | "en" }) {
+function CourseCard({ course }: { course: typeof FORMATION_COURSES[number] }) {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
   return <div className="bg-card rounded-2xl border border-border overflow-hidden group hover:border-[#4CAF68]/40 transition-all"><div className="relative h-36 sm:h-40" style={{ background: course.image }}><div className="absolute inset-0 bg-black/20 group-hover:bg-black/10" /><span className="absolute bottom-3 right-3 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 text-white text-xs"><Clock size={12} />{course.duration}</span></div><div className="p-3 sm:p-4"><h3 className="text-xs sm:text-sm font-semibold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? course.title : course.titleEn}</h3><p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-2 sm:line-clamp-none">{course.description}</p><div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground mb-2"><span>{course.lessonCount} {fr ? "leçons" : "lessons"}</span><span className="text-[#4CAF68] font-bold">{course.progress}%</span></div><div className="w-full bg-muted rounded-full h-1.5 sm:h-2 mb-3 sm:mb-4"><div className="h-1.5 sm:h-2 rounded-full bg-[#4CAF68]" style={{ width: `${course.progress}%` }} /></div><button onClick={() => navigate(`/formations/courses/${course.id}`)} className="w-full py-2.5 rounded-xl text-white text-xs sm:text-sm font-medium hover:opacity-90 min-h-[44px]" style={{ background: "#4CAF68" }}>{fr ? "Voir le cours" : "View course"}</button></div></div>;
 }
 
-function CourseRow({ course, lang }: { course: typeof FORMATION_COURSES[number]; lang: "fr" | "en" }) {
+function CourseRow({ course }: { course: typeof FORMATION_COURSES[number] }) {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
   return <div className="flex flex-col sm:flex-row gap-4 sm:items-center"><div className="h-24 sm:w-36 rounded-xl shrink-0" style={{ background: course.image }} /><div className="flex-1"><p className="font-semibold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? course.title : course.titleEn}</p><p className="text-xs text-muted-foreground mt-1">{course.lessonCount} {fr ? "leçons" : "lessons"} · {course.duration}</p><div className="w-full bg-muted rounded-full h-2 mt-3"><div className="h-2 rounded-full bg-[#4CAF68]" style={{ width: `${course.progress}%` }} /></div></div><button onClick={() => navigate(`/formations/courses/${course.id}`)} className="px-4 py-2 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>{fr ? "Reprendre" : "Resume"}</button></div>;
 }
 
-function CourseDetail({ lang }: { lang: "fr" | "en" }) {
+function CourseDetail() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const { id } = useParams();
   const navigate = useNavigate();
@@ -101,12 +107,14 @@ function ContentList({ items, fr }: { items: typeof FORMATION_CONTENT; fr: boole
   return <div className="bg-card rounded-2xl border border-border p-5 space-y-2">{items.length ? items.map((item) => <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"><div className="w-9 h-9 rounded-xl bg-[#E8F5EC] flex items-center justify-center"><FileText size={16} color="#4CAF68" /></div><div className="flex-1"><p className="text-sm font-medium">{item.title}</p><p className="text-xs text-muted-foreground">{item.format} · {item.duration}</p></div>{item.completed && <StatusBadge status="Completed" size="sm" />}</div>) : <p className="text-sm text-muted-foreground">{fr ? "Aucun contenu disponible pour cet onglet." : "No content available for this tab."}</p>}</div>;
 }
 
-function MyLearning({ lang }: { lang: "fr" | "en" }) {
+function MyLearning() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
-  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Mon apprentissage" : "My learning"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Suivez vos cours terminés et en cours." : "Track completed and in-progress courses."}</p><div className="space-y-6"><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "En cours" : "In progress"}</h2><div className="space-y-4">{FORMATION_COURSES.filter((c) => c.progress < 100).map((c) => <CourseRow key={c.id} course={c} lang={lang} />)}</div></section><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Terminés" : "Completed"}</h2><div className="space-y-4">{FORMATION_COURSES.filter((c) => c.progress === 100).map((c) => <CourseRow key={c.id} course={c} lang={lang} />)}</div></section></div></div>;
+  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Mon apprentissage" : "My learning"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Suivez vos cours terminés et en cours." : "Track completed and in-progress courses."}</p><div className="space-y-6"><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "En cours" : "In progress"}</h2><div className="space-y-4">{FORMATION_COURSES.filter((c) => c.progress < 100).map((c) => <CourseRow key={c.id} course={c} />)}</div></section><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Terminés" : "Completed"}</h2><div className="space-y-4">{FORMATION_COURSES.filter((c) => c.progress === 100).map((c) => <CourseRow key={c.id} course={c} />)}</div></section></div></div>;
 }
 
-function ConsultationRequest({ lang }: { lang: "fr" | "en" }) {
+function ConsultationRequest() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [type, setType] = useState(consultationTypes[0]);
   return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Demande de consultation" : "Consultation request"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Mentorat, consultation, revue business ou évaluation de projet." : "Mentorship, consultation, business review or project evaluation."}</p><div className="grid grid-cols-1 lg:grid-cols-2 gap-6"><div className="bg-card rounded-2xl border border-border p-4 sm:p-6 space-y-4"><div><label className="text-sm font-medium">{fr ? "Type" : "Type"}</label><select value={type} onChange={(e) => setType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">{consultationTypes.map((t) => <option key={t}>{t}</option>)}</select></div><div><label className="text-sm font-medium">{fr ? "Projet" : "Project"}</label><input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Nom de votre projet" : "Project name"} /></div><div><label className="text-sm font-medium">{fr ? "Besoin" : "Need"}</label><textarea rows={4} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" placeholder={fr ? "Décrivez votre besoin..." : "Describe your need..."} /></div><button className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm" style={{ background: "linear-gradient(135deg, #1E2530, #2A3444)" }}><Send size={16} />{fr ? "Envoyer la demande" : "Send request"}</button></div><div className="bg-card rounded-2xl border border-border p-6"><h2 className="text-lg font-bold mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Suivi des demandes" : "Request tracking"}</h2><div className="space-y-3">{CONSULTATION_REQUESTS.map((r) => <div key={r.id} className="p-4 rounded-xl bg-muted/30"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">{r.type}</p><StatusBadge status={r.status as any} size="sm" /></div><p className="text-xs text-muted-foreground mt-1">{r.project} · {r.consultant}</p><p className="text-xs text-muted-foreground mt-1">{r.meetingDate}</p></div>)}</div></div></div></div>;

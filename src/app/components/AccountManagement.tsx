@@ -3,12 +3,10 @@ import { Plus, ArrowDownLeft, ArrowUpRight, Check } from "lucide-react";
 import { MEMBERS, SAVINGS_GOALS, AUDIT_LOGS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_MAP } from "../constants";
+import { useAppContext } from "../context/AppContext";
 
-interface AccountManagementProps {
-  lang?: "fr" | "en";
-}
-
-export default function AccountManagement({ lang = "fr" }: AccountManagementProps) {
+export default function AccountManagement() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"accounts" | "deposit" | "withdrawal">("accounts");
 

@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Bell, CheckCircle, Clock, Trophy, Send, CreditCard, CheckCheck, ArrowRight } from "lucide-react";
 import { NOTIFICATIONS, CURRENT_USER_ID } from "./mockData";
-
-interface NotificationsPageProps {
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 const NOTIF_ICONS: Record<string, React.ElementType> = {
   join_request: Send,
@@ -24,7 +21,8 @@ const NOTIF_COLORS: Record<string, string> = {
   general: "#6E3A9A",
 };
 
-export default function NotificationsPage({ lang = "fr" }: NotificationsPageProps) {
+export default function NotificationsPage() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const userNotifs = NOTIFICATIONS.filter((n) => n.userId === CURRENT_USER_ID);

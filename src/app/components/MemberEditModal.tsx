@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { MEMBERS } from "./mockData";
+import { useAppContext } from "../context/AppContext";
 
 interface MemberEditModalProps {
   memberId: string;
-  lang?: "fr" | "en";
   onClose: () => void;
   onSave: () => void;
 }
 
-export default function MemberEditModal({ memberId, lang = "fr", onClose, onSave }: MemberEditModalProps) {
+export default function MemberEditModal({ memberId, onClose, onSave }: MemberEditModalProps) {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const member = MEMBERS.find((m) => m.id === memberId);
   if (!member) return null;

@@ -3,13 +3,11 @@ import { useNavigate } from "react-router";
 import { ChevronRight, Users, Calendar, Trophy, Archive, Clock } from "lucide-react";
 import { TONTINES, ARCHIVES, CURRENT_USER_ID, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface MyTontinesProps {
-  lang?: "fr" | "en";
-}
-
-export default function MyTontines({ lang = "fr" }: MyTontinesProps) {
+export default function MyTontines() {
   const navigate = useNavigate();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"active" | "completed">("active");
 

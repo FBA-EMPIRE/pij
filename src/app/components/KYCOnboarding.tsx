@@ -2,11 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Upload, Camera, CheckCircle, Clock, ArrowRight, ArrowLeft, User, FileText, Scan } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
-
-interface KYCOnboardingProps {
-  darkMode?: boolean;
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 const STEPS = [
   { icon: User, label: "Informations personnelles", labelEn: "Personal Information" },
@@ -15,7 +11,8 @@ const STEPS = [
   { icon: CheckCircle, label: "Révision & Soumission", labelEn: "Review & Submit" },
 ];
 
-export default function KYCOnboarding({ darkMode, lang = "fr" }: KYCOnboardingProps) {
+export default function KYCOnboarding() {
+  const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);

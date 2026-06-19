@@ -3,14 +3,12 @@ import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, CheckCircle, XCircle, Trophy, Users, Award } from "lucide-react";
 import { TONTINES, CONTRIBUTION_LOGS, ROUND_RECIPIENTS, AUDIT_LOGS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminTontineParticipantsProps {
-  lang?: "fr" | "en";
-}
-
-export default function AdminTontineParticipants({ lang = "fr" }: AdminTontineParticipantsProps) {
+export default function AdminTontineParticipants() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const [override, setOverride] = useState(false);

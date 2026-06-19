@@ -4,12 +4,10 @@ import { MEMBERS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 import MemberDetailModal from "./MemberDetailModal";
 import MemberEditModal from "./MemberEditModal";
+import { useAppContext } from "../context/AppContext";
 
-interface UserManagementProps {
-  lang?: "fr" | "en";
-}
-
-export default function UserManagement({ lang = "fr" }: UserManagementProps) {
+export default function UserManagement() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
   const [kycFilter, setKycFilter] = useState("all");
@@ -123,10 +121,10 @@ export default function UserManagement({ lang = "fr" }: UserManagementProps) {
       </div>
 
       {detailMemberId && (
-        <MemberDetailModal memberId={detailMemberId} lang={lang} onClose={() => setDetailMemberId(null)} />
+        <MemberDetailModal memberId={detailMemberId} onClose={() => setDetailMemberId(null)} />
       )}
       {editMemberId && (
-        <MemberEditModal memberId={editMemberId} lang={lang} onClose={() => setEditMemberId(null)} onSave={() => setEditMemberId(null)} />
+        <MemberEditModal memberId={editMemberId} onClose={() => setEditMemberId(null)} onSave={() => setEditMemberId(null)} />
       )}
     </div>
   );

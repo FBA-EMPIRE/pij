@@ -7,12 +7,10 @@ import {
 import { MEMBER_GROWTH_DATA, CONTRIBUTION_DATA, KYC_TREND_DATA, ADMIN_KPI, formatXAF } from "./mockData";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminReportsProps {
-  lang?: "fr" | "en";
-}
-
-export default function AdminReports({ lang = "fr" }: AdminReportsProps) {
+export default function AdminReports() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [activeReport, setActiveReport] = useState<"financial" | "members" | "tontines">("financial");
 

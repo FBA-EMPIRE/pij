@@ -2,18 +2,16 @@ import { useNavigate } from "react-router";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Users, ChevronRight, AlertCircle } from "lucide-react";
 import { TRANSACTIONS, SAVINGS_GOALS, TONTINES, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface MemberDashboardProps {
-  lang?: "fr" | "en";
-}
-
-export default function MemberDashboard({ lang = "fr" }: MemberDashboardProps) {
+export default function MemberDashboard() {
   const navigate = useNavigate();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const recentTxns = TRANSACTIONS.slice(0, 5);
   const mainGoal = SAVINGS_GOALS[0];
   const activeTontine = TONTINES[0];
-  const goalPct = Math.round((mainGoal.current / mainGoal.target) * 100);
+  const goalPct = mainGoal ? Math.round((mainGoal.current / mainGoal.target) * 100) : 0;
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -101,6 +99,7 @@ export default function MemberDashboard({ lang = "fr" }: MemberDashboardProps) {
         {/* Right column */}
         <div className="space-y-6">
           {/* Savings Goal */}
+          {mainGoal ? (
           <div className="bg-card rounded-2xl border border-border p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm sm:text-base" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Objectif principal" : "Main goal"}</h3>
@@ -148,7 +147,14 @@ export default function MemberDashboard({ lang = "fr" }: MemberDashboardProps) {
             </div>
           </div>
 
+          ) : (
+            <div className="bg-card rounded-2xl border border-border p-6 text-center">
+              <p className="text-sm text-muted-foreground">{fr ? "Aucun objectif d'épargne défini" : "No savings goal set"}</p>
+              <button onClick={() => navigate("/savings")} className="mt-3 text-sm text-[#4CAF68] font-medium hover:underline">{fr ? "Créer un objectif" : "Create a goal"}</button>
+            </div>
+          )}
           {/* Tontine Summary */}
+          {activeTontine ? (
           <div className="bg-card rounded-2xl border border-border p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm sm:text-base" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Ma Tontine" : "My Tontine"}</h3>
@@ -181,6 +187,12 @@ export default function MemberDashboard({ lang = "fr" }: MemberDashboardProps) {
               </div>
             </div>
           </div>
+          ) : (
+            <div className="bg-card rounded-2xl border border-border p-6 text-center">
+              <p className="text-sm text-muted-foreground">{fr ? "Aucune tontine active" : "No active tontine"}</p>
+              <button onClick={() => navigate("/marketplace")} className="mt-3 text-sm text-[#4CAF68] font-medium hover:underline">{fr ? "Rejoindre une tontine" : "Join a tontine"}</button>
+            </div>
+          )}
         </div>
       </div>
     </div>

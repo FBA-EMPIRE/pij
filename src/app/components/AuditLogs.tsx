@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { Search, Filter, Shield, Download } from "lucide-react";
 import { AUDIT_LOGS } from "./mockData";
+import { useAppContext } from "../context/AppContext";
 
-interface AuditLogsProps {
-  lang?: "fr" | "en";
-}
-
-export default function AuditLogs({ lang = "fr" }: AuditLogsProps) {
+export default function AuditLogs() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
 

@@ -3,11 +3,7 @@ import { useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle, Mail, RefreshCw } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { MEMBERS } from "./mockData";
-
-interface VerifyEmailProps {
-  darkMode?: boolean;
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
   return (
@@ -38,7 +34,8 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
   );
 }
 
-export default function VerifyEmail({ darkMode, lang = "fr" }: VerifyEmailProps) {
+export default function VerifyEmail() {
+  const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const fr = lang === "fr";
   const [code, setCode] = useState(["", "", "", "", "", ""]);

@@ -3,13 +3,11 @@ import { useNavigate } from "react-router";
 import { Plus, CheckCircle, XCircle, Eye, Archive } from "lucide-react";
 import { TONTINES, TONTINE_TYPES, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminTontinesProps {
-  lang?: "fr" | "en";
-}
-
-export default function AdminTontines({ lang = "fr" }: AdminTontinesProps) {
+export default function AdminTontines() {
   const navigate = useNavigate();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"list" | "create">("list");
 

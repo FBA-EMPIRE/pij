@@ -3,14 +3,12 @@ import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Users, CheckCircle, XCircle, TrendingUp, Send, Clock, UserCheck, Archive, Eye } from "lucide-react";
 import { TONTINES, JOIN_REQUESTS, MEMBERS, ARCHIVES, AUDIT_LOGS, ROUND_RECIPIENTS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminTontineDetailProps {
-  lang?: "fr" | "en";
-}
-
-export default function AdminTontineDetail({ lang = "fr" }: AdminTontineDetailProps) {
+export default function AdminTontineDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [justPublished, setJustPublished] = useState(false);
 

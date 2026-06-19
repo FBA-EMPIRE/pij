@@ -3,12 +3,10 @@ import { ArrowUpRight, ArrowDownRight, Search, Download } from "lucide-react";
 import { TRANSACTIONS, formatXAF } from "./mockData";
 import TransactionDetailModal from "./TransactionDetailModal";
 import type { Transaction } from "../types";
+import { useAppContext } from "../context/AppContext";
 
-interface TransactionHistoryProps {
-  lang?: "fr" | "en";
-}
-
-export default function TransactionHistory({ lang = "fr" }: TransactionHistoryProps) {
+export default function TransactionHistory() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -116,7 +114,7 @@ export default function TransactionHistory({ lang = "fr" }: TransactionHistoryPr
       </div>
 
       {selectedTxn && (
-        <TransactionDetailModal transaction={selectedTxn} lang={lang} onClose={() => setSelectedTxn(null)} />
+        <TransactionDetailModal transaction={selectedTxn} onClose={() => setSelectedTxn(null)} />
       )}
     </div>
   );

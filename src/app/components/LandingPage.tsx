@@ -6,13 +6,7 @@ import {
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import heroBgImage from "../../../images/background 1.jpeg";
-
-interface LandingPageProps {
-  darkMode: boolean;
-  onToggleDark: () => void;
-  lang: "fr" | "en";
-  onToggleLang: () => void;
-}
+import { useAppContext } from "../context/AppContext";
 
 const FEATURES = [
   { icon: Shield, title: "KYC Sécurisé", titleEn: "Secure KYC", desc: "Vérification d'identité numérique rapide et sécurisée pour accéder à tous les services PIJ.", descEn: "Fast, secure digital identity verification to access all PIJ services." },
@@ -43,7 +37,8 @@ const FAQS = [
   { q: "Quelles devises sont supportées ?", qEn: "What currencies are supported?", a: "La plateforme opère en Franc CFA (XAF) pour l'Afrique Centrale. D'autres devises seront ajoutées dans les phases futures.", aEn: "The platform operates in CFA Franc (XAF) for Central Africa. Other currencies will be added in future phases." },
 ];
 
-export default function LandingPage({ darkMode, onToggleDark, lang, onToggleLang }: LandingPageProps) {
+export default function LandingPage() {
+  const { darkMode, toggleDark, lang, toggleLang } = useAppContext();
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const fr = lang === "fr";
@@ -63,10 +58,10 @@ export default function LandingPage({ darkMode, onToggleDark, lang, onToggleLang
               <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
             </nav>
             <div className="flex items-center gap-2">
-              <button onClick={onToggleLang} className="px-2.5 py-1 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={toggleLang} className="px-2.5 py-1 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors">
                 {fr ? "EN" : "FR"}
               </button>
-              <button onClick={onToggleDark} className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={toggleDark} className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
                 {darkMode ? <Sun size={15} /> : <Moon size={15} />}
               </button>
               <button onClick={() => navigate("/login")} className="px-4 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors hidden sm:block">

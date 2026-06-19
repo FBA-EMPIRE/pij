@@ -3,20 +3,10 @@ import {
   Sun, Moon, Globe, Bell, Shield, Eye, Download, Trash2,
   ChevronRight, Smartphone, Monitor, LogOut
 } from "lucide-react";
+import { useAppContext } from "../context/AppContext";
 
-interface MemberSettingsProps {
-  lang?: "fr" | "en";
-  darkMode?: boolean;
-  onToggleDark?: () => void;
-  onToggleLang?: () => void;
-}
-
-export default function MemberSettings({
-  lang = "fr",
-  darkMode = false,
-  onToggleDark = () => {},
-  onToggleLang = () => {},
-}: MemberSettingsProps) {
+export default function MemberSettings() {
+  const { lang, darkMode, toggleDark, toggleLang } = useAppContext();
   const fr = lang === "fr";
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(false);
@@ -58,7 +48,7 @@ export default function MemberSettings({
               <p className="text-sm">{fr ? "Mode sombre" : "Dark mode"}</p>
               <p className="text-xs text-muted-foreground">{fr ? "Basculer entre clair et sombre" : "Toggle light and dark"}</p>
             </div>
-            <ToggleSwitch checked={darkMode} onChange={onToggleDark} />
+            <ToggleSwitch checked={darkMode} onChange={toggleDark} />
           </div>
           <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-2">
@@ -69,7 +59,7 @@ export default function MemberSettings({
               </div>
             </div>
             <button
-              onClick={onToggleLang}
+              onClick={toggleLang}
               className="px-3 py-1.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors min-h-[36px]"
             >
               {lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN"}

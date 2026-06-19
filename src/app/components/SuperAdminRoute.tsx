@@ -1,17 +1,17 @@
 import { Shield, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
-import { CURRENT_ADMIN } from "./mockData";
+import { useAppContext } from "../context/AppContext";
 
 interface SuperAdminRouteProps {
   children: React.ReactNode;
-  lang?: "fr" | "en";
 }
 
-export default function SuperAdminRoute({ children, lang = "fr" }: SuperAdminRouteProps) {
+export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
+  const { lang, admin } = useAppContext();
   const navigate = useNavigate();
   const fr = lang === "fr";
 
-  if (CURRENT_ADMIN.role !== "super_admin") {
+  if (!admin || admin.role !== "super_admin") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <div className="max-w-sm text-center">

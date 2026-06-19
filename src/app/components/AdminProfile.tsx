@@ -1,15 +1,11 @@
 import { useState } from "react";
+import { useState } from "react";
 import { Eye, EyeOff, Save, Shield, CalendarDays, Clock } from "lucide-react";
 import { CURRENT_ADMIN, formatXAF } from "./mockData";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminProfileProps {
-  lang?: "fr" | "en";
-  darkMode?: boolean;
-  onToggleDark?: () => void;
-  onToggleLang?: () => void;
-}
-
-export default function AdminProfile({ lang = "fr", darkMode, onToggleDark, onToggleLang }: AdminProfileProps) {
+export default function AdminProfile() {
+  const { darkMode, toggleDark, toggleLang, lang } = useAppContext();
   const fr = lang === "fr";
   const admin = CURRENT_ADMIN;
   const [name, setName] = useState(admin.name);
@@ -149,18 +145,18 @@ export default function AdminProfile({ lang = "fr", darkMode, onToggleDark, onTo
               <p className="text-xs text-muted-foreground">{fr ? "Français / Anglais" : "French / English"}</p>
             </div>
             <div className="flex gap-1">
-              <button onClick={onToggleLang} className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors">
+              <button onClick={toggleLang} className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors">
                 {lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN"}
               </button>
             </div>
           </div>
-          {onToggleDark && (
+          {true && (
             <div className="flex items-center justify-between py-2 border-t border-border">
               <div>
                 <p className="text-sm font-medium">{fr ? "Mode sombre" : "Dark mode"}</p>
                 <p className="text-xs text-muted-foreground">{fr ? "Basculer entre clair et sombre" : "Toggle between light and dark"}</p>
               </div>
-              <button onClick={onToggleDark} className={`relative w-11 h-6 rounded-full transition-colors ${darkMode ? "bg-[#4CAF68]" : "bg-muted"}`}>
+              <button onClick={toggleDark} className={`relative w-11 h-6 rounded-full transition-colors ${darkMode ? "bg-[#4CAF68]" : "bg-muted"}`}>
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${darkMode ? "left-6" : "left-1"}`} />
               </button>
             </div>

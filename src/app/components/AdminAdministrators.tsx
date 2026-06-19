@@ -1,17 +1,11 @@
 import { useState, useRef } from "react";
 import { Plus, Shield, UserPlus, Copy, RefreshCw, XCircle, CheckCircle, X, ChevronDown, ArrowUpCircle, ArrowDownCircle, UserMinus, UserCheck, Link, Mail } from "lucide-react";
-import { ADMINS, ADMIN_INVITATIONS, CURRENT_ADMIN } from "./mockData";
+import { ADMINS, ADMIN_INVITATIONS, createInvitation, promoteAdmin, demoteAdmin, suspendAdmin, reactivateAdmin } from "./mockData";
 import type { AdminRole } from "../types";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminAdministratorsProps {
-  lang?: "fr" | "en";
-}
-
-function generateToken() {
-  return "tok_pij_" + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-}
-
-export default function AdminAdministrators({ lang = "fr" }: AdminAdministratorsProps) {
+export default function AdminAdministrators() {
+  const { lang, admin } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"active" | "invitations">("active");
   const [showInvite, setShowInvite] = useState(false);
@@ -20,43 +14,15 @@ export default function AdminAdministrators({ lang = "fr" }: AdminAdministrators
   const linkRef = useRef<HTMLInputElement>(null);
 
   const activeAdmins = ADMINS.filter((a) => a.status === "Active");
-  const superAdminCount = ADMINS.filter((a) => a.role === "super_admin" && a.status === "Active").length;
 
-  const handlePromote = (id: string) => {
-    const a = ADMINS.find((ad) => ad.id === id);
-    if (a) a.role = "super_admin";
-  };
-
-  const handleDemote = (id: string) => {
-    if (superAdminCount <= 1) return;
-    const a = ADMINS.find((ad) => ad.id === id);
-    if (a) a.role = "admin";
-  };
-
-  const handleSuspend = (id: string) => {
-    if (superAdminCount <= 1 && ADMINS.find((a) => a.id === id)?.role === "super_admin") return;
-    const a = ADMINS.find((ad) => ad.id === id);
-    if (a) a.status = "Suspended";
-  };
-
-  const handleReactivate = (id: string) => {
-    const a = ADMINS.find((ad) => ad.id === id);
-    if (a) a.status = "Active";
-  };
+  const handlePromote = promoteAdmin;
+  const handleDemote = demoteAdmin;
+  const handleSuspend = suspendAdmin;
+  const handleReactivate = reactivateAdmin;
 
   const handleSendInvitation = () => {
     if (!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email) return;
-    const token = generateToken();
-    ADMIN_INVITATIONS.push({
-      id: `AINV-${String(ADMIN_INVITATIONS.length + 1).padStart(3, "0")}`,
-      email: inviteForm.email,
-      role: inviteForm.role,
-      token,
-      status: "Pending",
-      sentAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-      createdBy: CURRENT_ADMIN.id,
-    });
+    createInvitation({ email: inviteForm.email, role: inviteForm.role, createdBy: admin?.id ?? "ADM-001" });
     setInviteForm({ firstName: "", lastName: "", email: "", phone: "", role: "admin" });
     setShowInvite(false);
   };

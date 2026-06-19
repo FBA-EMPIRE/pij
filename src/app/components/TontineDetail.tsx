@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Trophy, CheckCircle, XCircle, Users, Calendar, Coins, Info, Send, Clock, UserPlus } from "lucide-react";
-import { TONTINES, JOIN_REQUESTS, CURRENT_USER_ID, formatXAF } from "./mockData";
+import { TONTINES, JOIN_REQUESTS, CURRENT_USER_ID, formatXAF, createJoinRequest } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface TontineDetailProps {
-  lang?: "fr" | "en";
-}
-
-export default function TontineDetail({ lang = "fr" }: TontineDetailProps) {
+export default function TontineDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [activeTab, setActiveTab] = useState<"grid" | "members" | "rounds">("grid");
   const [requestSent, setRequestSent] = useState(false);
@@ -24,13 +22,7 @@ export default function TontineDetail({ lang = "fr" }: TontineDetailProps) {
   const fillPct = tontine.capacity > 0 ? Math.round((tontine.enrolled / tontine.capacity) * 100) : 0;
 
   const handleRequestJoin = () => {
-    JOIN_REQUESTS.push({
-      id: `JREQ-${String(JOIN_REQUESTS.length + 1).padStart(3, "0")}`,
-      userId: CURRENT_USER_ID,
-      tontineId: tontine.id,
-      status: "Pending",
-      createdAt: new Date().toISOString(),
-    });
+    createJoinRequest(CURRENT_USER_ID, tontine.id);
     setRequestSent(true);
   };
 

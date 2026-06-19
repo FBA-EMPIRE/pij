@@ -1,14 +1,15 @@
 import { X, ArrowUpRight, ArrowDownRight, Hash, CalendarDays, Target, FileText } from "lucide-react";
 import { formatXAF, TRANSACTIONS, SAVINGS_GOALS, AUDIT_LOGS } from "./mockData";
 import type { Transaction } from "../types";
+import { useAppContext } from "../context/AppContext";
 
 interface TransactionDetailModalProps {
   transaction: Transaction;
-  lang?: "fr" | "en";
   onClose: () => void;
 }
 
-export default function TransactionDetailModal({ transaction, lang = "fr", onClose }: TransactionDetailModalProps) {
+export default function TransactionDetailModal({ transaction, onClose }: TransactionDetailModalProps) {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const isCredit = transaction.amount > 0;
 

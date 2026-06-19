@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { X, TrendingUp, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { SAVINGS_GOALS, TRANSACTIONS, formatXAF, MEMBERS } from "./mockData";
+import { useAppContext } from "../context/AppContext";
 
 interface MemberDetailModalProps {
   memberId: string;
-  lang?: "fr" | "en";
   onClose: () => void;
 }
 
-export default function MemberDetailModal({ memberId, lang = "fr", onClose }: MemberDetailModalProps) {
+export default function MemberDetailModal({ memberId, onClose }: MemberDetailModalProps) {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"goals" | "transactions">("goals");
   const member = MEMBERS.find((m) => m.id === memberId);

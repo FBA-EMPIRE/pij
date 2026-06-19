@@ -1,14 +1,12 @@
 import { useNavigate } from "react-router";
-import { Users, Calendar, Coins, ArrowRight } from "lucide-react";
+import { Users, Calendar, Coins, ArrowRight, Inbox } from "lucide-react";
 import { TONTINES, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface TontineMarketplaceProps {
-  lang?: "fr" | "en";
-}
-
-export default function TontineMarketplace({ lang = "fr" }: TontineMarketplaceProps) {
+export default function TontineMarketplace() {
   const navigate = useNavigate();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const openTontines = TONTINES.filter((t) => t.status === "Open");
 
@@ -19,6 +17,15 @@ export default function TontineMarketplace({ lang = "fr" }: TontineMarketplacePr
         <p className="text-sm text-muted-foreground mt-1">{fr ? "Rejoignez une tontine disponible et commencez à épargner collectivement." : "Join an available tontine and start saving collectively."}</p>
       </div>
 
+      {openTontines.length === 0 && (
+        <div className="text-center py-20">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Inbox size={28} className="text-muted-foreground" />
+          </div>
+          <h3 className="font-semibold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Aucune tontine ouverte" : "No open tontines"}</h3>
+          <p className="text-sm text-muted-foreground">{fr ? "Revenez plus tard pour découvrir de nouvelles opportunités." : "Check back later for new opportunities."}</p>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {openTontines.map((t) => {
           const fillPct = Math.round((t.enrolled / t.capacity) * 100);

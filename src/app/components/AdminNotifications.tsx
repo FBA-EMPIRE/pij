@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Bell, CheckCheck, Send, Info, AlertTriangle, CheckCircle, Users, Mail, ArrowRight } from "lucide-react";
 import { NOTIFICATIONS, MEMBERS, sendNotification, formatXAF } from "./mockData";
-
-interface AdminNotificationsProps {
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   info: { icon: Info, color: "#6E3A9A", bg: "#F0E8FF" },
@@ -12,7 +9,8 @@ const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: 
   success: { icon: CheckCircle, color: "#4CAF68", bg: "#E8F5EC" },
 };
 
-export default function AdminNotifications({ lang = "fr" }: AdminNotificationsProps) {
+export default function AdminNotifications() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [targetMode, setTargetMode] = useState<"single" | "multiple" | "all">("all");

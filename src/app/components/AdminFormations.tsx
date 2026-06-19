@@ -2,10 +2,7 @@ import { useState } from "react";
 import { Archive, BookOpen, Calendar, FileText, Plus, Video } from "lucide-react";
 import { CONSULTATION_REQUESTS, FORMATION_CATEGORIES, FORMATION_CONTENT, FORMATION_COURSES } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
-
-interface AdminFormationsProps {
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 type Category = typeof FORMATION_CATEGORIES[number];
 type Course = typeof FORMATION_COURSES[number];
@@ -14,7 +11,8 @@ type Consultation = typeof CONSULTATION_REQUESTS[number];
 type TabKey = "categories" | "courses" | "content" | "consultations";
 type FormMode = "create" | "edit" | null;
 
-export default function AdminFormations({ lang = "fr" }: AdminFormationsProps) {
+export default function AdminFormations() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<TabKey>("courses");
   const [formMode, setFormMode] = useState<FormMode>(null);

@@ -2,13 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Archive, Users, Calendar, Download, FileText, Eye } from "lucide-react";
 import { ARCHIVES, formatXAF } from "./mockData";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminTontineArchivesProps {
-  lang?: "fr" | "en";
-}
-
-export default function AdminTontineArchives({ lang = "fr" }: AdminTontineArchivesProps) {
+export default function AdminTontineArchives() {
   const navigate = useNavigate();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
 
   return (

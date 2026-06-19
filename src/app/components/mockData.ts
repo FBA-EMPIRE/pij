@@ -351,3 +351,64 @@ export function sendNotification(data: { userId: string; type: NotificationType;
   NOTIFICATIONS.push(notif);
   return notif;
 }
+
+let joinReqCounter = JOIN_REQUESTS.length;
+export function createJoinRequest(userId: string, tontineId: string) {
+  joinReqCounter++;
+  const req = { id: `JREQ-${String(joinReqCounter).padStart(3, "0")}`, userId, tontineId, status: "Pending" as const, createdAt: new Date().toISOString() };
+  JOIN_REQUESTS.push(req);
+  return req;
+}
+
+let admCounter = ADMINS.length;
+export function createAdmin(data: { id: string; name: string; email: string; phone: string; role: "super_admin" | "admin" }) {
+  admCounter++;
+  const initials = data.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  const colors = ["#6E3A9A", "#4CAF68", "#E8A317", "#1F9D55"];
+  const admin = {
+    id: data.id, initials, initialsColor: colors[admCounter % colors.length],
+    name: data.name, email: data.email, phone: data.phone, role: data.role,
+    lastLogin: "Just now", lastLoginFr: "À l'instant", status: "Active" as const,
+    created: new Date().toISOString().slice(0, 10),
+  };
+  ADMINS.push(admin);
+  return admin;
+}
+
+export function promoteAdmin(id: string) {
+  const a = ADMINS.find((ad) => ad.id === id);
+  if (a) a.role = "super_admin";
+}
+
+export function demoteAdmin(id: string) {
+  const superAdminCount = ADMINS.filter((a) => a.role === "super_admin" && a.status === "Active").length;
+  if (superAdminCount <= 1) return;
+  const a = ADMINS.find((ad) => ad.id === id);
+  if (a) a.role = "admin";
+}
+
+export function suspendAdmin(id: string) {
+  const superAdminCount = ADMINS.filter((a) => a.role === "super_admin" && a.status === "Active").length;
+  const a = ADMINS.find((ad) => ad.id === id);
+  if (a && !(superAdminCount <= 1 && a.role === "super_admin")) a.status = "Suspended";
+}
+
+export function reactivateAdmin(id: string) {
+  const a = ADMINS.find((ad) => ad.id === id);
+  if (a) a.status = "Active";
+}
+
+let invCounter = ADMIN_INVITATIONS.length;
+export function createInvitation(data: { email: string; role: "super_admin" | "admin"; createdBy: string }) {
+  invCounter++;
+  const token = "tok_pij_" + Math.random().toString(36).substring(2, 10);
+  const invitation = {
+    id: `AINV-${String(invCounter).padStart(3, "0")}`,
+    email: data.email, role: data.role, token, status: "Pending" as const,
+    sentAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+    createdBy: data.createdBy,
+  };
+  ADMIN_INVITATIONS.push(invitation);
+  return invitation;
+}

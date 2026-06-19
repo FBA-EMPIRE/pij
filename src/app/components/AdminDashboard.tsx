@@ -9,13 +9,11 @@ import {
   CONTRIBUTION_DATA, TONTINE_STATUS_DATA, KYC_TREND_DATA, formatXAF
 } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
+import { useAppContext } from "../context/AppContext";
 
-interface AdminDashboardProps {
-  lang?: "fr" | "en";
-}
-
-export default function AdminDashboard({ lang = "fr" }: AdminDashboardProps) {
+export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
 
   const kpis = [

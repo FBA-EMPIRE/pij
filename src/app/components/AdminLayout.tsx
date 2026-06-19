@@ -6,13 +6,10 @@ import {
   ChevronRight, Sun, Moon, Bell, Shield, BookOpen, UserCog
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
+import { useAppContext } from "../context/AppContext";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
-  darkMode: boolean;
-  onToggleDark: () => void;
-  lang: "fr" | "en";
-  onToggleLang: () => void;
 }
 
 const navGroups = [
@@ -59,10 +56,22 @@ const navGroups = [
   },
 ];
 
-export function AdminLayout({ children, darkMode, onToggleDark, lang, onToggleLang }: AdminLayoutProps) {
+export function AdminLayout({ children }: AdminLayoutProps) {
+  const { darkMode, toggleDark, lang, toggleLang, admin, logout } = useAppContext();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isSuperAdmin = admin?.role === "super_admin";
+
+  const visibleGroups = navGroups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      const superOnly = ["/admin/admins", "/admin/system-audit", "/admin/settings"];
+      if (superOnly.includes(item.path)) return isSuperAdmin;
+      return true;
+    }),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <div className={`min-h-screen flex ${darkMode ? "dark" : ""}`} style={{ fontFamily: "Inter, sans-serif" }}>
@@ -84,7 +93,7 @@ export function AdminLayout({ children, darkMode, onToggleDark, lang, onToggleLa
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
-          {navGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.group}>
               <p className="px-3 mb-1 text-xs uppercase tracking-widest" style={{ color: "rgba(244,245,247,0.35)" }}>
                 {lang === "fr" ? group.group : group.groupEn}
@@ -116,14 +125,14 @@ export function AdminLayout({ children, darkMode, onToggleDark, lang, onToggleLa
         {/* Admin profile */}
         <div className="p-3 border-t" style={{ borderColor: "var(--sidebar-border)" }}>
           <button onClick={() => navigate("/admin/profile")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 hover:opacity-80 transition-opacity" style={{ background: "var(--sidebar-accent)" }}>
-            <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">KA</div>
+            <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">{admin?.initials ?? "AD"}</div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-medium text-white truncate">Koné Aminata</p>
-              <p className="text-xs" style={{ color: "rgba(244,245,247,0.5)" }}>Super Admin</p>
+              <p className="text-xs font-medium text-white truncate">{admin?.name ?? "Admin"}</p>
+              <p className="text-xs" style={{ color: "rgba(244,245,247,0.5)" }}>{admin?.role === "super_admin" ? "Super Admin" : "Admin"}</p>
             </div>
           </button>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => { logout(); navigate("/"); }}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-950/30 w-full transition-all"
           >
             <LogOut size={15} />
@@ -145,13 +154,13 @@ export function AdminLayout({ children, darkMode, onToggleDark, lang, onToggleLa
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onToggleLang}
+              onClick={toggleLang}
               className="px-2.5 py-1 text-xs font-medium border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors"
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
             <button
-              onClick={onToggleDark}
+              onClick={toggleDark}
               className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
             >
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}

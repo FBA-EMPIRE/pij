@@ -5,10 +5,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { ADMINS } from "./mockData";
-
-interface SystemMonitoringProps {
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 const roleDisplay = (role: string, fr: boolean) => {
   if (role === "super_admin") return fr ? "Super Admin" : "Super Admin";
@@ -52,7 +49,8 @@ const AUDIT_LOGS = [
   },
 ];
 
-export default function SystemMonitoring({ lang = "fr" }: SystemMonitoringProps) {
+export default function SystemMonitoring() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [autoKYC, setAutoKYC] = useState(true);

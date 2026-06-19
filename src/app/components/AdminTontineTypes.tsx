@@ -2,14 +2,12 @@ import { useState } from "react";
 import { Plus, Edit3, Trash2, X, CheckCircle } from "lucide-react";
 import { TONTINE_TYPES } from "./mockData";
 import type { TontineType } from "../types";
-
-interface AdminTontineTypesProps {
-  lang?: "fr" | "en";
-}
+import { useAppContext } from "../context/AppContext";
 
 const emptyForm = { name: "", nameEn: "", frequency: "weekly" as const, description: "", descriptionEn: "", defaultContribution: "", defaultCapacity: "" };
 
-export default function AdminTontineTypes({ lang = "fr" }: AdminTontineTypesProps) {
+export default function AdminTontineTypes() {
+  const { lang } = useAppContext();
   const fr = lang === "fr";
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<TontineType | null>(null);
