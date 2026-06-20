@@ -14,6 +14,7 @@ import MyTontines from "./components/MyTontines";
 import TontineDetail from "./components/TontineDetail";
 import { AdminLayout } from "./components/AdminLayout";
 import AdminDashboard from "./components/AdminDashboard";
+import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import UserManagement from "./components/UserManagement";
 import KYCReview from "./components/KYCReview";
 import AccountManagement from "./components/AccountManagement";
@@ -37,6 +38,7 @@ import AdminInvestments from "./components/AdminInvestments";
 import SystemMonitoring from "./components/SystemMonitoring";
 import ProfilePage from "./components/ProfilePage";
 import MemberSettings from "./components/MemberSettings";
+import AuditLogs from "./components/AuditLogs";
 import { useAppContext } from "./context/AppContext";
 
 function AdminSettingsPlaceholder() {
@@ -88,6 +90,12 @@ function AdminSettingsPlaceholder() {
       </div>
     </div>
   );
+}
+
+function RoleDashboard() {
+  const { admin } = useAppContext();
+  if (admin?.role === "super_admin") return <SuperAdminDashboard />;
+  return <AdminDashboard />;
 }
 
 export default function App() {
@@ -292,7 +300,7 @@ export default function App() {
             element={
               <ProtectedRoute type="admin">
                 <AdminLayout>
-                  <AdminDashboard />
+                  <RoleDashboard />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -420,6 +428,18 @@ export default function App() {
             }
           />
           <Route
+            path="/admin/audit"
+            element={
+              <ProtectedRoute type="admin">
+                <AdminLayout>
+                  <SuperAdminRoute>
+                    <AuditLogs />
+                  </SuperAdminRoute>
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/notifications"
             element={
               <ProtectedRoute type="admin">
@@ -440,7 +460,7 @@ export default function App() {
             }
           />
           <Route
-            path="/admin/system-audit"
+            path="/admin/monitoring"
             element={
               <ProtectedRoute type="admin">
                 <AdminLayout>

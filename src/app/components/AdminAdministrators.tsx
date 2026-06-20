@@ -14,6 +14,7 @@ export default function AdminAdministrators() {
   const linkRef = useRef<HTMLInputElement>(null);
 
   const activeAdmins = ADMINS.filter((a) => a.status === "Active");
+  const superAdminCount = ADMINS.filter((a) => a.role === "super_admin" && a.status === "Active").length;
 
   const handlePromote = promoteAdmin;
   const handleDemote = demoteAdmin;

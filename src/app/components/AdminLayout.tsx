@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, Users, ShieldCheck, Wallet, TrendingUp,
   FileText, ScrollText, Settings, LogOut, Menu, X,
-  ChevronRight, Sun, Moon, Bell, Shield, BookOpen, UserCog
+  ChevronRight, Sun, Moon, Bell, Shield, BookOpen, UserCog, Activity
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
@@ -34,7 +34,6 @@ const navGroups = [
     items: [
       { icon: Wallet, label: "Comptes", labelEn: "Accounts", path: "/admin/accounts" },
       { icon: TrendingUp, label: "Tontines", labelEn: "Tontines", path: "/admin/tontines" },
-      { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/admin/formations" },
       { icon: TrendingUp, label: "Investissements", labelEn: "Investments", path: "/admin/investissements" },
     ],
   },
@@ -43,15 +42,25 @@ const navGroups = [
     groupEn: "Analytics",
     items: [
       { icon: FileText, label: "Rapports", labelEn: "Reports", path: "/admin/reports" },
-      { icon: Shield, label: "System Audit", labelEn: "System Audit", path: "/admin/system-audit" },
+      { icon: Bell, label: "Notifications", labelEn: "Notifications", path: "/admin/notifications" },
+    ],
+  },
+  {
+    group: "Administration",
+    groupEn: "Administration",
+    superOnly: true,
+    items: [
+      { icon: UserCog, label: "Administrateurs", labelEn: "Admins", path: "/admin/admins" },
+      { icon: ScrollText, label: "Audit Logs", labelEn: "Audit Logs", path: "/admin/audit" },
     ],
   },
   {
     group: "Système",
     groupEn: "System",
+    superOnly: true,
     items: [
-      { icon: UserCog, label: "Administrateurs", labelEn: "Admins", path: "/admin/admins" },
       { icon: Settings, label: "Paramètres", labelEn: "Settings", path: "/admin/settings" },
+      { icon: Activity, label: "Monitoring", labelEn: "Monitoring", path: "/admin/monitoring" },
     ],
   },
 ];
@@ -66,11 +75,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const visibleGroups = navGroups.map((group) => ({
     ...group,
-    items: group.items.filter((item) => {
-      const superOnly = ["/admin/admins", "/admin/system-audit", "/admin/settings"];
-      if (superOnly.includes(item.path)) return isSuperAdmin;
-      return true;
-    }),
+    items: group.superOnly && !isSuperAdmin ? [] : group.items,
   })).filter((g) => g.items.length > 0);
 
   return (
