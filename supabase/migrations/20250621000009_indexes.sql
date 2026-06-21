@@ -1,0 +1,15 @@
+create index idx_users_uid on public.users (uid);
+create index idx_users_status on public.users (status);
+create index idx_profiles_name_trgm on public.profiles using gin ((first_name || ' ' || last_name) gin_trgm_ops);
+create index idx_accounts_user on public.accounts (user_id);
+create index idx_transactions_account on public.transactions (account_id);
+create index idx_transactions_created on public.transactions (created_at);
+create index idx_kyc_documents_user on public.kyc_documents (user_id);
+create index idx_kyc_documents_status on public.kyc_documents (status);
+create index idx_savings_goals_user on public.savings_goals (user_id);
+create index idx_tontine_members_tontine on public.tontine_members (tontine_id);
+create index idx_tontine_members_user on public.tontine_members (user_id);
+create index idx_tontine_contrib_round on public.tontine_contributions (round_id);
+create index idx_notifications_user on public.notifications (user_id, is_read);
+create index idx_audit_logs_entity on public.audit_logs (entity_type, entity_id);
+create index idx_audit_logs_actor on public.audit_logs (actor_id);
