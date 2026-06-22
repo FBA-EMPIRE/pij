@@ -44,6 +44,60 @@ Ces modules ont été développés mais ne figurent pas dans le cahier de charge
 
 ---
 
+### Base de données — Supabase PostgreSQL
+
+Le schéma de la base de données a été conçu d'après le document `supabase/PIJ_Database_Design_PostgreSQL.pdf` et découpé en 12 migrations Supabase dans `supabase/migrations/`.
+
+#### Domaines couverts (16 tables)
+
+| Domaine | Tables | Description |
+|---------|--------|-------------|
+| **Identity & Access** | `users`, `profiles`, `admins`, `roles`, `permissions`, `role_permissions` | Authentification, profils membres, staff et contrôle d'accès RBAC |
+| **KYC & Verification** | `kyc_documents` | Documents d'identité soumis par les membres, workflow de vérification |
+| **Financial Accounts** | `accounts`, `transactions` | Comptes épargne/courant, grand livre immobilisable des dépôts/retraits |
+| **Savings** | `savings_goals` | Objectifs d'épargne définis par les membres avec suivi de progression |
+| **Tontines** | `tontine_types`, `tontines`, `tontine_members`, `tontine_rounds`, `tontine_contributions` | Groupes d'épargne tournante avec cycles de cotisation et paiements |
+| **System** | `notifications`, `audit_logs` | Boîte de réception notifications, journal d'audit immutable |
+
+#### Ordre des migrations
+
+| # | Fichier | Contenu |
+|---|--------|---------|
+| 01 | `20250621000001_extensions.sql` | Extensions `pgcrypto`, `pg_trgm` |
+| 02 | `20250621000002_enums.sql` | 11 types ENUM (`user_status`, `kyc_status`, `account_type`, etc.) |
+| 03 | `20250621000003_core_tables.sql` | Tables du domaine Identity & Access (6 tables) |
+| 04 | `20250621000004_kyc.sql` | Table `kyc_documents` |
+| 05 | `20250621000005_financial.sql` | Tables `accounts`, `transactions` |
+| 06 | `20250621000006_savings.sql` | Table `savings_goals` |
+| 07 | `20250621000007_tontine.sql` | Tables du domaine Tontine (5 tables) |
+| 08 | `20250621000008_system.sql` | Tables `notifications`, `audit_logs` |
+| 09 | `20250621000009_indexes.sql` | 15 indexes (dont trigram search sur `profiles`) |
+| 10 | `20250621000010_triggers.sql` | Fonction `set_updated_at()` + 4 triggers |
+| 11 | `20250621000011_rls.sql` | Fonctions `is_admin()`, `current_admin_role()` + 30+ politiques RLS |
+| 12 | `20250621000012_missing_policies.sql` | Trigger `handle_new_user()` sur `auth.users`, 5 politiques manquantes |
+
+#### Sécurité
+
+- **Row Level Security (RLS)** activé sur toutes les tables
+- Membres : accès en lecture/écriture limité à leurs propres données
+- Staff : accès limité par rôle (`super_admin`, `admin`, `kyc_officer`, etc.)
+- `audit_logs` : insert-only, immutable par conception
+- `transactions` : insert-only (Phase 1, saisie manuelle par les admins)
+- Documents KYC : stockés dans un bucket Supabase privé, accès par URL signée uniquement
+
+#### Utilisation
+
+```bash
+# Appliquer les migrations à la base distante
+npx supabase db push
+
+# (optionnel) Démarrer en local
+npx supabase start
+npx supabase migration up
+```
+
+---
+
 ### Différences architecturales (CDC vs Réalité)
 
 | Aspect | Cahier de Charge | Réalité |
