@@ -70,6 +70,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "supabase": "^2.107.0",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   },
@@ -89,5 +90,18 @@
     "overrides": {
       "vite": "6.3.5"
     }
-  }
+  },
+  "description": "Plateforme digitale de microfinance — Frontend (Vite + React + TypeScript)",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FBA-EMPIRE/pij.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FBA-EMPIRE/pij/issues"
+  },
+  "homepage": "https://github.com/FBA-EMPIRE/pij#readme"
 }

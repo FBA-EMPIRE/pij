@@ -1,0 +1,11 @@
+create type user_status as enum ('pending', 'active', 'suspended', 'deactivated');
+create type kyc_status as enum ('not_submitted', 'pending', 'approved', 'rejected');
+create type account_type as enum ('savings', 'current');
+create type transaction_type as enum ('deposit', 'withdrawal');
+create type savings_goal_status as enum ('active', 'completed', 'cancelled');
+create type tontine_frequency as enum ('weekly', 'monthly');
+create type tontine_status as enum ('open', 'active', 'closed');
+create type tontine_member_status as enum ('pending', 'active', 'removed');
+create type contribution_status as enum ('paid', 'unpaid');
+create type round_status as enum ('pending', 'paid');
+create type notification_type as enum ('kyc_status', 'contribution_reminder', 'payout_alert', 'system', 'general');
