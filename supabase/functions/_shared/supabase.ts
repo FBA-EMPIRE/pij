@@ -45,3 +45,17 @@ export function extractUserId(authHeader: string): string | null {
     return null;
   }
 }
+
+export function isServiceRoleKey(authHeader: string): boolean {
+  try {
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const payloadBase64 = token.split(".")[1];
+    if (!payloadBase64) return false;
+
+    const decoded = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(decoded);
+    return payload.role === "service_role";
+  } catch {
+    return false;
+  }
+}

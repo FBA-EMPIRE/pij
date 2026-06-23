@@ -24,6 +24,14 @@ export function validateWithdrawal(body: Record<string, unknown>) {
   return body as { user_id: string; amount: number; account_type: "savings" | "current" };
 }
 
+export function validateGetTransactions(body: Record<string, unknown>) {
+  const user_id = typeof body.user_id === "string" && body.user_id ? body.user_id : undefined;
+  const account_type = body.account_type === "savings" || body.account_type === "current"
+    ? body.account_type
+    : undefined;
+  return { user_id, account_type: account_type as "savings" | "current" | undefined };
+}
+
 export function validatePagination(page: unknown, limit: unknown) {
   const p = typeof page === "number" && Number.isInteger(page) && page > 0 ? page : 1;
   const l = typeof limit === "number" && Number.isInteger(limit) && limit > 0
@@ -69,4 +77,24 @@ export function validateTontineGroup(body: Record<string, unknown>) {
     entry_fee: number;
     start_date: string;
   };
+}
+
+export function validateTontineApply(body: Record<string, unknown>) {
+  if (!body.tontine_id || typeof body.tontine_id !== "string") {
+    throw new Error("tontine_id is required and must be a string");
+  }
+  return body as { tontine_id: string };
+}
+
+export function validateTontineContribution(body: Record<string, unknown>) {
+  if (!body.round_id || typeof body.round_id !== "string") {
+    throw new Error("round_id is required and must be a string");
+  }
+  if (!body.member_id || typeof body.member_id !== "string") {
+    throw new Error("member_id is required and must be a string");
+  }
+  if (typeof body.amount !== "number" || body.amount <= 0) {
+    throw new Error("amount is required and must be a positive number");
+  }
+  return body as { round_id: string; member_id: string; amount: number };
 }

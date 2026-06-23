@@ -1,4 +1,4 @@
-import { getSupabaseClient, extractUserId } from "../_shared/supabase-client.ts";
+import { getSupabaseClient, extractUserId, isServiceRoleKey } from "../_shared/supabase-client.ts";
 import { validateDeposit } from "../_shared/validators.ts";
 
 const corsHeaders = {
@@ -26,32 +26,69 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const validated = validateDeposit(body);
 
-    const recordedBy = authHeader ? extractUserId(authHeader) : null;
+    let adminId = authHeader ? extractUserId(authHeader) : null;
+    if (!adminId && authHeader && isServiceRoleKey(authHeader)) {
+      adminId = body.admin_id ?? null;
+    }
+    if (!adminId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    const { data, error } = await supabase
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id, balance")
+      .eq("user_id", validated.user_id)
+      .eq("account_type", validated.account_type)
+      .single();
+
+    if (accountError || !account) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Account not found for this user and account type" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const balanceAfter = Number(account.balance) + validated.amount;
+
+    const { data: transaction, error: txError } = await supabase
       .from("transactions")
       .insert({
-        user_id: validated.user_id,
-        account_type: validated.account_type,
+        account_id: account.id,
         type: "deposit",
         amount: validated.amount,
-        description: body.description ?? null,
-        recorded_by: recordedBy,
-        status: "completed",
-        created_at: new Date().toISOString(),
+        balance_after: balanceAfter,
+        recorded_by: adminId,
+        notes: body.notes ?? null,
+        transaction_reference: body.transaction_reference ?? null,
+        external_id: body.external_id ?? null,
       })
       .select()
       .single();
 
-    if (error) {
+    if (txError) {
       return new Response(
-        JSON.stringify({ success: false, error: error.message }),
+        JSON.stringify({ success: false, error: txError.message }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { error: updateError } = await supabase
+      .from("accounts")
+      .update({ balance: balanceAfter })
+      .eq("id", account.id);
+
+    if (updateError) {
+      return new Response(
+        JSON.stringify({ success: false, error: updateError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     return new Response(
-      JSON.stringify({ success: true, transaction: data }),
+      JSON.stringify({ success: true, transaction }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
