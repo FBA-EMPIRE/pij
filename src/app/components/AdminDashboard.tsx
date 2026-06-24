@@ -1,13 +1,12 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Users, ShieldCheck, TrendingUp, Wallet, AlertCircle, ArrowUpRight, ChevronRight } from "lucide-react";
+import { Users, ShieldCheck, TrendingUp, Wallet, ArrowUpRight, ChevronRight, Loader2 } from "lucide-react";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
-import {
-  ADMIN_KPI, MEMBERS, KYC_QUEUE, MEMBER_GROWTH_DATA,
-  CONTRIBUTION_DATA, TONTINE_STATUS_DATA, KYC_TREND_DATA, formatXAF
-} from "./mockData";
+import { fetchDashboardStats, fetchUsers, fetchKycQueue } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 
@@ -16,12 +15,56 @@ export default function AdminDashboard() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
 
+  const [stats, setStats] = useState<{ memberCount: number; tontineCount: number; totalSavings: number } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [users, setUsers] = useState<any[]>([]);
+  const [kycQueue, setKycQueue] = useState<any[]>([]);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [s, u, k] = await Promise.all([
+          fetchDashboardStats(),
+          fetchUsers(),
+          fetchKycQueue(),
+        ]);
+        setStats(s);
+        setUsers(u);
+        setKycQueue(k);
+      } catch {
+        setError(true);
+      } finally {
+        setStatsLoading(false);
+      }
+    })();
+  }, []);
+
+  const pendingKyc = kycQueue.length;
+  const activeUsers = users.filter((u: any) => u.status === "active").length;
+
   const kpis = [
-    { label: fr ? "Membres totaux" : "Total members", value: ADMIN_KPI.total_members.toLocaleString(), sub: `${ADMIN_KPI.active_members} ${fr ? "actifs" : "active"}`, icon: Users, color: "#4CAF68", bg: "#E8F5EC" },
-    { label: fr ? "KYC en attente" : "Pending KYC", value: ADMIN_KPI.pending_kyc, sub: fr ? "À traiter" : "To process", icon: ShieldCheck, color: "#F2994A", bg: "#FFF3E0", urgent: true },
-    { label: fr ? "Tontines actives" : "Active tontines", value: ADMIN_KPI.active_tontines, sub: fr ? "En cours" : "In progress", icon: TrendingUp, color: "#6E3A9A", bg: "#F0E8FF" },
-    { label: fr ? "Épargne totale" : "Total savings", value: "284,5M XAF", sub: `+${ADMIN_KPI.monthly_growth}% ${fr ? "ce mois" : "this month"}`, icon: Wallet, color: "#4CAF68", bg: "#E8F5EC" },
+    { label: fr ? "Membres totaux" : "Total members", value: (stats?.memberCount ?? 0).toLocaleString(), sub: `${activeUsers} ${fr ? "actifs" : "active"}`, icon: Users, color: "#4CAF68", bg: "#E8F5EC" },
+    { label: fr ? "KYC en attente" : "Pending KYC", value: pendingKyc, sub: fr ? "À traiter" : "To process", icon: ShieldCheck, color: "#F2994A", bg: "#FFF3E0", urgent: true },
+    { label: fr ? "Tontines actives" : "Active tontines", value: stats?.tontineCount ?? 0, sub: fr ? "En cours" : "In progress", icon: TrendingUp, color: "#6E3A9A", bg: "#F0E8FF" },
+    { label: fr ? "Épargne totale" : "Total savings", value: stats ? formatXAF(stats.totalSavings) : "—", sub: fr ? "Toutes les comptes" : "All accounts", icon: Wallet, color: "#4CAF68", bg: "#E8F5EC" },
   ];
+
+  if (error) {
+    return (
+      <div className="p-4 lg:p-6">
+        <p className="text-red-500">{fr ? "Erreur de chargement des données" : "Error loading dashboard data"}</p>
+      </div>
+    );
+  }
+
+  if (statsLoading) {
+    return (
+      <div className="p-4 lg:p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -50,12 +93,9 @@ export default function AdminDashboard() {
               <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Croissance des membres" : "Member growth"}</h3>
               <p className="text-xs text-muted-foreground">{fr ? "6 derniers mois" : "Last 6 months"}</p>
             </div>
-            <span className="flex items-center gap-1 text-xs font-medium text-[#1F9D55]">
-              <ArrowUpRight size={13} /> +{ADMIN_KPI.monthly_growth}%
-            </span>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={MEMBER_GROWTH_DATA}>
+            <AreaChart data={[]}>
               <defs>
                 <linearGradient id="greenGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#4CAF68" stopOpacity={0.2} />
@@ -80,7 +120,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={CONTRIBUTION_DATA}>
+            <BarChart data={[]}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} />
@@ -97,24 +137,13 @@ export default function AdminDashboard() {
           <h3 className="mb-5" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Statut des Tontines" : "Tontine Status"}</h3>
           <ResponsiveContainer width="100%" height={150}>
             <PieChart>
-              <Pie data={TONTINE_STATUS_DATA} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value">
-                {TONTINE_STATUS_DATA.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
+              <Pie data={[]} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value">
               </Pie>
               <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
           <div className="space-y-2 mt-2">
-            {TONTINE_STATUS_DATA.map((d) => (
-              <div key={d.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
-                  <span className="text-muted-foreground">{d.name}</span>
-                </div>
-                <span className="font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>{d.value}</span>
-              </div>
-            ))}
+            <p className="text-xs text-muted-foreground">{fr ? "Aucune donnée" : "No data"}</p>
           </div>
         </div>
 
@@ -123,23 +152,23 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "File KYC" : "KYC Queue"}</h3>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">{KYC_QUEUE.length}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">{kycQueue.length}</span>
             </div>
             <button onClick={() => navigate("/admin/kyc")} className="text-xs text-[#4CAF68] font-medium flex items-center gap-1 hover:underline">
               {fr ? "Voir tout" : "View all"} <ChevronRight size={12} />
             </button>
           </div>
           <div className="space-y-2">
-            {KYC_QUEUE.map((kyc) => (
+            {kycQueue.map((kyc: any) => (
               <div key={kyc.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/60 cursor-pointer transition-colors" onClick={() => navigate("/admin/kyc")}>
                 <div className="w-9 h-9 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {kyc.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  {((kyc.full_name || kyc.name || kyc.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2))}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{kyc.name}</p>
-                  <p className="text-xs text-muted-foreground">{kyc.id_type} · {new Date(kyc.submitted).toLocaleDateString("fr-FR")}</p>
+                  <p className="text-sm font-medium truncate">{kyc.full_name || kyc.name || kyc.email}</p>
+                  <p className="text-xs text-muted-foreground">{kyc.id_type || kyc.kyc_status || "—"} · {kyc.created_at ? new Date(kyc.created_at).toLocaleDateString("fr-FR") : "—"}</p>
                 </div>
-                <StatusBadge status={kyc.priority as any} size="sm" />
+                <StatusBadge status={kyc.kyc_status || "pending"} size="sm" />
               </div>
             ))}
           </div>
@@ -167,22 +196,22 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {MEMBERS.slice(0, 5).map((m) => (
+              {users.slice(0, 5).map((m: any) => (
                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20 cursor-pointer" onClick={() => navigate("/admin/users")}>
-                  <td className="py-3 text-xs text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{m.id}</td>
+                  <td className="py-3 text-xs text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{m.id?.slice(0, 8) || m.id}</td>
                   <td className="py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">
-                        {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        {(m.full_name || m.name || m.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                       </div>
-                      <span className="text-sm font-medium">{m.name}</span>
+                      <span className="text-sm font-medium">{m.full_name || m.name || m.email}</span>
                     </div>
                   </td>
-                  <td className="py-3 text-sm text-muted-foreground">{m.phone}</td>
-                  <td className="py-3"><StatusBadge status={m.kyc as any} size="sm" /></td>
-                  <td className="py-3"><StatusBadge status={m.status as any} size="sm" /></td>
+                  <td className="py-3 text-sm text-muted-foreground">{m.phone || "—"}</td>
+                  <td className="py-3"><StatusBadge status={(m.kyc_status || "pending") as any} size="sm" /></td>
+                  <td className="py-3"><StatusBadge status={(m.status || "active") as any} size="sm" /></td>
                   <td className="py-3 text-right text-sm font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>
-                    {m.balance_savings > 0 ? formatXAF(m.balance_savings) : "—"}
+                    {m.balance_savings ? formatXAF(m.balance_savings) : "—"}
                   </td>
                 </tr>
               ))}

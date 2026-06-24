@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle, Mail, RefreshCw } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
-import { MEMBERS } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
   return (
@@ -42,8 +42,22 @@ export default function VerifyEmail() {
   const [error, setError] = useState("");
   const [verified, setVerified] = useState(false);
   const [resending, setResending] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
 
-  const member = MEMBERS.find((m) => m.id === "PIJ-2024-003");
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        supabase
+          .from("users")
+          .select("verification_code")
+          .eq("id", data.user.id)
+          .single()
+          .then(({ data: userData }) => {
+            if (userData) setVerificationCode(userData.verification_code ?? "");
+          });
+      }
+    });
+  }, []);
 
   const handleCodeChange = (i: number, value: string) => {
     if (value.length > 1) return;
@@ -66,7 +80,7 @@ export default function VerifyEmail() {
 
   const handleVerify = () => {
     const entered = code.join("");
-    if (entered === member?.verificationCode) {
+    if (entered === verificationCode) {
       setVerified(true);
       setTimeout(() => navigate("/kyc"), 1500);
     } else {

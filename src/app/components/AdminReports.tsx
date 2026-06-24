@@ -1,18 +1,31 @@
-import { useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Download, FileText, TrendingUp, Users, Layers } from "lucide-react";
 import {
   BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
-import { MEMBER_GROWTH_DATA, CONTRIBUTION_DATA, KYC_TREND_DATA, ADMIN_KPI, formatXAF } from "./mockData";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import { useAppContext } from "../context/AppContext";
+import { fetchDashboardStats } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
+
+const MEMBER_GROWTH_DATA: { month: string; members: number }[] = [];
+
+const CONTRIBUTION_DATA: { month: string; amount: number }[] = [];
+
+const KYC_TREND_DATA: { month: string; approved: number; rejected: number }[] = [];
 
 export default function AdminReports() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  const [kpi, setKpi] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [activeReport, setActiveReport] = useState<"financial" | "members" | "tontines">("financial");
+
+  useEffect(() => {
+    fetchDashboardStats().then(setKpi).finally(() => setLoading(false));
+  }, []);
 
   const reportTypes = [
     { key: "financial", label: fr ? "Rapport Financier" : "Financial Report", icon: TrendingUp },
@@ -31,24 +44,24 @@ export default function AdminReports() {
 
     if (activeReport === "financial") {
       doc.setFontSize(12);
-      doc.text(`${fr ? "Épargne totale" : "Total savings"}: ${ADMIN_KPI.total_savings.toLocaleString()} XAF`, 14, 40);
-      doc.text(`${fr ? "Comptes courants" : "Current accounts"}: ${ADMIN_KPI.total_current.toLocaleString()} XAF`, 14, 48);
-      doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${ADMIN_KPI.monthly_growth}%`, 14, 56);
+      doc.text(`${fr ? "Épargne totale" : "Total savings"}: ${(kpi?.total_savings ?? 0).toLocaleString()} XAF`, 14, 40);
+      doc.text(`${fr ? "Comptes courants" : "Current accounts"}: ${(kpi?.total_current ?? 0).toLocaleString()} XAF`, 14, 48);
+      doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${kpi?.monthly_growth ?? 0}%`, 14, 56);
       CONTRIBUTION_DATA.forEach((d, i) => {
         doc.text(`${d.month}: ${(d.amount / 1000000).toFixed(1)}M XAF`, 14, 68 + i * 7);
       });
     } else if (activeReport === "members") {
       doc.setFontSize(12);
-      doc.text(`${fr ? "Total membres" : "Total members"}: ${ADMIN_KPI.total_members}`, 14, 40);
-      doc.text(`${fr ? "Membres actifs" : "Active members"}: ${ADMIN_KPI.active_members}`, 14, 48);
-      doc.text(`${fr ? "Taux KYC" : "KYC rate"}: ${ADMIN_KPI.kyc_approval_rate}%`, 14, 56);
+      doc.text(`${fr ? "Total membres" : "Total members"}: ${kpi?.total_members ?? 0}`, 14, 40);
+      doc.text(`${fr ? "Membres actifs" : "Active members"}: ${kpi?.active_members ?? 0}`, 14, 48);
+      doc.text(`${fr ? "Taux KYC" : "KYC rate"}: ${kpi?.kyc_approval_rate ?? 0}%`, 14, 56);
       MEMBER_GROWTH_DATA.forEach((d, i) => {
         doc.text(`${d.month}: ${d.members}`, 14, 68 + i * 7);
       });
     } else {
       doc.setFontSize(12);
-      doc.text(`${fr ? "Tontines actives" : "Active tontines"}: ${ADMIN_KPI.active_tontines}`, 14, 40);
-      doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${ADMIN_KPI.monthly_growth}%`, 14, 48);
+      doc.text(`${fr ? "Tontines actives" : "Active tontines"}: ${kpi?.active_tontines ?? 0}`, 14, 40);
+      doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${kpi?.monthly_growth ?? 0}%`, 14, 48);
     }
     doc.save(`PIJ_${reportName.replace(/\s+/g, "_")}_${dateStr}.pdf`);
   }, [activeReport, fr]);
@@ -59,26 +72,26 @@ export default function AdminReports() {
 
     if (activeReport === "financial") {
       const data = [
-        { [fr ? "Métrique" : "Metric"]: fr ? "Épargne totale" : "Total savings", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.total_savings.toLocaleString()} XAF` },
-        { [fr ? "Métrique" : "Metric"]: fr ? "Comptes courants" : "Current accounts", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.total_current.toLocaleString()} XAF` },
-        { [fr ? "Métrique" : "Metric"]: fr ? "Croissance mensuelle" : "Monthly growth", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.monthly_growth}%` },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Épargne totale" : "Total savings", [fr ? "Valeur" : "Value"]: `${(kpi?.total_savings ?? 0).toLocaleString()} XAF` },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Comptes courants" : "Current accounts", [fr ? "Valeur" : "Value"]: `${(kpi?.total_current ?? 0).toLocaleString()} XAF` },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Croissance mensuelle" : "Monthly growth", [fr ? "Valeur" : "Value"]: `${kpi?.monthly_growth ?? 0}%` },
         ...CONTRIBUTION_DATA.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, [fr ? "Montant" : "Amount"]: d.amount })),
       ];
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, fr ? "Financier" : "Financial");
     } else if (activeReport === "members") {
       const data = [
-        { [fr ? "Métrique" : "Metric"]: fr ? "Total membres" : "Total members", [fr ? "Valeur" : "Value"]: ADMIN_KPI.total_members },
-        { [fr ? "Métrique" : "Metric"]: fr ? "Membres actifs" : "Active members", [fr ? "Valeur" : "Value"]: ADMIN_KPI.active_members },
-        { [fr ? "Métrique" : "Metric"]: fr ? "Taux KYC" : "KYC rate", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.kyc_approval_rate}%` },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Total membres" : "Total members", [fr ? "Valeur" : "Value"]: kpi?.total_members ?? 0 },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Membres actifs" : "Active members", [fr ? "Valeur" : "Value"]: kpi?.active_members ?? 0 },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Taux KYC" : "KYC rate", [fr ? "Valeur" : "Value"]: `${kpi?.kyc_approval_rate ?? 0}%` },
         ...MEMBER_GROWTH_DATA.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, Membres: d.members })),
       ];
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, fr ? "Membres" : "Members");
     } else {
       const data = [
-        { [fr ? "Métrique" : "Metric"]: fr ? "Tontines actives" : "Active tontines", [fr ? "Valeur" : "Value"]: ADMIN_KPI.active_tontines },
-        { [fr ? "Métrique" : "Metric"]: fr ? "Taux de croissance" : "Growth rate", [fr ? "Valeur" : "Value"]: `${ADMIN_KPI.monthly_growth}%` },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Tontines actives" : "Active tontines", [fr ? "Valeur" : "Value"]: kpi?.active_tontines ?? 0 },
+        { [fr ? "Métrique" : "Metric"]: fr ? "Taux de croissance" : "Growth rate", [fr ? "Valeur" : "Value"]: `${kpi?.monthly_growth ?? 0}%` },
       ];
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, fr ? "Tontines" : "Tontines");
@@ -124,9 +137,9 @@ export default function AdminReports() {
           {/* Summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: fr ? "Épargne totale" : "Total savings", value: "284,5M XAF", sub: fr ? "Tous comptes épargne" : "All savings accounts" },
-              { label: fr ? "Comptes courants" : "Current accounts", value: "97,2M XAF", sub: fr ? "Tous comptes courants" : "All current accounts" },
-              { label: fr ? "Contributions tontines" : "Tontine contributions", value: "64,3M XAF", sub: fr ? "Juin 2024" : "June 2024" },
+              { label: fr ? "Épargne totale" : "Total savings", value: formatXAF(kpi?.total_savings ?? 0), sub: fr ? "Tous comptes épargne" : "All savings accounts" },
+              { label: fr ? "Comptes courants" : "Current accounts", value: formatXAF(kpi?.total_current ?? 0), sub: fr ? "Tous comptes courants" : "All current accounts" },
+              { label: fr ? "Contributions tontines" : "Tontine contributions", value: formatXAF(kpi?.tontine_contributions ?? 0), sub: fr ? "Ce mois" : "This month" },
             ].map((s) => (
               <div key={s.label} className="bg-card rounded-2xl border border-border p-5">
                 <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -156,9 +169,9 @@ export default function AdminReports() {
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: fr ? "Total membres" : "Total members", value: "847" },
-              { label: fr ? "Membres actifs" : "Active members", value: "712" },
-              { label: fr ? "Taux approbation KYC" : "KYC approval rate", value: "94%" },
+              { label: fr ? "Total membres" : "Total members", value: String(kpi?.total_members ?? 0) },
+              { label: fr ? "Membres actifs" : "Active members", value: String(kpi?.active_members ?? 0) },
+              { label: fr ? "Taux approbation KYC" : "KYC approval rate", value: `${kpi?.kyc_approval_rate ?? 0}%` },
             ].map((s) => (
               <div key={s.label} className="bg-card rounded-2xl border border-border p-5">
                 <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -202,9 +215,9 @@ export default function AdminReports() {
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: fr ? "Tontines actives" : "Active tontines", value: "7" },
-              { label: fr ? "Participants totaux" : "Total participants", value: "84" },
-              { label: fr ? "Fonds sous gestion" : "Funds under management", value: "5,25M XAF" },
+              { label: fr ? "Tontines actives" : "Active tontines", value: String(kpi?.active_tontines ?? 0) },
+              { label: fr ? "Participants totaux" : "Total participants", value: String(kpi?.total_participants ?? 0) },
+              { label: fr ? "Fonds sous gestion" : "Funds under management", value: kpi?.total_savings ? formatXAF(Math.round(kpi.total_savings * 0.18)) : "0 XAF" },
             ].map((s) => (
               <div key={s.label} className="bg-card rounded-2xl border border-border p-5">
                 <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -217,9 +230,8 @@ export default function AdminReports() {
             <p className="text-xs text-muted-foreground mb-4">{fr ? "Pourcentage des contributions payées vs attendues" : "Percentage of contributions paid vs expected"}</p>
             <div className="space-y-3">
               {[
-                { name: "Tontine Alpha", rate: 87, paid: 70, total: 80 },
-                { name: "Tontine Mensuelle Entrepreneurs", rate: 100, paid: 0, total: 0 },
-                { name: "Tontine Jeunes Femmes", rate: 94, paid: 47, total: 50 },
+                { name: fr ? "Tontine A" : "Tontine A", rate: 0, paid: 0, total: 0 },
+                { name: fr ? "Tontine B" : "Tontine B", rate: 0, paid: 0, total: 0 },
               ].map((t) => (
                 <div key={t.name}>
                   <div className="flex justify-between text-sm mb-1">

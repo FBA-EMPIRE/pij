@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowUpRight, ArrowDownRight, Search, Download } from "lucide-react";
-import { TRANSACTIONS, formatXAF } from "./mockData";
+import { fetchTransactions, getCurrentUserId } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 import TransactionDetailModal from "./TransactionDetailModal";
 import type { Transaction } from "../types";
 import { useAppContext } from "../context/AppContext";
@@ -11,10 +12,24 @@ export default function TransactionHistory() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const filtered = TRANSACTIONS.filter((t) => {
-    const matchSearch = t.description.toLowerCase().includes(search.toLowerCase());
-    const matchType = typeFilter === "all" || t.type.toLowerCase() === typeFilter;
+  useEffect(() => {
+    getCurrentUserId().then(async (uid) => {
+      setCurrentUserId(uid);
+      const txns = await fetchTransactions(uid);
+      setTransactions(txns);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const filtered = transactions.filter((t) => {
+    const desc = t.description || "";
+    const type = (t.type || t.transaction_type || "").toLowerCase();
+    const matchSearch = desc.toLowerCase().includes(search.toLowerCase());
+    const matchType = typeFilter === "all" || type === typeFilter;
     return matchSearch && matchType;
   });
 
@@ -83,7 +98,11 @@ export default function TransactionHistory() {
               <div className="col-span-2 text-right">{fr ? "Montant" : "Amount"}</div>
             </div>
             {filtered.map((txn) => {
-              const isCredit = txn.amount > 0;
+              const desc = txn.description || "";
+              const amount = txn.amount ?? 0;
+              const date = txn.date || txn.created_at || "";
+              const account = txn.account || txn.account_type || "";
+              const isCredit = amount > 0;
               return (
                 <button key={txn.id} onClick={() => setSelectedTxn(txn)} className="w-full text-left grid grid-cols-12 items-center gap-1 sm:gap-0 px-3 sm:px-5 py-3 sm:py-4 border-b border-border last:border-0 hover:bg-muted/20 transition-colors min-h-[44px]">
                   <div className="col-span-1 flex justify-center">
@@ -92,18 +111,18 @@ export default function TransactionHistory() {
                     </div>
                   </div>
                   <div className="col-span-6 sm:col-span-5 min-w-0 pr-1 sm:pr-4">
-                    <p className="text-xs sm:text-sm font-medium truncate">{txn.description}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground sm:hidden mt-0.5">{txn.date} · {txn.account}</p>
+                    <p className="text-xs sm:text-sm font-medium truncate">{desc}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground sm:hidden mt-0.5">{date} · {account}</p>
                   </div>
                   <div className="col-span-2 hidden sm:block">
-                    <p className="text-sm text-muted-foreground">{txn.date}</p>
+                    <p className="text-sm text-muted-foreground">{date}</p>
                   </div>
                   <div className="col-span-2 hidden sm:block">
-                    <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">{txn.account}</span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">{account}</span>
                   </div>
                   <div className="col-span-4 sm:col-span-2 text-right">
                     <span className={`text-xs sm:text-sm font-bold ${isCredit ? "text-[#1F9D55]" : "text-[#E5484D]"}`} style={{ fontFamily: "Geist Mono, monospace" }}>
-                      {isCredit ? "+" : "−"}{formatXAF(txn.amount)}
+                      {isCredit ? "+" : "−"}{formatXAF(amount)}
                     </span>
                   </div>
                 </button>

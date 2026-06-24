@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, ArrowDownLeft, ArrowUpRight, Check } from "lucide-react";
-import { MEMBERS, SAVINGS_GOALS, AUDIT_LOGS, formatXAF } from "./mockData";
+import { fetchUsers, getCurrentUserId, recordDeposit, recordWithdrawal } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_MAP } from "../constants";
 import { useAppContext } from "../context/AppContext";
@@ -8,11 +9,18 @@ import { useAppContext } from "../context/AppContext";
 export default function AccountManagement() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  const [members, setMembers] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<"accounts" | "deposit" | "withdrawal">("accounts");
+
+  useEffect(() => {
+    getCurrentUserId().then(setCurrentUserId).catch(() => {});
+    fetchUsers().then(setMembers).catch(() => {});
+  }, []);
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [selectedMember, setSelectedMember] = useState(MEMBERS[0].id);
+  const [selectedMember, setSelectedMember] = useState("");
   const [accountType, setAccountType] = useState<string>("current");
   const [goalId, setGoalId] = useState<string>("");
   const [amount, setAmount] = useState("");
@@ -21,7 +29,7 @@ export default function AccountManagement() {
 
   const reset = () => {
     setStep(1);
-    setSelectedMember(MEMBERS[0].id);
+    setSelectedMember(members[0]?.id || "");
     setAccountType("current");
     setGoalId("");
     setAmount("");
@@ -29,15 +37,19 @@ export default function AccountManagement() {
     setDone(false);
   };
 
-  const handleSubmit = () => {
-    AUDIT_LOGS.unshift({
-      id: `LOG-${String(AUDIT_LOGS.length + 1).padStart(3, "0")}`,
-      actor: "Admin Kone",
-      action: tab === "deposit" ? "Deposit Recorded" : "Withdrawal Recorded",
-      entity: `${tab === "deposit" ? "Dépôt" : "Retrait"} — ${selectedMember} — ${formatXAF(Number(amount))}`,
-      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-      ip: "192.168.1.45",
-    });
+  const handleSubmit = async () => {
+    if (!currentUserId) return;
+    const payload = {
+      user_id: selectedMember,
+      amount: Number(amount),
+      account_type: accountType || undefined,
+      description: desc || undefined,
+    };
+    if (tab === "deposit") {
+      await recordDeposit(payload);
+    } else {
+      await recordWithdrawal(payload);
+    }
     setDone(true);
   };
 
@@ -77,7 +89,7 @@ export default function AccountManagement() {
                 </tr>
               </thead>
               <tbody>
-                {MEMBERS.filter((m) => m.status === "Active").map((m) => (
+                      {members.filter((m) => m.status === "active" || m.status === "Active").map((m) => (
                   <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -147,7 +159,7 @@ export default function AccountManagement() {
                   <div>
                     <label className="text-sm font-medium">{fr ? "Membre" : "Member"}</label>
                     <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                      {MEMBERS.filter((m) => m.status === "Active").map((m) => (
+                {members.filter((m) => m.status === "active" || m.status === "Active").map((m) => (
                         <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
                       ))}
                     </select>
@@ -165,7 +177,7 @@ export default function AccountManagement() {
                       <label className="text-sm font-medium">{fr ? "Objectif d'épargne (optionnel)" : "Savings goal (optional)"}</label>
                       <select value={goalId} onChange={(e) => setGoalId(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
                         <option value="">{fr ? "Aucun objectif" : "No goal"}</option>
-                        {SAVINGS_GOALS.filter((g) => g.memberId === selectedMember).map((g) => (
+                        {[].map((g: any) => (
                           <option key={g.id} value={g.id}>{g.name} — {formatXAF(g.target - g.current)} {fr ? "restant" : "remaining"}</option>
                         ))}
                       </select>
@@ -186,7 +198,7 @@ export default function AccountManagement() {
                     {goalId && (
                       <span className="ml-3">
                         <span className="font-medium text-foreground">{fr ? "Objectif" : "Goal"}: </span>
-                        {SAVINGS_GOALS.find((g) => g.id === goalId)?.name}
+                        {(() => null)()}
                       </span>
                     )}
                   </div>
@@ -215,7 +227,7 @@ export default function AccountManagement() {
                   <div className="rounded-xl border border-border p-4 space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{fr ? "Membre" : "Member"}</span>
-                      <span className="font-medium">{MEMBERS.find((m) => m.id === selectedMember)?.name}</span>
+                      <span className="font-medium">{members.find((m) => m.id === selectedMember)?.name}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{fr ? "Compte" : "Account"}</span>
@@ -224,7 +236,7 @@ export default function AccountManagement() {
                     {goalId && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">{fr ? "Objectif" : "Goal"}</span>
-                        <span className="font-medium">{SAVINGS_GOALS.find((g) => g.id === goalId)?.name}</span>
+                        <span className="font-medium">{(() => null)()}</span>
                       </div>
                     )}
                     <div className="flex justify-between">

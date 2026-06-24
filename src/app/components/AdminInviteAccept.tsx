@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Eye, EyeOff, CheckCircle, Shield, XCircle } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
-import { ADMIN_INVITATIONS, ADMINS } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
   return (
@@ -39,10 +39,29 @@ export default function AdminInviteAccept() {
   const [showPw, setShowPw] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
+  const [invitation, setInvitation] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const invitation = ADMIN_INVITATIONS.find((i) => i.token === token);
+  useEffect(() => {
+    if (!token) return;
+    supabase
+      .from("admin_invitations")
+      .select("*")
+      .eq("token", token)
+      .single()
+      .then(({ data, error: err }) => {
+        if (err || !data || data.status !== "Pending") {
+          setInvitation(null);
+        } else {
+          setInvitation(data);
+        }
+        setLoading(false);
+      });
+  }, [token]);
 
-  if (!invitation || invitation.status !== "Pending") {
+  if (loading) return null;
+
+  if (!invitation) {
     return (
       <AuthCard darkMode={darkMode}>
         <div className="w-full max-w-sm text-center">
@@ -65,7 +84,7 @@ export default function AdminInviteAccept() {
     );
   }
 
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (password.length < 6) {
       setError(fr ? "Le mot de passe doit contenir au moins 6 caractères." : "Password must be at least 6 characters.");
       return;
@@ -76,21 +95,18 @@ export default function AdminInviteAccept() {
     }
     setError("");
 
-    ADMINS.push({
-      id: `ADM-${String(ADMINS.length + 1).padStart(3, "0")}`,
-      initials: invitation.email.split("@")[0].slice(0, 2).toUpperCase(),
-      initialsColor: "#4CAF68",
-      name: invitation.email.split("@")[0],
+    await supabase.from("admins").insert({
       email: invitation.email,
-      phone: "",
       role: invitation.role,
-      lastLogin: "",
-      lastLoginFr: "",
+      name: invitation.email.split("@")[0],
       status: "Active",
-      created: new Date().toISOString().slice(0, 10),
     });
 
-    invitation.status = "Accepted";
+    await supabase
+      .from("admin_invitations")
+      .update({ status: "Accepted" })
+      .eq("id", invitation.id);
+
     setAccepted(true);
     setTimeout(() => navigate("/login"), 2000);
   };

@@ -11,14 +11,14 @@ const NOTIFICATION_CATEGORIES = [
 ] as const;
 
 export default function ProfilePage() {
-  const { lang } = useAppContext();
+  const { lang, user, userProfile } = useAppContext();
   const fr = lang === "fr";
   const [editing, setEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [name] = useState("Amara Diallo");
-  const [email] = useState("amara.diallo@email.com");
-  const [phone] = useState("+237 6 70 12 34 56");
-  const [city] = useState("Yaoundé");
+  const [name, setName] = useState(userProfile?.name ?? user?.user_metadata?.name ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [phone, setPhone] = useState(userProfile?.phone ?? "");
+  const [city, setCity] = useState(userProfile?.city ?? "");
   const [notifications, setNotifications] = useState({
     contributions: true,
     payouts: true,

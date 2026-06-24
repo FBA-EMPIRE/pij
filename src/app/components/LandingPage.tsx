@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   ArrowRight, Shield, TrendingUp, Users, Zap, Globe, ChevronDown, ChevronUp,
@@ -7,6 +7,8 @@ import {
 import { PIJLogo } from "./PIJLogo";
 import heroBgImage from "../../../images/background 1.jpeg";
 import { useAppContext } from "../context/AppContext";
+import { fetchDashboardStats } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 
 const FEATURES = [
   { icon: Shield, title: "KYC Sécurisé", titleEn: "Secure KYC", desc: "Vérification d'identité numérique rapide et sécurisée pour accéder à tous les services PIJ.", descEn: "Fast, secure digital identity verification to access all PIJ services." },
@@ -42,6 +44,11 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const fr = lang === "fr";
+  const [stats, setStats] = useState({ memberCount: 0, tontineCount: 0, totalSavings: 0 });
+
+  useEffect(() => {
+    fetchDashboardStats().then(setStats).catch(console.error);
+  }, []);
 
   return (
     <div className={darkMode ? "dark" : ""} style={{ fontFamily: "DM Sans, Inter, sans-serif" }}>
@@ -109,9 +116,9 @@ export default function LandingPage() {
               </div>
               <div className="flex flex-wrap gap-6 mt-10 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
                 {[
-                  { n: "847+", l: fr ? "Membres actifs" : "Active members" },
-                  { n: "7", l: fr ? "Tontines actives" : "Active tontines" },
-                  { n: "284M+", l: "XAF " + (fr ? "en épargne" : "in savings") },
+                  { n: stats.memberCount.toLocaleString() + "+", l: fr ? "Membres actifs" : "Active members" },
+                  { n: stats.tontineCount.toLocaleString(), l: fr ? "Tontines actives" : "Active tontines" },
+                  { n: formatXAF(stats.totalSavings), l: fr ? "en épargne" : "in savings" },
                 ].map((stat) => (
                   <div key={stat.l} className="flex items-center gap-2">
                     <span className="font-bold text-white" style={{ fontFamily: "Geist Mono, monospace" }}>{stat.n}</span>
@@ -260,7 +267,7 @@ export default function LandingPage() {
                   {fr ? "Prêt à investir pour votre avenir ?" : "Ready to invest in your future?"}
                 </h2>
                 <p className="text-white/80 mb-8 max-w-lg mx-auto">
-                  {fr ? "Rejoignez 847 membres PIJ qui digitalisent leur épargne et leurs tontines dès aujourd'hui." : "Join 847 PIJ members who are digitalizing their savings and tontines today."}
+                  {fr ? `Rejoignez ${stats.memberCount} membres PIJ qui digitalisent leur épargne et leurs tontines dès aujourd'hui.` : `Join ${stats.memberCount} PIJ members who are digitalizing their savings and tontines today.`}
                 </p>
                 <div className="flex flex-wrap justify-center gap-3">
                   <button onClick={() => navigate("/register")} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white font-medium text-sm transition-all hover:opacity-90" style={{ color: "#1F9D55" }}>

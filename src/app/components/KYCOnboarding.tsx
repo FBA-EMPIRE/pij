@@ -97,20 +97,20 @@ export default function KYCOnboarding() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium">{fr ? "Prénom" : "First name"}</label>
-                    <input defaultValue="Amara" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                    <input defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
                   </div>
                   <div>
                     <label className="text-sm font-medium">{fr ? "Nom de famille" : "Last name"}</label>
-                    <input defaultValue="Diallo" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                    <input defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium">{fr ? "Date de naissance" : "Date of birth"}</label>
-                  <input type="date" defaultValue="1998-04-15" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                  <input type="date" defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">{fr ? "Ville de résidence" : "City of residence"}</label>
-                  <input defaultValue="Yaoundé" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                  <input defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">{fr ? "Activité professionnelle" : "Professional activity"}</label>
@@ -182,9 +182,9 @@ export default function KYCOnboarding() {
               <p className="text-sm text-muted-foreground mb-6">{fr ? "Vérifiez vos informations avant de soumettre votre dossier." : "Verify your information before submitting your application."}</p>
               <div className="space-y-3">
                 {[
-                  { label: fr ? "Nom complet" : "Full name", value: "Amara Diallo" },
-                  { label: fr ? "Date de naissance" : "Date of birth", value: "15 Avril 1998" },
-                  { label: fr ? "Ville" : "City", value: "Yaoundé" },
+                  { label: fr ? "Nom complet" : "Full name", value: "" },
+                  { label: fr ? "Date de naissance" : "Date of birth", value: "" },
+                  { label: fr ? "Ville" : "City", value: "" },
                   { label: fr ? "Type de document" : "Document type", value: fr ? "Carte Nationale d'Identité" : "National ID Card" },
                   { label: fr ? "Statut pièce d'identité" : "ID document status", value: fr ? "✓ Téléchargée" : "✓ Uploaded", green: true },
                   { label: fr ? "Statut selfie" : "Selfie status", value: fr ? "✓ Capturé" : "✓ Captured", green: true },

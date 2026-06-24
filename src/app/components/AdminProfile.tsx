@@ -1,16 +1,17 @@
-import { useState } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, Save, Shield, CalendarDays, Clock } from "lucide-react";
-import { CURRENT_ADMIN, formatXAF } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { getCurrentUserId, fetchAdmins } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
 
 export default function AdminProfile() {
   const { darkMode, toggleDark, toggleLang, lang } = useAppContext();
   const fr = lang === "fr";
-  const admin = CURRENT_ADMIN;
-  const [name, setName] = useState(admin.name);
-  const [email, setEmail] = useState(admin.email);
-  const [phone, setPhone] = useState(admin.phone);
+  const [admin, setAdmin] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -18,14 +19,33 @@ export default function AdminProfile() {
   const [showNew, setShowNew] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const roleLabel = admin.role === "super_admin"
+  useEffect(() => {
+    (async () => {
+      try {
+        const userId = await getCurrentUserId();
+        const allAdmins = await fetchAdmins();
+        const current = allAdmins.find((a: any) => a.id === userId) ?? allAdmins[0] ?? null;
+        setAdmin(current);
+        if (current) {
+          setName([current.first_name, current.last_name].filter(Boolean).join(" "));
+          setEmail(current.email ?? "");
+          setPhone(current.phone ?? "");
+        }
+      } catch {
+        // fallback
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const roleLabel = admin?.roles?.name === "super_admin"
     ? (fr ? "Super Administrateur" : "Super Admin")
     : (fr ? "Administrateur" : "Admin");
 
-  const handleSave = () => {
-    admin.name = name;
-    admin.email = email;
-    admin.phone = phone;
+  const handleSave = async () => {
+    if (!admin) return;
+    await supabase.from("admins").update({ first_name: name.split(" ")[0], last_name: name.split(" ").slice(1).join(" "), email, phone }).eq("id", admin.id);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -52,11 +72,11 @@ export default function AdminProfile() {
       <div className="bg-card rounded-2xl border border-border p-6 mb-5">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0"
-            style={{ background: admin.initialsColor }}>
-            {admin.initials}
+            style={{ background: "#6E3A9A" }}>
+            {(admin ? [admin.first_name, admin.last_name].filter(Boolean).map((s: string) => s[0]).join("").slice(0, 2).toUpperCase() : "?")}
           </div>
           <div>
-            <p className="text-base font-semibold">{admin.name}</p>
+            <p className="text-base font-semibold">{name || email}</p>
             <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#E8F5EC] text-[#1F9D55]">{roleLabel}</span>
           </div>
         </div>
@@ -176,15 +196,15 @@ export default function AdminProfile() {
           </div>
           <div className="p-3 rounded-xl border border-border">
             <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays size={11} /> {fr ? "Créé le" : "Created"}</p>
-            <p className="text-sm font-semibold mt-0.5">{admin.created}</p>
+            <p className="text-sm font-semibold mt-0.5">{admin?.created_at?.slice(0, 10) ?? "-"}</p>
           </div>
           <div className="p-3 rounded-xl border border-border">
             <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock size={11} /> {fr ? "Dernière connexion" : "Last login"}</p>
-            <p className="text-sm font-semibold mt-0.5">{fr ? admin.lastLoginFr : admin.lastLogin}</p>
+            <p className="text-sm font-semibold mt-0.5">{admin?.last_login_at ? new Date(admin.last_login_at).toLocaleString(fr ? "fr-FR" : "en-US") : (fr ? "Jamais" : "Never")}</p>
           </div>
           <div className="p-3 rounded-xl border border-border">
             <p className="text-xs text-muted-foreground">{fr ? "Statut" : "Status"}</p>
-            <p className="text-sm font-semibold mt-0.5 text-[#4CAF68]">{admin.status === "Active" ? (fr ? "Actif" : "Active") : (fr ? "Suspendu" : "Suspended")}</p>
+            <p className="text-sm font-semibold mt-0.5 text-[#4CAF68]">{admin?.is_active ? (fr ? "Actif" : "Active") : (fr ? "Suspendu" : "Suspended")}</p>
           </div>
         </div>
       </div>

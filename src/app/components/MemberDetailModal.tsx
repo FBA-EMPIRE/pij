@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, TrendingUp, ArrowDownRight, ArrowUpRight } from "lucide-react";
-import { SAVINGS_GOALS, TRANSACTIONS, formatXAF, MEMBERS } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { fetchUsers } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 
 interface MemberDetailModalProps {
   memberId: string;
@@ -12,11 +13,19 @@ export default function MemberDetailModal({ memberId, onClose }: MemberDetailMod
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"goals" | "transactions">("goals");
-  const member = MEMBERS.find((m) => m.id === memberId);
+  const [member, setMember] = useState<any>(null);
+
+  useEffect(() => {
+    fetchUsers().then((users) => {
+      const found = users.find((u: any) => u.id === memberId);
+      setMember(found ?? null);
+    });
+  }, [memberId]);
+
   if (!member) return null;
 
-  const memberGoals = SAVINGS_GOALS.filter((g) => g.memberId === memberId);
-  const memberTxns = TRANSACTIONS.filter(() => true).slice(0, 10);
+  const memberGoals: any[] = [];
+  const memberTxns: any[] = [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>

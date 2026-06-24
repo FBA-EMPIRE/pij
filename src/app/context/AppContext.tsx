@@ -1,6 +1,16 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import type { Member, Admin } from "../types";
-import { MEMBERS, ADMINS, CURRENT_USER_ID } from "../components/mockData";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { supabase } from "../lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
+
+interface UserProfile {
+  id: string;
+  email?: string;
+  name?: string;
+  role?: "member" | "admin" | "super_admin";
+  avatar_url?: string;
+  kyc_status?: string;
+  [key: string]: any;
+}
 
 interface AppContextValue {
   darkMode: boolean;
@@ -9,13 +19,13 @@ interface AppContextValue {
   lang: "fr" | "en";
   setLang: (v: "fr" | "en") => void;
   toggleLang: () => void;
-  user: Member | null;
-  setUser: (u: Member | null) => void;
-  admin: Admin | null;
-  setAdmin: (a: Admin | null) => void;
-  loginUser: (memberId: string) => void;
-  loginAdmin: (adminId: string) => void;
-  logout: () => void;
+  user: User | null;
+  userProfile: UserProfile | null;
+  sessionLoading: boolean;
+  profileLoading: boolean;
+  setUser: (u: User | null) => void;
+  setUserProfile: (p: UserProfile | null) => void;
+  logout: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -23,33 +33,58 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [darkMode, setDarkMode] = useState(false);
   const [lang, setLang] = useState<"fr" | "en">("fr");
-  const [user, setUser] = useState<Member | null>(() => MEMBERS.find((m) => m.id === CURRENT_USER_ID) ?? null);
-  const [admin, setAdmin] = useState<Admin | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      setSessionLoading(false);
+      if (u) fetchProfile(u.id);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) fetchProfile(u.id);
+      else setUserProfile(null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (userId: string) => {
+    setProfileLoading(true);
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!error && data) {
+      setUserProfile(data as UserProfile);
+    }
+    setProfileLoading(false);
+  };
 
   const toggleDark = useCallback(() => setDarkMode((d) => !d), []);
   const toggleLang = useCallback(() => setLang((l) => (l === "fr" ? "en" : "fr")), []);
 
-  const loginUser = useCallback((memberId: string) => {
-    const found = MEMBERS.find((m) => m.id === memberId);
-    if (found) setUser(found);
-  }, []);
-
-  const loginAdmin = useCallback((adminId: string) => {
-    const found = ADMINS.find((a) => a.id === adminId);
-    if (found) setAdmin(found);
-  }, []);
-
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    setAdmin(null);
+    setUserProfile(null);
   }, []);
 
   return (
     <AppContext.Provider value={{
       darkMode, setDarkMode, toggleDark,
       lang, setLang, toggleLang,
-      user, setUser, admin, setAdmin,
-      loginUser, loginAdmin, logout,
+      user, userProfile, sessionLoading, profileLoading,
+      setUser, setUserProfile,
+      logout,
     }}>
       {children}
     </AppContext.Provider>

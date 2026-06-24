@@ -1,13 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Archive, Users, Calendar, Download, FileText, Eye } from "lucide-react";
-import { ARCHIVES, formatXAF } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
+import { formatXAF } from "../lib/format";
+
+interface Archive {
+  id: string;
+  name: string;
+  frequency: string;
+  members: any[];
+  total_weeks: number;
+  start_date: string;
+  end_date: string;
+  total_collected: number;
+}
 
 export default function AdminTontineArchives() {
   const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  const [archives, setArchives] = useState<Archive[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("tontine_archives")
+      .select("*")
+      .then(({ data }) => {
+        if (data) setArchives(data as Archive[]);
+      });
+  }, []);
 
   return (
     <div className="p-4 lg:p-6 max-w-5xl mx-auto">
@@ -17,17 +39,17 @@ export default function AdminTontineArchives() {
 
       <div className="mb-6">
         <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Archives des tontines" : "Tontine archives"}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{ARCHIVES.length} {fr ? "tontine(s) archivée(s)" : "archived tontine(s)"}</p>
+        <p className="text-sm text-muted-foreground mt-1">{archives.length} {fr ? "tontine(s) archivée(s)" : "archived tontine(s)"}</p>
       </div>
 
-      {ARCHIVES.length === 0 ? (
+      {archives.length === 0 ? (
         <div className="bg-card rounded-2xl border border-border p-8 text-center">
           <Archive size={32} className="mx-auto mb-3 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">{fr ? "Aucune tontine archivée" : "No archived tontines"}</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {ARCHIVES.map((arc) => (
+          {archives.map((arc) => (
             <div key={arc.id} className="bg-card rounded-2xl border border-border p-5">
               <div className="flex items-start justify-between mb-4">
                 <div>

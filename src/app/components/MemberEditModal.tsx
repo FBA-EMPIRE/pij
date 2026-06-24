@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { MEMBERS } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { fetchUsers } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
 
 interface MemberEditModalProps {
   memberId: string;
@@ -12,23 +13,45 @@ interface MemberEditModalProps {
 export default function MemberEditModal({ memberId, onClose, onSave }: MemberEditModalProps) {
   const { lang } = useAppContext();
   const fr = lang === "fr";
-  const member = MEMBERS.find((m) => m.id === memberId);
+  const [member, setMember] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUsers().then((users) => {
+      const found = users.find((u: any) => u.id === memberId);
+      setMember(found ?? null);
+      setLoading(false);
+    });
+  }, [memberId]);
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [status, setStatus] = useState("Active");
+  const [kyc, setKyc] = useState("Pending");
+
+  useEffect(() => {
+    if (member) {
+      setName(member.name ?? "");
+      setEmail(member.email ?? "");
+      setPhone(member.phone ?? "");
+      setStatus(member.status ?? "Active");
+      setKyc(member.kyc_status ?? "Pending");
+    }
+  }, [member]);
+
+  if (loading) return null;
   if (!member) return null;
 
-  const [name, setName] = useState(member.name);
-  const [email, setEmail] = useState(member.email);
-  const [phone, setPhone] = useState(member.phone);
-  const [status, setStatus] = useState(member.status);
-  const [kyc, setKyc] = useState(member.kyc);
-
-  const handleSave = () => {
-    member.name = name;
-    member.email = email;
-    member.phone = phone;
-    member.status = status;
-    member.kyc = kyc;
-    onSave();
-    onClose();
+  const handleSave = async () => {
+    const { error } = await supabase
+      .from("users")
+      .update({ name, email, phone, status, kyc_status: kyc })
+      .eq("id", memberId);
+    if (!error) {
+      onSave();
+      onClose();
+    }
   };
 
   return (

@@ -93,8 +93,8 @@ function AdminSettingsPlaceholder() {
 }
 
 function RoleDashboard() {
-  const { admin } = useAppContext();
-  if (admin?.role === "super_admin") return <SuperAdminDashboard />;
+  const { userProfile } = useAppContext();
+  if (userProfile?.role === "super_admin") return <SuperAdminDashboard />;
   return <AdminDashboard />;
 }
 
@@ -116,7 +116,7 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <MemberDashboard />
                 </MemberLayout>
@@ -126,7 +126,7 @@ export default function App() {
           <Route
             path="/transactions"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <TransactionHistory />
                 </MemberLayout>
@@ -136,7 +136,7 @@ export default function App() {
           <Route
             path="/savings"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <SavingsGoals />
                 </MemberLayout>
@@ -146,7 +146,7 @@ export default function App() {
           <Route
             path="/formations"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Formations />
                 </MemberLayout>
@@ -156,7 +156,7 @@ export default function App() {
           <Route
             path="/formations/courses/:id"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Formations view="course" />
                 </MemberLayout>
@@ -166,7 +166,7 @@ export default function App() {
           <Route
             path="/formations/learning"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Formations view="learning" />
                 </MemberLayout>
@@ -176,7 +176,7 @@ export default function App() {
           <Route
             path="/formations/consultation"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Formations view="consultation" />
                 </MemberLayout>
@@ -186,7 +186,7 @@ export default function App() {
           <Route
             path="/investissements"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Investments />
                 </MemberLayout>
@@ -196,7 +196,7 @@ export default function App() {
           <Route
             path="/investissements/portfolio"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Investments view="portfolio" />
                 </MemberLayout>
@@ -206,7 +206,7 @@ export default function App() {
           <Route
             path="/investissements/wallet"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Investments view="wallet" />
                 </MemberLayout>
@@ -216,7 +216,7 @@ export default function App() {
           <Route
             path="/investissements/:id"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <Investments view="detail" />
                 </MemberLayout>
@@ -226,7 +226,7 @@ export default function App() {
           <Route
             path="/marketplace"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <TontineMarketplace />
                 </MemberLayout>
@@ -236,7 +236,7 @@ export default function App() {
           <Route
             path="/tontines"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <MyTontines />
                 </MemberLayout>
@@ -246,7 +246,7 @@ export default function App() {
           <Route
             path="/tontines/:id"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <TontineDetail />
                 </MemberLayout>
@@ -256,7 +256,7 @@ export default function App() {
           <Route
             path="/tontines/archives/:id"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <TontineArchiveDetail />
                 </MemberLayout>
@@ -266,7 +266,7 @@ export default function App() {
           <Route
             path="/notifications"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <NotificationsPage />
                 </MemberLayout>
@@ -276,7 +276,7 @@ export default function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <ProfilePage />
                 </MemberLayout>
@@ -286,7 +286,7 @@ export default function App() {
           <Route
             path="/settings"
             element={
-              <ProtectedRoute type="member">
+              <ProtectedRoute >
                 <MemberLayout>
                   <MemberSettings />
                 </MemberLayout>
@@ -298,7 +298,7 @@ export default function App() {
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <RoleDashboard />
                 </AdminLayout>
@@ -308,7 +308,7 @@ export default function App() {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <UserManagement />
                 </AdminLayout>
@@ -318,7 +318,7 @@ export default function App() {
           <Route
             path="/admin/kyc"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <KYCReview />
                 </AdminLayout>
@@ -328,7 +328,7 @@ export default function App() {
           <Route
             path="/admin/accounts"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AccountManagement />
                 </AdminLayout>
@@ -338,7 +338,7 @@ export default function App() {
           <Route
             path="/admin/tontines"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminTontines />
                 </AdminLayout>
@@ -348,7 +348,7 @@ export default function App() {
           <Route
             path="/admin/tontines/:id"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminTontineDetail />
                 </AdminLayout>
@@ -358,7 +358,7 @@ export default function App() {
           <Route
             path="/admin/tontines/:id/participants"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminTontineParticipants />
                 </AdminLayout>
@@ -368,7 +368,7 @@ export default function App() {
           <Route
             path="/admin/tontine-types"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminTontineTypes />
                 </AdminLayout>
@@ -378,7 +378,7 @@ export default function App() {
           <Route
             path="/admin/tontines/archives"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminTontineArchives />
                 </AdminLayout>
@@ -388,7 +388,7 @@ export default function App() {
           <Route
             path="/admin/formations"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminFormations />
                 </AdminLayout>
@@ -398,7 +398,7 @@ export default function App() {
           <Route
             path="/admin/investissements"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminInvestments />
                 </AdminLayout>
@@ -408,7 +408,7 @@ export default function App() {
           <Route
             path="/admin/reports"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminReports />
                 </AdminLayout>
@@ -418,7 +418,7 @@ export default function App() {
           <Route
             path="/admin/admins"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <SuperAdminRoute>
                     <AdminAdministrators />
@@ -430,7 +430,7 @@ export default function App() {
           <Route
             path="/admin/audit"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <SuperAdminRoute>
                     <AuditLogs />
@@ -442,7 +442,7 @@ export default function App() {
           <Route
             path="/admin/notifications"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminNotifications />
                 </AdminLayout>
@@ -452,7 +452,7 @@ export default function App() {
           <Route
             path="/admin/profile"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <AdminProfile />
                 </AdminLayout>
@@ -462,7 +462,7 @@ export default function App() {
           <Route
             path="/admin/monitoring"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <SuperAdminRoute>
                     <SystemMonitoring />
@@ -474,7 +474,7 @@ export default function App() {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedRoute type="admin">
+              <ProtectedRoute >
                 <AdminLayout>
                   <SuperAdminRoute>
                     <AdminSettingsPlaceholder />

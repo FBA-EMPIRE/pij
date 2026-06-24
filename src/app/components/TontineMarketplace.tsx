@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Users, Calendar, Coins, ArrowRight, Inbox } from "lucide-react";
-import { TONTINES, formatXAF } from "./mockData";
+import { formatXAF } from "../lib/format";
+import { fetchTontines } from "../lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 
@@ -8,7 +10,16 @@ export default function TontineMarketplace() {
   const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
-  const openTontines = TONTINES.filter((t) => t.status === "Open");
+  const [tontines, setTontines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTontines()
+      .then(setTontines)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const openTontines = tontines.filter((t) => t.status === "Open");
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -35,7 +46,7 @@ export default function TontineMarketplace() {
               <div className="flex items-start justify-between mb-4 gap-2">
                 <div className="min-w-0">
                   <h3 className="text-sm sm:text-base truncate" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.type} · {t.duration}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.tontine_types?.name ?? t.frequency ?? ""} · {t.duration}</p>
                 </div>
                 <StatusBadge status={status} size="sm" />
               </div>

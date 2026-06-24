@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Calendar, Plus, TrendingUp, History, Edit3, ArrowDownRight } from "lucide-react";
-import { SAVINGS_GOALS, TRANSACTIONS, formatXAF } from "./mockData";
 import type { SavingsGoal } from "../types";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
+import { formatXAF } from "../lib/format";
 
 interface GoalDetailModalProps {
   goal: SavingsGoal;
@@ -17,10 +18,21 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
   const [editTarget, setEditTarget] = useState(String(goal.target));
   const [editDeadline, setEditDeadline] = useState(goal.deadline);
   const [contributionAmount, setContributionAmount] = useState("");
+  const [goalTxns, setGoalTxns] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("transactions")
+      .select("*")
+      .eq("goal_id", goal.id)
+      .gt("amount", 0)
+      .then(({ data }) => {
+        if (data) setGoalTxns(data);
+      });
+  }, [goal.id]);
 
   const pct = Math.round((goal.current / goal.target) * 100);
-  const goalTxns = TRANSACTIONS.filter((t) => t.goalId === goal.id && t.amount > 0);
-  const totalSaved = goalTxns.reduce((sum, t) => sum + t.amount, 0);
+  const totalSaved = goalTxns.reduce((sum: number, t: any) => sum + t.amount, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -98,21 +110,24 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                     placeholder={fr ? "Montant" : "Amount"}
                   />
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const amt = parseInt(contributionAmount);
                       if (amt > 0) {
-                        TRANSACTIONS.push({
-                          id: `TXN-NEW-${Date.now()}`,
-                          date: new Date().toISOString().slice(0, 10),
-                          type: "Deposit",
+                        await supabase.from("transactions").insert({
+                          goal_id: goal.id,
                           amount: amt,
+                          type: "Deposit",
                           description: fr ? `Dépôt objectif: ${goal.name}` : `Deposit for: ${goal.name}`,
-                          account: "Épargne",
                           status: "Completed",
-                          goalId: goal.id,
                         });
                         goal.current += amt;
                         setContributionAmount("");
+                        const { data } = await supabase
+                          .from("transactions")
+                          .select("*")
+                          .eq("goal_id", goal.id)
+                          .gt("amount", 0);
+                        if (data) setGoalTxns(data);
                       }
                     }}
                     disabled={!contributionAmount || parseInt(contributionAmount) <= 0}
@@ -171,10 +186,15 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                 <input type="date" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
               </div>
               <button
-                onClick={() => {
-                  goal.name = editName;
-                  goal.target = parseInt(editTarget) || goal.target;
-                  goal.deadline = editDeadline;
+                onClick={async () => {
+                  await supabase
+                    .from("savings_goals")
+                    .update({
+                      name: editName,
+                      target: parseInt(editTarget) || goal.target,
+                      deadline: editDeadline,
+                    })
+                    .eq("id", goal.id);
                   onClose();
                 }}
                 className="w-full py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all"

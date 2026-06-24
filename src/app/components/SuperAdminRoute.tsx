@@ -7,11 +7,11 @@ interface SuperAdminRouteProps {
 }
 
 export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
-  const { lang, admin } = useAppContext();
+  const { lang, userProfile } = useAppContext();
   const navigate = useNavigate();
   const fr = lang === "fr";
 
-  if (!admin || admin.role !== "super_admin") {
+  if (!userProfile || userProfile.role !== "super_admin") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <div className="max-w-sm text-center">

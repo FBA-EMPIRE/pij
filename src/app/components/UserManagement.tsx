@@ -1,23 +1,36 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Filter, Plus, MoreHorizontal, Eye, Edit, UserX } from "lucide-react";
-import { MEMBERS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 import MemberDetailModal from "./MemberDetailModal";
 import MemberEditModal from "./MemberEditModal";
 import { useAppContext } from "../context/AppContext";
+import { fetchUsers } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 
 export default function UserManagement() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [kycFilter, setKycFilter] = useState("all");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
   const [editMemberId, setEditMemberId] = useState<string | null>(null);
 
-  const filtered = MEMBERS.filter((m) => {
-    const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.id.includes(search) || m.phone.includes(search);
-    const matchKyc = kycFilter === "all" || m.kyc.toLowerCase() === kycFilter;
+  useEffect(() => {
+    fetchUsers().then((data) => {
+      setMembers((data ?? []).map((u: any) => ({
+        ...u,
+        name: [u.profiles?.first_name, u.profiles?.last_name].filter(Boolean).join(" ") || u.email || "Unknown",
+        kyc: u.kyc_status,
+      })));
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const filtered = members.filter((m) => {
+    const matchSearch = m.name?.toLowerCase().includes(search.toLowerCase()) || m.uid?.includes(search) || m.phone?.includes(search);
+    const matchKyc = kycFilter === "all" || (m.kyc_status ?? m.kyc)?.toLowerCase() === kycFilter;
     return matchSearch && matchKyc;
   });
 
@@ -82,7 +95,7 @@ export default function UserManagement() {
             <tbody>
               {filtered.map((m) => (
                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap" style={{ fontFamily: "Geist Mono, monospace" }}>{m.id}</td>
+                  <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap" style={{ fontFamily: "Geist Mono, monospace" }}>{m.uid ?? m.id}</td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold shrink-0">
@@ -98,7 +111,7 @@ export default function UserManagement() {
                   <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
                   <td className="px-5 py-4"><StatusBadge status={m.status as any} size="sm" /></td>
                   <td className="px-5 py-4 text-right text-sm font-medium whitespace-nowrap" style={{ fontFamily: "Geist Mono, monospace" }}>
-                    {m.balance_savings > 0 ? formatXAF(m.balance_savings) : <span className="text-muted-foreground">—</span>}
+                    {(m.balance_savings ?? 0) > 0 ? formatXAF(m.balance_savings) : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">

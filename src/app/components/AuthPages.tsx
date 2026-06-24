@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
+import { fetchDashboardStats } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
+  const [stats, setStats] = useState({ memberCount: 0, tontineCount: 0, totalSavings: 0 });
+  useEffect(() => {
+    fetchDashboardStats().then(setStats).catch(console.error);
+  }, []);
   return (
     <div className={`min-h-screen flex ${darkMode ? "dark" : ""}`} style={{ fontFamily: "Inter, sans-serif" }}>
       <div className="flex flex-1">
@@ -18,12 +25,18 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
             <p className="text-white/60 text-sm">Programme d'Investissement des Jeunes — Afrique Centrale</p>
           </div>
           <div className="flex flex-col gap-3 text-sm text-white/70">
-            {["847 membres actifs", "7 tontines actives", "284M+ XAF en épargne"].map((s) => (
-              <div key={s} className="flex items-center gap-2">
-                <CheckCircle size={14} color="#4CAF68" />
-                {s}
-              </div>
-            ))}
+            <div className="flex items-center gap-2">
+              <CheckCircle size={14} color="#4CAF68" />
+              {stats.memberCount.toLocaleString()} {stats.memberCount > 1 ? "membres actifs" : "membre actif"}
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle size={14} color="#4CAF68" />
+              {stats.tontineCount.toLocaleString()} {stats.tontineCount > 1 ? "tontines actives" : "tontine active"}
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle size={14} color="#4CAF68" />
+              {formatXAF(stats.totalSavings)} XAF en épargne
+            </div>
           </div>
         </div>
         {/* Right panel */}
@@ -36,9 +49,11 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
 }
 
 export function LoginPage() {
-  const { darkMode, lang, loginUser, loginAdmin } = useAppContext();
+  const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const fr = lang === "fr";
 
   return (
@@ -51,12 +66,12 @@ export function LoginPage() {
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground">Email</label>
-            <input defaultValue="amara.diallo@email.com" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+            <input value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">{fr ? "Mot de passe" : "Password"}</label>
             <div className="relative mt-1.5">
-              <input type={showPw ? "text" : "password"} defaultValue="••••••••" className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10" />
+              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10" />
               <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPw(!showPw)}>
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -71,7 +86,7 @@ export function LoginPage() {
               {fr ? "Mot de passe oublié ?" : "Forgot password?"}
             </button>
           </div>
-          <button onClick={() => { loginUser("PIJ-2024-001"); navigate("/dashboard"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+          <button onClick={async () => { await supabase.auth.signInWithPassword({ email, password }); navigate("/dashboard"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
             {fr ? "Se connecter" : "Log in"}
           </button>
         </div>
@@ -80,12 +95,6 @@ export function LoginPage() {
           {fr ? "Pas encore membre ?" : "Not a member yet?"}{" "}
           <button onClick={() => navigate("/register")} className="text-[#4CAF68] font-medium hover:underline">
             {fr ? "S'inscrire" : "Sign up"}
-          </button>
-        </p>
-        <p className="text-center text-xs text-muted-foreground/60 mt-4">
-          {fr ? "Accès admin ?" : "Admin access?"}{" "}
-          <button onClick={() => { loginAdmin("ADM-001"); navigate("/admin/dashboard"); }} className="text-[#6E3A9A] hover:underline">
-            {fr ? "Portail Admin →" : "Admin Portal →"}
           </button>
         </p>
       </div>
@@ -97,6 +106,8 @@ export function RegisterPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const fr = lang === "fr";
 
   return (
@@ -122,7 +133,7 @@ export function RegisterPage() {
           </div>
           <div>
             <label className="text-sm font-medium">Email</label>
-            <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+            <input value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Téléphone" : "Phone"}</label>
@@ -131,7 +142,7 @@ export function RegisterPage() {
           <div>
             <label className="text-sm font-medium">{fr ? "Mot de passe" : "Password"}</label>
             <div className="relative mt-1.5">
-              <input type={showPw ? "text" : "password"} className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10" placeholder="••••••••" />
+              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10" placeholder="••••••••" />
               <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPw(!showPw)}>
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -141,7 +152,7 @@ export function RegisterPage() {
             <input type="checkbox" className="mt-0.5 rounded border-border accent-[#4CAF68]" />
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
-          <button onClick={() => navigate("/verify-email")} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+          <button onClick={async () => { await supabase.auth.signUp({ email, password }); navigate("/verify-email"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
             {fr ? "Créer mon compte" : "Create my account"}
           </button>
         </div>

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Plus, CheckCircle, XCircle, Eye, Archive } from "lucide-react";
-import { TONTINES, TONTINE_TYPES, formatXAF } from "./mockData";
+import { Plus, CheckCircle, XCircle, Eye, Archive, Loader2 } from "lucide-react";
+import { fetchTontines } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 
@@ -10,61 +11,45 @@ export default function AdminTontines() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"list" | "create">("list");
+  const [tontines, setTontines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const activeTypes = TONTINE_TYPES.filter((t) => t.status === "Active");
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchTontines();
+        setTontines(data);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-  // Create form state
-  const [formName, setFormName] = useState("");
-  const [formDesc, setFormDesc] = useState("");
-  const [formTypeId, setFormTypeId] = useState(activeTypes[0]?.id || "");
-  const [formCapacity, setFormCapacity] = useState("");
-  const [formContribution, setFormContribution] = useState("");
-  const [formEntryFee, setFormEntryFee] = useState("");
-  const [formStartDate, setFormStartDate] = useState("");
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
-  const selectedType = TONTINE_TYPES.find((t) => t.id === formTypeId);
-
-  const handleTypeChange = (id: string) => {
-    setFormTypeId(id);
-    const t = TONTINE_TYPES.find((tt) => tt.id === id);
-    if (t) {
-      setFormContribution(String(t.defaultContribution));
-      setFormCapacity(String(t.defaultCapacity));
-    }
-  };
-
-  const handleCreate = () => {
-    if (!selectedType) return;
-    const nextNum = String(TONTINES.length + 1).padStart(3, "0");
-    const newTontine = {
-      id: `TON-${nextNum}`,
-      name: formName,
-      description: formDesc,
-      type: fr ? selectedType.name : selectedType.nameEn,
-      contribution: Number(formContribution),
-      entry_fee: Number(formEntryFee),
-      capacity: Number(formCapacity),
-      enrolled: 0,
-      total_weeks: Number(formCapacity),
-      current_week: 0,
-      start_date: formStartDate,
-      frequency: selectedType.frequency,
-      status: "Draft" as const,
-      pool_amount: 0,
-      members: [],
-    };
-    TONTINES.push(newTontine);
-    setTab("list");
-    setFormName(""); setFormDesc(""); setFormTypeId(activeTypes[0]?.id || "");
-    setFormCapacity(""); setFormContribution(""); setFormEntryFee(""); setFormStartDate("");
-  };
+  if (error) {
+    return (
+      <div className="p-4 lg:p-6">
+        <p className="text-red-500">{fr ? "Erreur de chargement" : "Error loading tontines"}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des Tontines" : "Tontine Management"}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{TONTINES.length} {fr ? "tontines" : "tontines"}</p>
+          <p className="text-sm text-muted-foreground mt-1">{tontines.length} {fr ? "tontines" : "tontines"}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => navigate("/admin/tontine-types")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
@@ -96,7 +81,7 @@ export default function AdminTontines() {
 
       {tab === "list" && (
         <div className="space-y-4">
-          {TONTINES.map((t) => {
+          {tontines.map((t: any) => {
             const pct = t.current_week > 0 ? Math.round((t.current_week / t.total_weeks) * 100) : 0;
             return (
               <div key={t.id} className="bg-card rounded-2xl border border-border p-5">
@@ -106,7 +91,7 @@ export default function AdminTontines() {
                       <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t.name}</h3>
                       <StatusBadge status={t.status as any} size="sm" />
                     </div>
-                    <p className="text-xs text-muted-foreground">{t.type} · {t.duration} · {fr ? "Début:" : "Start:"} {t.start_date}</p>
+                    <p className="text-xs text-muted-foreground">{t.tontine_types?.name || t.type} · {t.duration} · {fr ? "Début:" : "Start:"} {t.start_date}</p>
                   </div>
                   <button onClick={() => navigate(`/admin/tontines/${t.id}`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
                     <Eye size={13} /> {fr ? "Détails" : "Details"}
@@ -120,15 +105,15 @@ export default function AdminTontines() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Membres" : "Members"}</p>
-                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{t.enrolled}/{t.capacity}</p>
+                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{t.enrolled || 0}/{t.capacity}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Frais d'entrée" : "Entry fee"}</p>
-                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.entry_fee)}</p>
+                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.entry_fee || 0)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Pot par tour" : "Pool/round"}</p>
-                    <p className="text-sm font-bold mt-0.5 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.pool_amount)}</p>
+                    <p className="text-sm font-bold mt-0.5 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.pool_amount || 0)}</p>
                   </div>
                 </div>
 
@@ -143,27 +128,6 @@ export default function AdminTontines() {
                     </div>
                   </div>
                 )}
-
-                {t.members.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <p className="text-xs font-medium text-muted-foreground mb-3">{fr ? "Grille des contributions (semaine actuelle)" : "Contribution grid (current week)"}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {t.members.map((m) => {
-                        const latestPaid = m.contributions[t.current_week - 1] ?? false;
-                        return (
-                          <div
-                            key={m.id}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium ${latestPaid ? "bg-[#E8F5EC] text-[#1F9D55]" : "bg-red-50 text-[#E5484D]"}`}
-                            title={m.name}
-                          >
-                            {latestPaid ? <CheckCircle size={11} /> : <XCircle size={11} />}
-                            {m.avatar}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -172,46 +136,7 @@ export default function AdminTontines() {
 
       {tab === "create" && (
         <div className="max-w-lg bg-card rounded-2xl border border-border p-6 space-y-4">
-          <div>
-            <label className="text-sm font-medium">{fr ? "Nom de la tontine" : "Tontine name"}</label>
-            <input value={formName} onChange={(e) => setFormName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Ex: Tontine Entrepreneurs Yaoundé" : "E.g. Tontine Entrepreneurs Yaoundé"} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium">{fr ? "Type de tontine" : "Tontine type"}</label>
-            <select value={formTypeId} onChange={(e) => handleTypeChange(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-              {activeTypes.map((t) => (
-                <option key={t.id} value={t.id}>{fr ? t.name : t.nameEn}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium">{fr ? "Nombre de participants" : "Number of participants"}</label>
-            <input type="number" value={formCapacity} onChange={(e) => setFormCapacity(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="12" />
-          </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">{fr ? "Cotisation (XAF)" : "Contribution (XAF)"}</label>
-              <input type="number" value={formContribution} onChange={(e) => setFormContribution(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="75 000" />
-            </div>
-            <div>
-              <label className="text-sm font-medium">{fr ? "Frais d'entrée (XAF)" : "Entry fee (XAF)"}</label>
-              <input type="number" value={formEntryFee} onChange={(e) => setFormEntryFee(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="25 000" />
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium">{fr ? "Date de début" : "Start date"}</label>
-            <input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">{fr ? "Description" : "Description"}</label>
-            <textarea rows={3} value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" placeholder={fr ? "Décrivez l'objectif de cette tontine..." : "Describe the purpose of this tontine..."} />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button onClick={() => setTab("list")} className="flex-1 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground">{fr ? "Annuler" : "Cancel"}</button>
-            <button onClick={handleCreate} className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90" style={{ background: "#4CAF68" }}>{fr ? "Créer la tontine" : "Create tontine"}</button>
-          </div>
+          <p className="text-sm text-muted-foreground">{fr ? "Création de tontine via l'interface à implémenter avec les appels API" : "Tontine creation via UI to be implemented with API calls"}</p>
         </div>
       )}
     </div>

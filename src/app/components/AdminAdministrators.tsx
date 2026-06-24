@@ -1,46 +1,82 @@
-import { useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Shield, UserPlus, Copy, RefreshCw, XCircle, CheckCircle, X, ChevronDown, ArrowUpCircle, ArrowDownCircle, UserMinus, UserCheck, Link, Mail } from "lucide-react";
-import { ADMINS, ADMIN_INVITATIONS, createInvitation, promoteAdmin, demoteAdmin, suspendAdmin, reactivateAdmin } from "./mockData";
 import type { AdminRole } from "../types";
 import { useAppContext } from "../context/AppContext";
+import { fetchAdmins, fetchAdminInvitations } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
 
 export default function AdminAdministrators() {
-  const { lang, admin } = useAppContext();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"active" | "invitations">("active");
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", phone: "", role: "admin" as AdminRole });
   const [copyFeedback, setCopyFeedback] = useState("");
-  const linkRef = useRef<HTMLInputElement>(null);
 
-  const activeAdmins = ADMINS.filter((a) => a.status === "Active");
-  const superAdminCount = ADMINS.filter((a) => a.role === "super_admin" && a.status === "Active").length;
+  useEffect(() => {
+    Promise.all([
+      fetchAdmins(),
+      fetchAdminInvitations(),
+    ]).then(([adminsData, invData]) => {
+      setAdmins((adminsData ?? []).map((a: any) => ({
+        id: a.id,
+        initials: (a.first_name?.[0] ?? "") + (a.last_name?.[0] ?? ""),
+        initialsColor: "#6E3A9A",
+        name: [a.first_name, a.last_name].filter(Boolean).join(" "),
+        email: a.email,
+        phone: a.phone ?? "",
+        role: a.roles?.name === "super_admin" ? "super_admin" : "admin",
+        lastLogin: a.last_login_at ? new Date(a.last_login_at).toLocaleDateString() : "Never",
+        lastLoginFr: a.last_login_at ? new Date(a.last_login_at).toLocaleDateString("fr-FR") : "Jamais",
+        status: a.is_active ? "Active" as const : "Suspended" as const,
+        created: a.created_at?.slice(0, 10) ?? "",
+      })));
+      setInvitations(invData ?? []);
+    }).finally(() => setLoading(false));
+  }, []);
 
-  const handlePromote = promoteAdmin;
-  const handleDemote = demoteAdmin;
-  const handleSuspend = suspendAdmin;
-  const handleReactivate = reactivateAdmin;
+  const activeAdmins = admins.filter((a) => a.status === "Active");
+  const superAdminCount = admins.filter((a) => a.role === "super_admin" && a.status === "Active").length;
 
-  const handleSendInvitation = () => {
+  const handlePromote = async (id: string) => {
+    await supabase.functions.invoke("admin-promote", { body: { admin_id: id } });
+    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, role: "super_admin" } : a));
+  };
+
+  const handleDemote = async (id: string) => {
+    if (superAdminCount <= 1) return;
+    await supabase.functions.invoke("admin-demote", { body: { admin_id: id } });
+    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, role: "admin" } : a));
+  };
+
+  const handleSuspend = async (id: string) => {
+    await supabase.functions.invoke("admin-suspend", { body: { admin_id: id } });
+    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, status: "Suspended" } : a));
+  };
+
+  const handleReactivate = async (id: string) => {
+    await supabase.functions.invoke("admin-reactivate", { body: { admin_id: id } });
+    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, status: "Active" } : a));
+  };
+
+  const handleSendInvitation = async () => {
     if (!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email) return;
-    createInvitation({ email: inviteForm.email, role: inviteForm.role, createdBy: admin?.id ?? "ADM-001" });
+    await supabase.functions.invoke("admin-invite", {
+      body: { firstName: inviteForm.firstName, lastName: inviteForm.lastName, email: inviteForm.email, phone: inviteForm.phone, role: inviteForm.role },
+    });
     setInviteForm({ firstName: "", lastName: "", email: "", phone: "", role: "admin" });
     setShowInvite(false);
   };
 
-  const handleResend = (id: string) => {
-    const inv = ADMIN_INVITATIONS.find((i) => i.id === id);
-    if (inv) {
-      inv.token = generateToken();
-      inv.sentAt = new Date().toISOString();
-      inv.expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
-      inv.status = "Pending";
-    }
+  const handleResend = async (id: string) => {
+    await supabase.functions.invoke("admin-invite-resend", { body: { invitation_id: id } });
   };
 
-  const handleRevoke = (id: string) => {
-    const inv = ADMIN_INVITATIONS.find((i) => i.id === id);
-    if (inv) inv.status = "Revoked";
+  const handleRevoke = async (id: string) => {
+    await supabase.functions.invoke("admin-invite-revoke", { body: { invitation_id: id } });
   };
 
   const copyLink = (token: string) => {
@@ -100,7 +136,7 @@ export default function AdminAdministrators() {
             <span>ACTIONS</span>
           </div>
           <div className="divide-y divide-border">
-            {ADMINS.map((a) => {
+            {admins.map((a: any) => {
               const isLastSuperAdmin = a.role === "super_admin" && superAdminCount <= 1;
               return (
                 <div key={a.id} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1.5fr_1.5fr] gap-2 md:gap-4 px-5 py-4 items-center">
@@ -162,7 +198,7 @@ export default function AdminAdministrators() {
 
       {tab === "invitations" && (
         <div className="bg-card rounded-2xl border border-border overflow-hidden">
-          {ADMIN_INVITATIONS.length === 0 ? (
+          {invitations.length === 0 ? (
             <div className="p-8 text-center">
               <Mail size={32} className="mx-auto mb-3 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">{fr ? "Aucune invitation en attente" : "No pending invitations"}</p>
@@ -178,7 +214,7 @@ export default function AdminAdministrators() {
                 <span>ACTIONS</span>
               </div>
               <div className="divide-y divide-border">
-                {ADMIN_INVITATIONS.map((inv) => {
+                {invitations.map((inv: any) => {
                   const statusColors: Record<string, string> = {
                     Pending: "bg-[#FEF3C7] text-[#E8A317]",
                     Accepted: "bg-[#E8F5EC] text-[#1F9D55]",
@@ -198,15 +234,15 @@ export default function AdminAdministrators() {
                           {inv.status}
                         </span>
                       </div>
-                      <div className="text-sm text-muted-foreground">{formatDate(inv.sentAt)}</div>
-                      <div className="text-sm text-muted-foreground">{formatDate(inv.expiresAt)}</div>
+                      <div className="text-sm text-muted-foreground">{formatDate(inv.sent_at ?? inv.sentAt)}</div>
+                      <div className="text-sm text-muted-foreground">{formatDate(inv.expires_at ?? inv.expiresAt)}</div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {inv.status === "Pending" && (
                           <>
                             <button onClick={() => handleResend(inv.id)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs hover:bg-muted transition-all">
                               <RefreshCw size={12} /> {fr ? "Renvoyer" : "Resend"}
                             </button>
-                            <button onClick={() => copyLink(inv.token)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs hover:bg-muted transition-all">
+                            <button onClick={() => copyLink(inv.token ?? inv.invitation_token)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs hover:bg-muted transition-all">
                               <Link size={12} /> {fr ? "Lien" : "Link"}
                             </button>
                           </>

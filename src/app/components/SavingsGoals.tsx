@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Calendar, Bike, House, Book, Briefcase, Shield, Plane, Car, Pill, GraduationCap, Sprout, Baby, Dumbbell } from "lucide-react";
-import { SAVINGS_GOALS, formatXAF } from "./mockData";
+import { getCurrentUserId } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
+import { formatXAF } from "../lib/format";
 import GoalDetailModal from "./GoalDetailModal";
 import type { SavingsGoal } from "../types";
 import { useAppContext } from "../context/AppContext";
@@ -10,13 +12,21 @@ export default function SavingsGoals() {
   const fr = lang === "fr";
   const [showCreate, setShowCreate] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
+  const [goals, setGoals] = useState<any[]>([]);
+
+  useEffect(() => {
+    getCurrentUserId().then(async (userId) => {
+      const { data } = await supabase.from("savings_goals").select("*").eq("user_id", userId);
+      if (data) setGoals(data);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h2 className="text-lg sm:text-xl" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Objectifs d'épargne" : "Savings goals"}</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{SAVINGS_GOALS.length} {fr ? "objectifs actifs" : "active goals"}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{goals.length} {fr ? "objectifs actifs" : "active goals"}</p>
         </div>
         <button onClick={() => setShowCreate(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all w-full sm:w-auto min-h-[44px]" style={{ background: "#4CAF68" }}>
           <Plus size={16} /> {fr ? "Nouvel objectif" : "New goal"}
@@ -25,7 +35,7 @@ export default function SavingsGoals() {
 
       {/* Goals grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-        {SAVINGS_GOALS.map((goal) => {
+        {goals.map((goal) => {
           const pct = Math.round((goal.current / goal.target) * 100);
           return (
             <button key={goal.id} onClick={() => setSelectedGoal(goal)} className="bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-[#4CAF68]/40 transition-all cursor-pointer group text-left w-full">

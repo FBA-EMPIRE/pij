@@ -1,15 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, MessageSquare, Eye, FileText, Camera, Clock, ArrowLeft } from "lucide-react";
-import { KYC_QUEUE } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
+import { fetchKycQueue, kycApprove, kycReject } from "../lib/supabase/queries";
 
 export default function KYCReview() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
-  const [selected, setSelected] = useState<typeof KYC_QUEUE[0] | null>(null);
+  const [queue, setQueue] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<any | null>(null);
   const [decision, setDecision] = useState<"approved" | "rejected" | "info" | null>(null);
   const [note, setNote] = useState("");
+
+  useEffect(() => {
+    fetchKycQueue().then((data) => {
+      const mapped = (data ?? []).map((d: any) => ({
+        id: d.id,
+        member_id: d.users?.uid ?? d.user_id,
+        name: [d.users?.profiles?.first_name, d.users?.profiles?.last_name].filter(Boolean).join(" ") || d.users?.email || "Unknown",
+        email: d.users?.email ?? "",
+        phone: d.users?.phone ?? "",
+        submitted: d.submitted_at,
+        id_type: d.document_type,
+        priority: "Normal",
+        status: d.status,
+        user_id: d.user_id,
+      }));
+      setQueue(mapped);
+    }).finally(() => setLoading(false));
+  }, []);
 
   if (selected && !decision) {
     return (
@@ -88,21 +108,30 @@ export default function KYCReview() {
               </div>
               <div className="grid grid-cols-3 gap-2 mt-4">
                 <button
-                  onClick={() => setDecision("approved")}
+                  onClick={async () => {
+                    await kycApprove({ user_id: selected.user_id ?? selected.member_id, note });
+                    setDecision("approved");
+                  }}
                   className="flex flex-col items-center gap-2 py-3 rounded-xl border-2 border-[#4CAF68] text-[#4CAF68] hover:bg-[#E8F5EC] transition-all text-xs font-medium"
                 >
                   <CheckCircle size={18} />
                   {fr ? "Approuver" : "Approve"}
                 </button>
                 <button
-                  onClick={() => setDecision("rejected")}
+                  onClick={async () => {
+                    await kycReject({ user_id: selected.user_id ?? selected.member_id, note });
+                    setDecision("rejected");
+                  }}
                   className="flex flex-col items-center gap-2 py-3 rounded-xl border-2 border-[#E5484D] text-[#E5484D] hover:bg-red-50 transition-all text-xs font-medium"
                 >
                   <XCircle size={18} />
                   {fr ? "Rejeter" : "Reject"}
                 </button>
                 <button
-                  onClick={() => setDecision("info")}
+                  onClick={async () => {
+                    await kycReject({ user_id: selected.user_id ?? selected.member_id, note });
+                    setDecision("info");
+                  }}
                   className="flex flex-col items-center gap-2 py-3 rounded-xl border-2 border-[#6E3A9A] text-[#6E3A9A] hover:bg-[#F0E8FF] transition-all text-xs font-medium"
                 >
                   <MessageSquare size={18} />
@@ -147,18 +176,18 @@ export default function KYCReview() {
     <div className="p-4 lg:p-6">
       <div className="mb-6">
         <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "File KYC" : "KYC Review Queue"}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{KYC_QUEUE.length} {fr ? "dossiers en attente" : "applications pending"}</p>
+        <p className="text-sm text-muted-foreground mt-1">{queue.length} {fr ? "dossiers en attente" : "applications pending"}</p>
       </div>
 
       <div className="space-y-3">
-        {KYC_QUEUE.map((kyc) => (
+        {queue.map((kyc: any) => (
           <div
             key={kyc.id}
             className="bg-card rounded-2xl border border-border p-5 flex items-center gap-4 hover:border-[#4CAF68]/40 cursor-pointer transition-all"
             onClick={() => setSelected(kyc)}
           >
             <div className="w-12 h-12 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white font-bold shrink-0">
-              {kyc.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+              {kyc.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -173,19 +202,19 @@ export default function KYCReview() {
             </div>
             <div className="flex gap-2 shrink-0">
               <button
-                onClick={(e) => { e.stopPropagation(); setSelected(kyc); setDecision("approved"); }}
+                onClick={async (e: React.MouseEvent) => { e.stopPropagation(); await kycApprove({ user_id: kyc.user_id ?? kyc.member_id, note: "" }); setSelected(kyc); setDecision("approved"); }}
                 className="px-3 py-1.5 rounded-lg bg-[#E8F5EC] text-[#1F9D55] text-xs font-medium hover:bg-[#4CAF68] hover:text-white transition-all"
               >
                 {fr ? "Approuver" : "Approve"}
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setSelected(kyc); setDecision("rejected"); }}
+                onClick={async (e: React.MouseEvent) => { e.stopPropagation(); await kycReject({ user_id: kyc.user_id ?? kyc.member_id, note: "" }); setSelected(kyc); setDecision("rejected"); }}
                 className="px-3 py-1.5 rounded-lg bg-red-50 text-[#E5484D] text-xs font-medium hover:bg-[#E5484D] hover:text-white transition-all"
               >
                 {fr ? "Rejeter" : "Reject"}
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setSelected(kyc); }}
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); setSelected(kyc); }}
                 className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-accent hover:text-white transition-all"
               >
                 {fr ? "Réviser" : "Review"}

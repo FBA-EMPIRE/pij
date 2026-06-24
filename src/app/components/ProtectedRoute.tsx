@@ -3,17 +3,14 @@ import { useAppContext } from "../context/AppContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  type?: "member" | "admin";
 }
 
-export default function ProtectedRoute({ children, type = "member" }: ProtectedRouteProps) {
-  const { user, admin } = useAppContext();
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, sessionLoading } = useAppContext();
 
-  if (type === "admin" && !admin) {
-    return <Navigate to="/login" replace />;
-  }
+  if (sessionLoading) return null;
 
-  if (type === "member" && !user) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

@@ -22,7 +22,7 @@ const navItems = [
 ];
 
 export function MemberLayout({ children }: MemberLayoutProps) {
-  const { darkMode, toggleDark, lang, toggleLang, user, logout } = useAppContext();
+  const { darkMode, toggleDark, lang, toggleLang, userProfile, logout } = useAppContext();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -112,7 +112,7 @@ export function MemberLayout({ children }: MemberLayoutProps) {
             <div className="hidden lg:block">
               <p className="text-sm text-muted-foreground">
                 {lang === "fr" ? "Bienvenue," : "Welcome,"}{" "}
-                <span className="text-foreground font-medium">{user?.name ?? "Membre"}</span>
+                <span className="text-foreground font-medium">{userProfile?.name ?? "Membre"}</span>
               </p>
             </div>
           </div>
@@ -130,7 +130,7 @@ export function MemberLayout({ children }: MemberLayoutProps) {
               {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <div className="w-8 h-8 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-xs font-bold">
-              {user?.name ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "AD"}
+              {userProfile?.name ? userProfile.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "AD"}
             </div>
           </div>
         </header>

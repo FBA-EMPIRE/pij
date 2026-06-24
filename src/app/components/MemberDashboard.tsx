@@ -1,17 +1,51 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Users, ChevronRight, AlertCircle } from "lucide-react";
-import { TRANSACTIONS, SAVINGS_GOALS, TONTINES, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
+import { getCurrentUserId, fetchTransactions } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
+import { supabase } from "../lib/supabase/client";
 
 export default function MemberDashboard() {
   const navigate = useNavigate();
-  const { lang } = useAppContext();
+  const { lang, user } = useAppContext();
   const fr = lang === "fr";
-  const recentTxns = TRANSACTIONS.slice(0, 5);
-  const mainGoal = SAVINGS_GOALS[0];
-  const activeTontine = TONTINES[0];
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
+  const [tontines, setTontines] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const userId = await getCurrentUserId();
+        const [txns, { data: goals }, { data: myTontines }, { data: prof }] = await Promise.all([
+          fetchTransactions(userId),
+          supabase.from("savings_goals").select("*").eq("user_id", userId),
+          supabase.from("tontine_members").select("*, tontine:tontines(*)").eq("user_id", userId),
+          supabase.from("users").select("*").eq("id", userId).single(),
+        ]);
+        setTransactions(txns ?? []);
+        setSavingsGoals(goals ?? []);
+        setTontines(myTontines ?? []);
+        setProfile(prof ?? null);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const recentTxns = transactions.slice(0, 5);
+  const mainGoal = savingsGoals[0];
+  const activeTontine = tontines[0]?.tontine ? { ...tontines[0].tontine, enrolled: tontines.length } : null;
   const goalPct = mainGoal ? Math.round((mainGoal.current / mainGoal.target) * 100) : 0;
+  const currentAccount = profile?.balance_current ?? 0;
+  const savingsAccount = profile?.balance_savings ?? 0;
+  const investmentAccount = profile?.balance_investment ?? 0;
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -30,7 +64,7 @@ export default function MemberDashboard() {
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10" style={{ background: "#4CAF68", transform: "translate(30%, -30%)" }} />
           <p className="text-white/60 text-xs uppercase tracking-wider mb-1">{fr ? "Compte Courant" : "Current Account"}</p>
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
-            450 000 <span className="text-sm sm:text-lg font-normal text-white/70">XAF</span>
+            {formatXAF(currentAccount)}
           </p>
           <p className="text-xs text-white/50">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">
@@ -42,7 +76,7 @@ export default function MemberDashboard() {
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: "#FFFFFF", transform: "translate(30%, -30%)" }} />
           <p className="text-white/70 text-xs uppercase tracking-wider mb-1">{fr ? "Compte Épargne" : "Savings Account"}</p>
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
-            1 200 000 <span className="text-sm sm:text-lg font-normal text-white/70">XAF</span>
+            {formatXAF(savingsAccount)}
           </p>
           <p className="text-xs text-white/60">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">
@@ -54,7 +88,7 @@ export default function MemberDashboard() {
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: "#FFFFFF", transform: "translate(30%, -30%)" }} />
           <p className="text-white/70 text-xs uppercase tracking-wider mb-1">{fr ? "Compte Investissement" : "Investment Account"}</p>
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
-            205 000 <span className="text-sm sm:text-lg font-normal text-white/70">XAF</span>
+            {formatXAF(investmentAccount)}
           </p>
           <p className="text-xs text-white/60">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">

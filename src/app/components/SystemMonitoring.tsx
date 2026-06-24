@@ -1,53 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Download, UserPlus, Activity, AlertTriangle, Shield,
   Clock, Edit, XCircle, RefreshCw, Landmark, UserMinus,
   ChevronRight
 } from "lucide-react";
-import { ADMINS } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
+import { fetchAdmins } from "../lib/supabase/queries";
 
 const roleDisplay = (role: string, fr: boolean) => {
   if (role === "super_admin") return fr ? "Super Admin" : "Super Admin";
   return fr ? "Administrateur" : "Admin";
 };
 
-const AUDIT_LOGS = [
-  {
-    icon: Shield,
-    iconColor: "#E5484D",
-    iconBg: "#FEE2E2",
-    title: "Master Password Reset Initiated",
-    titleFr: "Réinitialisation du mot de passe maître",
-    desc: "Admin Super_Root triggered a system-wide security credential rotation.",
-    descFr: "L'admin Super_Root a déclenché une rotation des identifiants de sécurité.",
-    id: "8xf2-93kd-pl90",
-    time: "12:45 PM",
-  },
-  {
-    icon: Landmark,
-    iconColor: "#6E3A9A",
-    iconBg: "#F0E8FF",
-    title: "Liquidity Threshold Adjusted",
-    titleFr: "Seuil de liquidité ajusté",
-    desc: "Admin Jean-Paul Diallo increased reserve threshold to 15%.",
-    descFr: "L'admin Jean-Paul Diallo a augmenté le seuil de réserve à 15%.",
-    id: "",
-    time: "10:12 AM",
-  },
-  {
-    icon: UserMinus,
-    iconColor: "#E8A317",
-    iconBg: "#FEF3C7",
-    title: "Member Access Revoked",
-    titleFr: "Accès membre révoqué",
-    desc: "Security Policy automatically disabled 3 inactive accounts.",
-    descFr: "La politique de sécurité a automatiquement désactivé 3 comptes inactifs.",
-    id: "",
-    time: "Yesterday",
-    timeFr: "Hier",
-  },
-];
+interface AuditEntry {
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  title: string;
+  titleFr: string;
+  desc: string;
+  descFr: string;
+  id: string;
+  time: string;
+  timeFr?: string;
+}
 
 export default function SystemMonitoring() {
   const { lang } = useAppContext();
@@ -55,6 +32,34 @@ export default function SystemMonitoring() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [autoKYC, setAutoKYC] = useState(true);
   const [withdrawalLimit, setWithdrawalLimit] = useState("500,000");
+  const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
+  const [admins, setAdmins] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("audit_logs")
+      .select("*")
+      .order("timestamp", { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        if (data) {
+          setAuditLogs(
+            data.map((log: any) => ({
+              icon: Shield,
+              iconColor: "#6E3A9A",
+              iconBg: "#F0E8FF",
+              title: log.action,
+              titleFr: log.action,
+              desc: `${log.actor} — ${log.entity}`,
+              descFr: `${log.actor} — ${log.entity}`,
+              id: log.id,
+              time: new Date(log.timestamp).toLocaleString("fr-FR"),
+            }))
+          );
+        }
+      });
+    fetchAdmins().then(setAdmins);
+  }, []);
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -151,7 +156,7 @@ export default function SystemMonitoring() {
 
         {/* Table Rows */}
         <div className="divide-y divide-border">
-          {ADMINS.map((admin) => (
+          {admins.map((admin: any) => (
             <div key={admin.email} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-4 items-center">
               {/* Admin Info */}
               <div className="flex items-center gap-3">
@@ -227,7 +232,7 @@ export default function SystemMonitoring() {
           </div>
 
           <div className="space-y-4">
-            {AUDIT_LOGS.map((log, i) => (
+            {auditLogs.map((log, i) => (
               <div key={i} className="flex gap-3 pb-4 border-b border-border last:border-0 last:pb-0">
                 <div
                   className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"

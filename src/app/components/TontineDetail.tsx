@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Trophy, CheckCircle, XCircle, Users, Calendar, Coins, Info, Send, Clock, UserPlus } from "lucide-react";
-import { TONTINES, JOIN_REQUESTS, CURRENT_USER_ID, formatXAF, createJoinRequest } from "./mockData";
+import { formatXAF } from "../lib/format";
+import { fetchTontineById, fetchTontineMembers, getCurrentUserId, applyToTontine } from "../lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 
@@ -12,19 +13,71 @@ export default function TontineDetail() {
   const fr = lang === "fr";
   const [activeTab, setActiveTab] = useState<"grid" | "members" | "rounds">("grid");
   const [requestSent, setRequestSent] = useState(false);
+  const [tontine, setTontine] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const tontine = TONTINES.find((t) => t.id === id) ?? TONTINES[0];
-  const weeks = Array.from({ length: tontine.total_weeks }, (_, i) => i + 1);
+  useEffect(() => {
+    if (!id) { setLoading(false); return; }
+    getCurrentUserId().then(setCurrentUserId);
+    Promise.all([
+      fetchTontineById(id),
+      fetchTontineMembers(id),
+    ]).then(([t, m]) => {
+      setTontine(t);
+      setMembers(m);
+    }).finally(() => setLoading(false));
+  }, [id]);
 
-  const userJoinRequest = JOIN_REQUESTS.find((r) => r.userId === CURRENT_USER_ID && r.tontineId === tontine.id);
-  const userIsMember = tontine.members.some((m) => m.name.includes("Amara"));
-  const showJoinButton = tontine.status === "Open" && !userIsMember && !userJoinRequest && !requestSent;
-  const fillPct = tontine.capacity > 0 ? Math.round((tontine.enrolled / tontine.capacity) * 100) : 0;
+  const weeks = tontine ? Array.from({ length: tontine.total_weeks }, (_, i) => i + 1) : [];
 
-  const handleRequestJoin = () => {
-    createJoinRequest(CURRENT_USER_ID, tontine.id);
-    setRequestSent(true);
+  const mappedMembers = members.map(m => {
+    const name = m.users?.full_name ?? m.users?.email ?? "User";
+    return {
+      id: m.id,
+      name,
+      avatar: name.charAt(0).toUpperCase(),
+      position: m.position,
+      contributions: m.contributions ?? [],
+      payout_received: m.payout_received ?? false,
+    };
+  });
+
+  const userIsMember = currentUserId ? members.some((m) => m.user_id === currentUserId) : false;
+  const showJoinButton = tontine?.status === "Open" && !userIsMember && !requestSent;
+  const fillPct = tontine?.capacity > 0 ? Math.round(((tontine.enrolled ?? 0) / tontine.capacity) * 100) : 0;
+
+  const handleRequestJoin = async () => {
+    if (!currentUserId || !id) return;
+    try {
+      await applyToTontine({ user_id: currentUserId, tontine_id: id });
+      setRequestSent(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+        <div className="flex items-center justify-center py-20">
+          <p className="text-muted-foreground">{fr ? "Chargement..." : "Loading..."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tontine) {
+    return (
+      <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+        <button onClick={() => navigate("/tontines")} className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground transition-colors mb-6">
+          <ArrowLeft size={16} />
+        </button>
+        <p className="text-muted-foreground">{fr ? "Tontine introuvable" : "Tontine not found"}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -38,7 +91,7 @@ export default function TontineDetail() {
             <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{tontine.name}</h2>
             <StatusBadge status={tontine.status as any} size="sm" />
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{tontine.type} · {tontine.duration}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{tontine.tontine_types?.name ?? tontine.frequency ?? ""} · {tontine.duration}</p>
         </div>
       </div>
 
@@ -65,7 +118,7 @@ export default function TontineDetail() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{fr ? "Fréquence" : "Frequency"}</p>
-            <p className="text-sm font-bold mt-0.5">{tontine.type}</p>
+            <p className="text-sm font-bold mt-0.5">{tontine.tontine_types?.name ?? tontine.frequency ?? ""}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{fr ? "Durée" : "Duration"}</p>
@@ -95,32 +148,7 @@ export default function TontineDetail() {
         </div>
       </div>
 
-      {/* Join Request Status */}
-      {userJoinRequest && (
-        <div className={`mb-6 flex items-center gap-3 px-4 py-3 rounded-xl border ${
-          userJoinRequest.status === "Pending" || userJoinRequest.status === "Pending Entry Fee"
-            ? "bg-[#F0E8FF] border-[#6E3A9A]/20"
-            : userJoinRequest.status === "Approved"
-              ? "bg-[#E8F5EC] border-[#4CAF68]/20"
-              : "bg-red-50 border-[#E5484D]/20"
-        }`}>
-          {userJoinRequest.status === "Pending" || userJoinRequest.status === "Pending Entry Fee" ? (
-            <Clock size={16} className="text-[#6E3A9A]" />
-          ) : userJoinRequest.status === "Approved" ? (
-            <CheckCircle size={16} className="text-[#4CAF68]" />
-          ) : (
-            <XCircle size={16} className="text-[#E5484D]" />
-          )}
-          <p className="text-sm">
-            {userJoinRequest.status === "Pending" && (fr ? "Votre demande est en cours d'examen." : "Your request is under review.")}
-            {userJoinRequest.status === "Pending Entry Fee" && (fr ? "Veuillez payer les frais d'entrée pour valider votre adhésion." : "Please pay the entry fee to validate your membership.")}
-            {userJoinRequest.status === "Approved" && (fr ? "Votre adhésion a été approuvée." : "Your membership has been approved.")}
-            {userJoinRequest.status === "Rejected" && (fr ? "Votre demande a été refusée." : "Your request has been rejected.")}
-          </p>
-        </div>
-      )}
-
-      {requestSent && !userJoinRequest && (
+      {requestSent && (
         <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/20">
           <Send size={16} color="#4CAF68" />
           <p className="text-sm text-[#1F9D55]">{fr ? "Demande envoyée avec succès !" : "Request sent successfully!"}</p>
@@ -135,14 +163,14 @@ export default function TontineDetail() {
       )}
 
       {/* Participant Preview (for non-members viewing an Open tontine) */}
-      {tontine.members.length > 0 && !userIsMember && (
+      {mappedMembers.length > 0 && !userIsMember && (
         <div className="bg-card rounded-2xl border border-border mb-6 p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Users size={16} className="text-muted-foreground" />
             {fr ? "Aperçu des participants" : "Participant Preview"}
           </h3>
           <div className="space-y-2">
-            {tontine.members.slice(0, 5).map((m) => (
+            {mappedMembers.slice(0, 5).map((m) => (
               <div key={m.id} className="flex items-center gap-3 text-sm">
                 <span className="text-muted-foreground w-6" style={{ fontFamily: "Geist Mono, monospace" }}>#{m.position}</span>
                 <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">{m.avatar}</div>
@@ -152,9 +180,9 @@ export default function TontineDetail() {
                 </div>
               </div>
             ))}
-            {tontine.members.length > 5 && (
+            {mappedMembers.length > 5 && (
               <p className="text-xs text-muted-foreground text-center pt-2">
-                +{tontine.members.length - 5} {fr ? "autres participants" : "more participants"}
+                +{mappedMembers.length - 5} {fr ? "autres participants" : "more participants"}
               </p>
             )}
           </div>
@@ -253,7 +281,7 @@ export default function TontineDetail() {
                 </div>
 
                 <div className="space-y-1 sm:space-y-1.5">
-                  {tontine.members.map((member) => (
+                  {mappedMembers.map((member) => (
                     <div key={member.id} className="flex items-center gap-1 sm:gap-1.5">
                       <div className="w-32 sm:w-44 flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0 pr-1 sm:pr-2">
                         <div className="relative shrink-0">
@@ -329,7 +357,7 @@ export default function TontineDetail() {
                   <div className="col-span-3 text-center">{fr ? "Contributions" : "Contributions"}</div>
                   <div className="col-span-3 text-center">{fr ? "Statut" : "Status"}</div>
                 </div>
-                {tontine.members.map((member) => {
+                {mappedMembers.map((member) => {
                   const paidCount = member.contributions.filter(Boolean).length;
                   const totalDue = tontine.current_week;
                   return (
@@ -391,7 +419,7 @@ export default function TontineDetail() {
                 <p className="text-xs text-muted-foreground mt-0.5">{fr ? "Ordre de distribution des paiements" : "Payment distribution order"}</p>
               </div>
               <div>
-                {tontine.members.map((member, i) => {
+                {mappedMembers.map((member, i) => {
                   const weekNum = i + 1;
                   const done = weekNum < tontine.current_week;
                   const current = weekNum === tontine.current_week;

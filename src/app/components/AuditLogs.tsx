@@ -1,14 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Filter, Shield, Download } from "lucide-react";
-import { AUDIT_LOGS } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
+
+interface AuditLog {
+  id: string;
+  actor: string;
+  action: string;
+  entity: string;
+  timestamp: string;
+  ip: string;
+}
 
 export default function AuditLogs() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
+  const [logs, setLogs] = useState<AuditLog[]>([]);
 
-  const filtered = AUDIT_LOGS.filter((log) =>
+  useEffect(() => {
+    supabase
+      .from("audit_logs")
+      .select("*")
+      .order("timestamp", { ascending: false })
+      .then(({ data }) => {
+        if (data) setLogs(data as AuditLog[]);
+      });
+  }, []);
+
+  const filtered = logs.filter((log) =>
     log.actor.toLowerCase().includes(search.toLowerCase()) ||
     log.action.toLowerCase().includes(search.toLowerCase()) ||
     log.entity.toLowerCase().includes(search.toLowerCase())

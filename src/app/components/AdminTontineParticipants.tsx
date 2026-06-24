@@ -1,19 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, CheckCircle, XCircle, Trophy, Users, Award } from "lucide-react";
-import { TONTINES, CONTRIBUTION_LOGS, ROUND_RECIPIENTS, AUDIT_LOGS, formatXAF } from "./mockData";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
+import { fetchTontineById, fetchTontineMembers } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
+import { formatXAF } from "../lib/format";
 
 export default function AdminTontineParticipants() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { lang } = useAppContext();
   const fr = lang === "fr";
-  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [override, setOverride] = useState(false);
+  const [tontine, setTontine] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const tontine = TONTINES.find((t) => t.id === id);
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([
+      fetchTontineById(id),
+      fetchTontineMembers(id),
+    ]).then(([tontineData, memberData]) => {
+      setTontine(tontineData);
+      setMembers(memberData.map((m: any) => ({
+        ...m.users,
+        ...m,
+        contributions: m.contributions ?? [],
+        payout_received: m.payout_received ?? false,
+        position: m.position ?? 0,
+      })));
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) return null;
   if (!tontine) {
     return (
       <div className="p-4 lg:p-6">
@@ -25,69 +48,63 @@ export default function AdminTontineParticipants() {
     );
   }
 
-  const weeks = Array.from({ length: tontine.total_weeks }, (_, i) => i + 1);
-  const unassignedMembers = tontine.members.filter((m) => !m.payout_received);
-  const allPaid = tontine.members.every((m) => m.contributions[tontine.current_week - 1] ?? false);
+  const weeks = Array.from({ length: tontine.total_weeks ?? 0 }, (_, i) => i + 1);
+  const unassignedMembers = members.filter((m: any) => !m.payout_received);
+  const allPaid = members.every((m: any) => m.contributions?.[tontine.current_week - 1] ?? false);
   const canCompleteRound = allPaid || override;
 
-  const toggleContribution = (memberId: number, week: number) => {
-    const member = tontine.members.find((m) => m.id === memberId);
-    if (!member || week > tontine.current_week) return;
-    const prev = member.contributions[week - 1];
+  const toggleContribution = async (memberId: string, week: number) => {
+    if (week > tontine.current_week) return;
+    const member = members.find((m: any) => m.id === memberId);
+    if (!member) return;
+    const prev = member.contributions?.[week - 1] ?? false;
     member.contributions[week - 1] = !prev;
-    CONTRIBUTION_LOGS.push({
-      id: `CLOG-${String(CONTRIBUTION_LOGS.length + 1).padStart(3, "0")}`,
-      adminId: "Admin Kone",
-      memberId,
-      tontineId: tontine.id,
-      round: week,
-      previousStatus: prev,
-      newStatus: !prev,
-      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-    });
-    AUDIT_LOGS.push({
-      id: `LOG-${String(AUDIT_LOGS.length + 1).padStart(3, "0")}`,
-      actor: "Admin Kone",
+
+    await supabase.from("tontine_members").update({
+      contributions: member.contributions,
+    }).eq("id", member.tontine_member_id ?? member.id);
+
+    await supabase.from("audit_logs").insert({
+      actor: "Admin",
       action: prev ? "Contribution Unmarked" : "Contribution Marked Paid",
       entity: `${tontine.id} / Member ${memberId} / Week ${week}`,
-      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-      ip: "192.168.1.45",
+      ip: "admin",
     });
+
+    setMembers([...members]);
   };
 
-  const handleAssignPayout = () => {
+  const handleAssignPayout = async () => {
     if (!selectedMemberId) return;
-    const member = tontine.members.find((m) => m.id === selectedMemberId);
+    const member = members.find((m: any) => m.id === selectedMemberId);
     if (!member) return;
     member.payout_received = true;
-    ROUND_RECIPIENTS.push({
-      id: `RR-${String(ROUND_RECIPIENTS.length + 1).padStart(3, "0")}`,
-      tontineId: tontine.id,
+
+    await supabase.from("tontine_members").update({
+      payout_received: true,
+    }).eq("id", member.tontine_member_id ?? member.id);
+
+    await supabase.from("round_recipients").insert({
+      tontine_id: tontine.id,
       round: tontine.current_week,
-      memberId: member.id,
+      member_id: member.id,
       amount: tontine.pool_amount,
-      assignedAt: new Date().toISOString().split("T")[0],
     });
-    AUDIT_LOGS.push({
-      id: `LOG-${String(AUDIT_LOGS.length + 1).padStart(3, "0")}`,
-      actor: "Admin Kone",
+
+    const nextWeek = (tontine.current_week ?? 0) + 1;
+    await supabase.from("tontines").update({
+      current_week: nextWeek,
+      status: nextWeek > (tontine.total_weeks ?? 0) ? "Completed" : tontine.status,
+    }).eq("id", tontine.id);
+
+    await supabase.from("audit_logs").insert({
+      actor: "Admin",
       action: "Round Payout Recorded",
       entity: `${tontine.id} / Round ${tontine.current_week} / ${member.name}`,
-      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-      ip: "192.168.1.45",
+      ip: "admin",
     });
-    tontine.current_week += 1;
-    if (tontine.current_week > tontine.total_weeks) {
-      tontine.status = "Completed";
-      AUDIT_LOGS.push({
-        id: `LOG-${String(AUDIT_LOGS.length + 1).padStart(3, "0")}`,
-        actor: "Admin Kone",
-        action: "Tontine Completed",
-        entity: tontine.id,
-        timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-        ip: "192.168.1.45",
-      });
-    }
+
+    setTontine({ ...tontine, current_week: nextWeek, status: nextWeek > (tontine.total_weeks ?? 0) ? "Completed" : tontine.status });
     setSelectedMemberId(null);
     setOverride(false);
   };
@@ -124,11 +141,11 @@ export default function AdminTontineParticipants() {
           <div className="flex items-center gap-3 flex-wrap">
             <select
               value={selectedMemberId ?? ""}
-              onChange={(e) => setSelectedMemberId(Number(e.target.value))}
+              onChange={(e) => setSelectedMemberId(e.target.value)}
               className="px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
             >
               <option value="">{fr ? "Sélectionner un membre" : "Select a member"}</option>
-              {unassignedMembers.map((m) => (
+              {unassignedMembers.map((m: any) => (
                 <option key={m.id} value={m.id}>#{m.position} {m.name}</option>
               ))}
             </select>
@@ -183,11 +200,11 @@ export default function AdminTontineParticipants() {
           </div>
 
           <div className="space-y-1 sm:space-y-1.5">
-            {tontine.members.map((member) => (
+            {members.map((member: any) => (
               <div key={member.id} className="flex items-center gap-1 sm:gap-1.5">
                 <div className="w-28 sm:w-36 flex items-center gap-2 flex-shrink-0 pr-1 sm:pr-2">
                   <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold shrink-0 ${member.payout_received ? "bg-[#F2994A]" : "bg-[#6E3A9A]"}`}>
-                    {member.avatar}
+                    {member.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                   </div>
                   <div className="min-w-0">
                     <p className="text-[10px] sm:text-xs font-medium truncate">{member.name}</p>

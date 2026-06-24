@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Trophy, CheckCircle, Users, Calendar, Archive } from "lucide-react";
-import { ARCHIVES, CURRENT_USER_ID, formatXAF } from "./mockData";
+import { formatXAF } from "../lib/format";
+import { fetchTontineById, fetchTontineMembers, getCurrentUserId } from "../lib/supabase/queries";
 import { useAppContext } from "../context/AppContext";
 
 export default function TontineArchiveDetail() {
@@ -8,8 +10,32 @@ export default function TontineArchiveDetail() {
   const { id } = useParams();
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  const [archive, setArchive] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const archive = ARCHIVES.find((a) => a.id === id);
+  useEffect(() => {
+    if (!id) { setLoading(false); return; }
+    getCurrentUserId().then(setCurrentUserId);
+    Promise.all([
+      fetchTontineById(id),
+      fetchTontineMembers(id),
+    ]).then(([t, m]) => {
+      setArchive(t);
+      setMembers(m);
+    }).catch(() => {})
+    .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6">
+        <p className="text-muted-foreground">{fr ? "Chargement..." : "Loading..."}</p>
+      </div>
+    );
+  }
+
   if (!archive) {
     return (
       <div className="p-4 lg:p-6">
@@ -21,8 +47,19 @@ export default function TontineArchiveDetail() {
     );
   }
 
-  const myEntry = archive.members.find((m) => m.name.includes("Amara"));
-  const freqLabel = archive.frequency === "weekly" ? (fr ? "Hebdomadaire" : "Weekly") : archive.frequency === "biweekly" ? (fr ? "Bihebdomadaire" : "Biweekly") : (fr ? "Mensuel" : "Monthly");
+  const myEntry = members.find((m) => m.user_id === currentUserId);
+  const mappedMembers = members.map(m => {
+    const name = m.users?.full_name ?? m.users?.email ?? "User";
+    return {
+      id: m.id,
+      name,
+      avatar: name.charAt(0).toUpperCase(),
+      position: m.position,
+      contributions: m.contributions ?? [],
+      payout_received: m.payout_received ?? false,
+    };
+  });
+  const freqLabel = archive.tontine_types?.name ?? (archive.frequency === "weekly" ? (fr ? "Hebdomadaire" : "Weekly") : archive.frequency === "biweekly" ? (fr ? "Bihebdomadaire" : "Biweekly") : (fr ? "Mensuel" : "Monthly"));
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -66,7 +103,7 @@ export default function TontineArchiveDetail() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{fr ? "Montant total" : "Total amount"}</p>
-              <p className="text-lg font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(archive.total_collected)}</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF((archive.contribution ?? 0) * members.length)}</p>
             </div>
           </div>
         </div>
@@ -76,7 +113,7 @@ export default function TontineArchiveDetail() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Participants" : "Participants"}</p>
-          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{archive.members.length}</p>
+          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{mappedMembers.length}</p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Cotisation" : "Contribution"}</p>
@@ -88,7 +125,7 @@ export default function TontineArchiveDetail() {
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Total collecté" : "Total collected"}</p>
-          <p className="text-lg font-bold mt-1 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(archive.total_collected)}</p>
+          <p className="text-lg font-bold mt-1 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF((archive.contribution ?? 0) * members.length)}</p>
         </div>
       </div>
 
@@ -98,24 +135,25 @@ export default function TontineArchiveDetail() {
           <Trophy size={16} className="text-[#F2994A]" />
           {fr ? "Historique des paiements" : "Payout history"}
         </h3>
-        <div className="space-y-2">
-          {archive.recipients.map((r) => {
-            const member = archive.members.find((m) => m.id === r.memberId);
-            return (
-              <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/20">
+        {mappedMembers.filter((m) => m.payout_received).length > 0 ? (
+          <div className="space-y-2">
+            {mappedMembers.filter((m) => m.payout_received).map((m) => (
+              <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/20">
                 <div className="w-8 h-8 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-xs font-bold">
-                  {member?.avatar || "?"}
+                  {m.avatar}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{member?.name || `Member #${r.memberId}`}</p>
-                  <p className="text-xs text-muted-foreground">{fr ? "Tour" : "Round"} {r.round} · {r.assignedAt}</p>
+                  <p className="text-sm font-medium">{m.name}</p>
+                  <p className="text-xs text-muted-foreground">{fr ? "Position" : "Position"} #{m.position}</p>
                 </div>
-                <span className="text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(r.amount)}</span>
+                <span className="text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(archive.contribution ?? 0)}</span>
                 <Trophy size={14} color="#F2994A" />
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{fr ? "Aucun historique de paiement disponible" : "No payout history available"}</p>
+        )}
       </div>
 
       {/* Full participant list */}
@@ -125,7 +163,7 @@ export default function TontineArchiveDetail() {
           {fr ? "Tous les participants" : "All participants"}
         </h3>
         <div className="space-y-2">
-          {archive.members.map((m) => {
+          {mappedMembers.map((m) => {
             const paidCount = m.contributions.filter(Boolean).length;
             return (
               <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl border border-border">

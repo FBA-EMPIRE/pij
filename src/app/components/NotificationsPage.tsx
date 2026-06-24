@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, CheckCircle, Clock, Trophy, Send, CreditCard, CheckCheck, ArrowRight } from "lucide-react";
-import { NOTIFICATIONS, CURRENT_USER_ID } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { getCurrentUserId } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
 
 const NOTIF_ICONS: Record<string, React.ElementType> = {
   join_request: Send,
@@ -21,16 +22,51 @@ const NOTIF_COLORS: Record<string, string> = {
   general: "#6E3A9A",
 };
 
+interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  titleEn?: string;
+  message: string;
+  messageEn?: string;
+  read: boolean;
+  created_at: string;
+}
+
 export default function NotificationsPage() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const userNotifs = NOTIFICATIONS.filter((n) => n.userId === CURRENT_USER_ID);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCurrentUserId().then((uid) => {
+      setUserId(uid);
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => {
+          if (data) setNotifications(data as Notification[]);
+        });
+    });
+  }, []);
+
+  const userNotifs = notifications;
   const displayed = filter === "all" ? userNotifs : userNotifs.filter((n) => !n.read);
   const unreadCount = userNotifs.filter((n) => !n.read).length;
 
-  const handleMarkAllRead = () => {
-    NOTIFICATIONS.forEach((n) => { if (n.userId === CURRENT_USER_ID) n.read = true; });
+  const handleMarkAllRead = async () => {
+    if (!userId) return;
+    await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("user_id", userId)
+      .eq("read", false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   return (
@@ -96,7 +132,7 @@ export default function NotificationsPage() {
                       <p className="text-sm font-medium">{fr ? n.title : n.titleEn || n.title}</p>
                       <div className="flex items-center gap-2 shrink-0">
                         {!n.read && <div className="w-2 h-2 rounded-full" style={{ background: color }} />}
-                        <span className="text-xs text-muted-foreground">{n.createdAt.split("T")[0]}</span>
+                        <span className="text-xs text-muted-foreground">{n.created_at.split("T")[0]}</span>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{fr ? n.message : n.messageEn || n.message}</p>

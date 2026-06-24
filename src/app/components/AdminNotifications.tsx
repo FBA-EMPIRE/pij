@@ -1,13 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, CheckCheck, Send, Info, AlertTriangle, CheckCircle, Users, Mail, ArrowRight } from "lucide-react";
-import { NOTIFICATIONS, MEMBERS, sendNotification, formatXAF } from "./mockData";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
+import { getCurrentUserId, fetchUsers } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   info: { icon: Info, color: "#6E3A9A", bg: "#F0E8FF" },
   warning: { icon: AlertTriangle, color: "#F2994A", bg: "#FEF3C7" },
   success: { icon: CheckCircle, color: "#4CAF68", bg: "#E8F5EC" },
 };
+
+interface AdminNotif {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  titleEn?: string;
+  message: string;
+  messageEn?: string;
+  read: boolean;
+  created_at: string;
+}
 
 export default function AdminNotifications() {
   const { lang } = useAppContext();
@@ -20,43 +34,59 @@ export default function AdminNotifications() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [notifications, setNotifications] = useState<AdminNotif[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [adminId, setAdminId] = useState<string | null>(null);
 
-  const displayed = filter === "all" ? NOTIFICATIONS : NOTIFICATIONS.filter((n) => !n.read);
-  const unreadCount = NOTIFICATIONS.filter((n) => !n.read).length;
+  useEffect(() => {
+    getCurrentUserId().then((uid) => {
+      setAdminId(uid);
+      supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .then(({ data }) => {
+          if (data) setNotifications(data as AdminNotif[]);
+        });
+    });
+    fetchUsers().then(setMembers);
+  }, []);
 
-  const handleMarkAllRead = () => {
-    NOTIFICATIONS.forEach((n) => { n.read = true; });
+  const displayed = filter === "all" ? notifications : notifications.filter((n) => !n.read);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const handleMarkAllRead = async () => {
+    await supabase.from("notifications").update({ read: true }).eq("read", false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!title || !message) return;
     setSending(true);
 
     const targets: string[] = [];
     if (targetMode === "all") {
-      MEMBERS.forEach((m) => targets.push(m.id));
+      members.forEach((m: any) => targets.push(m.id));
     } else if (targetMode === "single" && selectedMember) {
       targets.push(selectedMember);
     } else if (targetMode === "multiple") {
       targets.push(...selectedMembers);
     }
 
-    targets.forEach((userId) => {
-      sendNotification({
-        userId,
-        type: notifType,
-        title: fr ? title : title,
-        titleEn: !fr ? title : title,
-        message: fr ? message : message,
-        messageEn: !fr ? message : message,
-      });
-    });
+    const rows = targets.map((userId) => ({
+      user_id: userId,
+      type: notifType,
+      title: title,
+      message: message,
+      read: false,
+    }));
+    await supabase.from("notifications").insert(rows);
 
     setTitle("");
     setMessage("");
     setSelectedMember("");
     setSelectedMembers([]);
-    setTimeout(() => setSending(false), 500);
+    setSending(false);
   };
 
   const toggleMember = (id: string) => {
@@ -129,7 +159,7 @@ export default function AdminNotifications() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-medium">{fr ? n.title : n.titleEn || n.title}</p>
-                          <span className="text-xs text-muted-foreground shrink-0">{n.createdAt.split("T")[0]}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{n.created_at.split("T")[0]}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{fr ? n.message : n.messageEn || n.message}</p>
                       </div>
@@ -171,14 +201,14 @@ export default function AdminNotifications() {
               {targetMode === "single" && (
                 <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#6E3A9A]/40">
                   <option value="">{fr ? "Sélectionner un membre" : "Select a member"}</option>
-                  {MEMBERS.map((m) => (
+                  {members.map((m: any) => (
                     <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
                   ))}
                 </select>
               )}
               {targetMode === "multiple" && (
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-border rounded-xl p-2">
-                  {MEMBERS.map((m) => (
+                  {members.map((m: any) => (
                     <button
                       key={m.id}
                       onClick={() => toggleMember(m.id)}

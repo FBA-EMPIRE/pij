@@ -15,10 +15,7 @@ export default function MemberSettings() {
   const [twoFactor, setTwoFactor] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const sessions = [
-    { device: "Chrome / Windows", ip: "197.159.xxx.xxx", current: true, time: fr ? "Maintenant" : "Now" },
-    { device: "Safari / iPhone", ip: "197.159.xxx.xxx", current: false, time: fr ? "Il y a 2 jours" : "2 days ago" },
-  ];
+  const sessions: { device: string; ip: string; current: boolean; time: string }[] = [];
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6">

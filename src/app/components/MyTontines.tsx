@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronRight, Users, Calendar, Trophy, Archive, Clock } from "lucide-react";
-import { TONTINES, ARCHIVES, CURRENT_USER_ID, formatXAF } from "./mockData";
+import { formatXAF } from "../lib/format";
+import { fetchMyTontines, getCurrentUserId } from "../lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 
@@ -10,9 +11,22 @@ export default function MyTontines() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"active" | "completed">("active");
+  const [myTontines, setMyTontines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const myActiveTontine = TONTINES[0];
-  const myArchives = ARCHIVES.filter((a) => a.members.some((m) => m.name.includes("Amara")));
+  useEffect(() => {
+    getCurrentUserId().then(uid => {
+      if (uid) fetchMyTontines(uid).then(setMyTontines).finally(() => setLoading(false));
+      else setLoading(false);
+    });
+  }, []);
+
+  const myActiveTontines = myTontines.filter(
+    (item) => item.tontines?.status !== "Completed" && item.tontines?.status !== "Archived"
+  );
+  const myCompletedTontines = myTontines.filter(
+    (item) => item.tontines?.status === "Completed" || item.tontines?.status === "Archived"
+  );
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
@@ -42,10 +56,11 @@ export default function MyTontines() {
       {/* Active tontines */}
       {tab === "active" && (
         <>
-          {myActiveTontine.status !== "Completed" && myActiveTontine.status !== "Archived" ? (
+          {myActiveTontines.length > 0 ? (
             <div className="space-y-3">
-              {[myActiveTontine].map((t) => {
-                const pct = t.current_week > 0 ? Math.round((t.current_week / t.total_weeks) * 100) : 0;
+              {myActiveTontines.map((item) => {
+                const t = item.tontines;
+                const pct = t?.current_week > 0 ? Math.round((t.current_week / t.total_weeks) * 100) : 0;
                 return (
                   <div
                     key={t.id}
@@ -54,8 +69,8 @@ export default function MyTontines() {
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">{t.type} · {fr ? "Début:" : "Started:"} {t.start_date}</p>
+                        <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t?.name}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t?.tontine_types?.name ?? t?.frequency ?? ""} · {fr ? "Début:" : "Started:"} {t?.start_date}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <StatusBadge status={t.status as any} size="sm" />
@@ -65,7 +80,7 @@ export default function MyTontines() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
                       <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
                         <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Votre position" : "Your position"}</p>
-                        <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#1</p>
+                        <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.position ?? 1}</p>
                       </div>
                       <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
                         <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Membres" : "Members"}</p>
@@ -115,7 +130,7 @@ export default function MyTontines() {
 
       {/* Completed tontines */}
       {tab === "completed" && (
-        myArchives.length === 0 ? (
+        myCompletedTontines.length === 0 ? (
           <div className="bg-card rounded-2xl border border-border p-8 text-center">
             <Archive size={32} className="mx-auto mb-3 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">{fr ? "Aucune tontine terminée" : "No completed tontines"}</p>
@@ -125,42 +140,40 @@ export default function MyTontines() {
           </div>
         ) : (
           <div className="space-y-3">
-            {myArchives.map((arc) => {
-              const myEntry = arc.members.find((m) => m.name.includes("Amara"));
+            {myCompletedTontines.map((item) => {
+              const t = item.tontines;
               return (
                 <div
-                  key={arc.id}
+                  key={item.tontine_id}
                   className="bg-card rounded-2xl border border-border p-4 sm:p-5 hover:border-[#4CAF68]/40 cursor-pointer transition-all"
-                  onClick={() => navigate(`/tontines/archives/${arc.id}`)}
+                  onClick={() => navigate(`/tontines/archives/${item.tontine_id}`)}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{arc.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{arc.start_date} → {arc.end_date} · {arc.total_weeks} {fr ? "semaines" : "weeks"}</p>
+                      <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t?.name}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t?.start_date ?? ""} · {t?.total_weeks ?? "?"} {fr ? "semaines" : "weeks"}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <StatusBadge status="Completed" size="sm" />
                       <ChevronRight size={16} className="text-muted-foreground" />
                     </div>
                   </div>
-                  {myEntry && (
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
-                      <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Position" : "Position"}</p>
-                        <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{myEntry.position}</p>
-                      </div>
-                      <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Contributions" : "Contributions"}</p>
-                        <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>
-                          {myEntry.contributions.filter(Boolean).length}/{myEntry.contributions.length}
-                        </p>
-                      </div>
-                      <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Paiement" : "Payout"}</p>
-                        <p className="text-xs sm:text-sm font-bold">{myEntry.payout_received ? <span className="text-[#F2994A]">🏆 {fr ? "Reçu" : "Received"}</span> : "—"}</p>
-                      </div>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+                    <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Position" : "Position"}</p>
+                      <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.position ?? "?"}</p>
                     </div>
-                  )}
+                    <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Contributions" : "Contributions"}</p>
+                      <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>
+                        {(item.contributions?.filter(Boolean)?.length ?? 0)}/{item.contributions?.length ?? "?"}
+                      </p>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Paiement" : "Payout"}</p>
+                      <p className="text-xs sm:text-sm font-bold">{item.payout_received ? <span className="text-[#F2994A]">🏆 {fr ? "Reçu" : "Received"}</span> : "—"}</p>
+                    </div>
+                  </div>
                 </div>
               );
             })}

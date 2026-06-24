@@ -66,12 +66,12 @@ const navGroups = [
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {
-  const { darkMode, toggleDark, lang, toggleLang, admin, logout } = useAppContext();
+  const { darkMode, toggleDark, lang, toggleLang, userProfile, logout } = useAppContext();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isSuperAdmin = admin?.role === "super_admin";
+  const isSuperAdmin = userProfile?.role === "super_admin";
 
   const visibleGroups = navGroups.map((group) => ({
     ...group,
@@ -130,10 +130,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Admin profile */}
         <div className="p-3 border-t" style={{ borderColor: "var(--sidebar-border)" }}>
           <button onClick={() => navigate("/admin/profile")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 hover:opacity-80 transition-opacity" style={{ background: "var(--sidebar-accent)" }}>
-            <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">{admin?.initials ?? "AD"}</div>
+            <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">
+              {userProfile?.name ? userProfile.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "AD"}
+            </div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-medium text-white truncate">{admin?.name ?? "Admin"}</p>
-              <p className="text-xs" style={{ color: "rgba(244,245,247,0.5)" }}>{admin?.role === "super_admin" ? "Super Admin" : "Admin"}</p>
+              <p className="text-xs font-medium text-white truncate">{userProfile?.name ?? "Admin"}</p>
+              <p className="text-xs" style={{ color: "rgba(244,245,247,0.5)" }}>{userProfile?.role === "super_admin" ? "Super Admin" : "Admin"}</p>
             </div>
           </button>
           <button
