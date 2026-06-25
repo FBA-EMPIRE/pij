@@ -39,6 +39,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
+    if (!supabase) {
+      setSessionLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
@@ -57,6 +62,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = async (userId: string) => {
+    if (!supabase) return;
     setProfileLoading(true);
     const { data, error } = await supabase
       .from("users")
@@ -73,7 +79,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleLang = useCallback(() => setLang((l) => (l === "fr" ? "en" : "fr")), []);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     setUser(null);
     setUserProfile(null);
   }, []);
