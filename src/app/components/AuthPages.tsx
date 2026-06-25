@@ -54,7 +54,29 @@ export function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const fr = lang === "fr";
+
+  const handleLogin = async () => {
+    setError("");
+    if (!email || !password) {
+      setError(fr ? "Veuillez remplir tous les champs." : "Please fill in all fields.");
+      return;
+    }
+    if (!supabase) {
+      setError(fr ? "Erreur de connexion au serveur." : "Server connection error.");
+      return;
+    }
+    setLoading(true);
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (signInError) {
+      setError(signInError.message);
+      return;
+    }
+    navigate("/dashboard");
+  };
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -63,10 +85,14 @@ export function LoginPage() {
         <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Se connecter" : "Log in"}</h2>
         <p className="text-sm text-muted-foreground mb-8">{fr ? "Accédez à votre espace membre PIJ." : "Access your PIJ member space."}</p>
 
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+        )}
+
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground">Email</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">{fr ? "Mot de passe" : "Password"}</label>
@@ -86,8 +112,8 @@ export function LoginPage() {
               {fr ? "Mot de passe oublié ?" : "Forgot password?"}
             </button>
           </div>
-          <button onClick={async () => { await supabase.auth.signInWithPassword({ email, password }); navigate("/dashboard"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
-            {fr ? "Se connecter" : "Log in"}
+          <button onClick={handleLogin} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: "#4CAF68" }}>
+            {loading ? (fr ? "Connexion..." : "Logging in...") : (fr ? "Se connecter" : "Log in")}
           </button>
         </div>
 
@@ -106,9 +132,34 @@ export function RegisterPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const fr = lang === "fr";
+
+  const handleSignUp = async () => {
+    setError("");
+    if (!email || !password || !firstName || !lastName) {
+      setError(fr ? "Veuillez remplir tous les champs obligatoires." : "Please fill in all required fields.");
+      return;
+    }
+    if (!supabase) {
+      setError(fr ? "Erreur de connexion au serveur." : "Server connection error.");
+      return;
+    }
+    setLoading(true);
+    const { error: signUpError } = await supabase.auth.signUp({ email, password });
+    setLoading(false);
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+    navigate("/verify-email");
+  };
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -120,24 +171,28 @@ export function RegisterPage() {
         <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Créer un compte" : "Create account"}</h2>
         <p className="text-sm text-muted-foreground mb-8">{fr ? "Rejoignez la communauté PIJ dès aujourd'hui." : "Join the PIJ community today."}</p>
 
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+        )}
+
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">{fr ? "Prénom" : "First name"}</label>
-              <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
+              <input value={firstName} onChange={e => setFirstName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
             </div>
             <div>
               <label className="text-sm font-medium">{fr ? "Nom" : "Last name"}</label>
-              <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
+              <input value={lastName} onChange={e => setLastName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
             </div>
           </div>
           <div>
             <label className="text-sm font-medium">Email</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Téléphone" : "Phone"}</label>
-            <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="+237 6 XX XX XX XX" />
+            <input value={phone} onChange={e => setPhone(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="+237 6 XX XX XX XX" />
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Mot de passe" : "Password"}</label>
@@ -152,8 +207,8 @@ export function RegisterPage() {
             <input type="checkbox" className="mt-0.5 rounded border-border accent-[#4CAF68]" />
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
-          <button onClick={async () => { await supabase.auth.signUp({ email, password }); navigate("/verify-email"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
-            {fr ? "Créer mon compte" : "Create my account"}
+          <button onClick={handleSignUp} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: "#4CAF68" }}>
+            {loading ? (fr ? "Inscription..." : "Signing up...") : (fr ? "Créer mon compte" : "Create my account")}
           </button>
         </div>
 
@@ -171,8 +226,33 @@ export function RegisterPage() {
 export function ForgotPasswordPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const fr = lang === "fr";
+
+  const handleReset = async () => {
+    setError("");
+    if (!email) {
+      setError(fr ? "Veuillez entrer votre email." : "Please enter your email.");
+      return;
+    }
+    if (!supabase) {
+      setError(fr ? "Erreur de connexion au serveur." : "Server connection error.");
+      return;
+    }
+    setLoading(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    setLoading(false);
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+    setSent(true);
+  };
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -184,13 +264,18 @@ export function ForgotPasswordPage() {
           <>
             <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mot de passe oublié" : "Forgot password"}</h2>
             <p className="text-sm text-muted-foreground mb-8">{fr ? "Entrez votre email. Nous vous enverrons un lien de réinitialisation." : "Enter your email. We'll send you a reset link."}</p>
+
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Email</label>
-                <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
               </div>
-              <button onClick={() => setSent(true)} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
-                {fr ? "Envoyer le lien" : "Send reset link"}
+              <button onClick={handleReset} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: "#4CAF68" }}>
+                {loading ? (fr ? "Envoi..." : "Sending...") : (fr ? "Envoyer le lien" : "Send reset link")}
               </button>
             </div>
           </>
