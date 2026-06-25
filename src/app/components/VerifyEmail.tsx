@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle, Mail, RefreshCw } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
@@ -41,23 +41,15 @@ export default function VerifyEmail() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [verified, setVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
+  const [email, setEmail] = useState("");
 
-  useEffect(() => {
+  useState(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        supabase
-          .from("users")
-          .select("verification_code")
-          .eq("id", data.user.id)
-          .single()
-          .then(({ data: userData }) => {
-            if (userData) setVerificationCode(userData.verification_code ?? "");
-          });
-      }
+      if (data.user?.email) setEmail(data.user.email);
     });
-  }, []);
+  });
 
   const handleCodeChange = (i: number, value: string) => {
     if (value.length > 1) return;
@@ -78,19 +70,38 @@ export default function VerifyEmail() {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const entered = code.join("");
-    if (entered === verificationCode) {
-      setVerified(true);
-      setTimeout(() => navigate("/kyc"), 1500);
-    } else {
-      setError(fr ? "Code incorrect. Veuillez réessayer." : "Incorrect code. Please try again.");
+    if (entered.length !== 6 || !email) return;
+    setError("");
+    setVerifying(true);
+    const { error: verifyErr } = await supabase.auth.verifyOtp({
+      email,
+      token: entered,
+      type: "signup",
+    });
+    setVerifying(false);
+    if (verifyErr) {
+      setError(verifyErr.message);
+      return;
     }
+    setVerified(true);
+    setTimeout(() => navigate("/kyc"), 1500);
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
+    if (!email) return;
     setResending(true);
-    setTimeout(() => setResending(false), 1500);
+    setError("");
+    const { error: resendErr } = await supabase.auth.resend({
+      type: "signup",
+      email,
+    });
+    setResending(false);
+    if (resendErr) {
+      setError(resendErr.message);
+      return;
+    }
   };
 
   return (
@@ -115,6 +126,10 @@ export default function VerifyEmail() {
                 : "We've sent a 6-digit code to your email address. Enter it below."}
             </p>
 
+            {email && (
+              <p className="text-xs text-center text-muted-foreground mb-4 bg-muted/40 py-2 rounded-lg">{email}</p>
+            )}
+
             <div className="flex gap-2 justify-center mb-6">
               {code.map((digit, i) => (
                 <input
@@ -138,17 +153,17 @@ export default function VerifyEmail() {
 
             <button
               onClick={handleVerify}
-              disabled={code.join("").length !== 6}
+              disabled={code.join("").length !== 6 || verifying}
               className="w-full py-3 rounded-xl text-white font-medium text-sm disabled:opacity-40 hover:opacity-90 transition-all"
               style={{ background: code.join("").length === 6 ? "#4CAF68" : "#6B7280" }}
             >
-              {fr ? "Vérifier" : "Verify"}
+              {verifying ? (fr ? "Vérification..." : "Verifying...") : (fr ? "Vérifier" : "Verify")}
             </button>
 
             <div className="flex items-center justify-between mt-4">
               <button onClick={handleResend} disabled={resending} className="flex items-center gap-1.5 text-sm text-[#6E3A9A] hover:underline disabled:opacity-40">
                 <RefreshCw size={14} className={resending ? "animate-spin" : ""} />
-                {fr ? "Renvoyer le code" : "Resend code"}
+                {resending ? (fr ? "Envoi..." : "Sending...") : (fr ? "Renvoyer le code" : "Resend code")}
               </button>
               <button onClick={() => navigate("/kyc")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 {fr ? "Passer pour l'instant" : "Skip for now"}

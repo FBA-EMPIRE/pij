@@ -152,10 +152,34 @@ export function RegisterPage() {
       return;
     }
     setLoading(true);
-    const { error: signUpError } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
+    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
     if (signUpError) {
+      setLoading(false);
       setError(signUpError.message);
+      return;
+    }
+    const uid = `PIJ-${Date.now().toString(36).toUpperCase()}`;
+    const { error: userInsertErr } = await supabase.from("users").insert({
+      id: data.user!.id,
+      uid,
+      email,
+      phone: phone || null,
+      status: "pending",
+      kyc_status: "not_submitted",
+    });
+    if (userInsertErr) {
+      setLoading(false);
+      setError(userInsertErr.message);
+      return;
+    }
+    const { error: profileInsertErr } = await supabase.from("profiles").insert({
+      user_id: data.user!.id,
+      first_name: firstName,
+      last_name: lastName,
+    });
+    setLoading(false);
+    if (profileInsertErr) {
+      setError(profileInsertErr.message);
       return;
     }
     navigate("/verify-email");

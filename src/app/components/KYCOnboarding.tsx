@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Upload, Camera, CheckCircle, Clock, ArrowRight, ArrowLeft, User, FileText, Scan } from "lucide-react";
+import { Upload, Camera, CheckCircle, Clock, ArrowRight, ArrowLeft, User, FileText, Scan, X, ImageIcon } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
 
 const STEPS = [
   { icon: User, label: "Informations personnelles", labelEn: "Personal Information" },
@@ -14,14 +15,93 @@ const STEPS = [
 export default function KYCOnboarding() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
+  const fr = lang === "fr";
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
-  const fr = lang === "fr";
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [dob, setDob] = useState("");
+  const [city, setCity] = useState("");
+  const [profession, setProfession] = useState("Entrepreneur");
+
+  const [docType, setDocType] = useState(fr ? "Carte Nationale d'Identité" : "National ID Card");
+  const [idFront, setIdFront] = useState<File | null>(null);
+  const [idBack, setIdBack] = useState<File | null>(null);
+  const idFrontRef = useRef<HTMLInputElement>(null);
+  const idBackRef = useRef<HTMLInputElement>(null);
+
+  const [selfie, setSelfie] = useState<File | null>(null);
+  const selfieRef = useRef<HTMLInputElement>(null);
+
+  const validate = (): string | null => {
+    if (step === 0) {
+      if (!firstName || !lastName) return fr ? "Prénom et nom requis." : "First and last name required.";
+      if (!dob) return fr ? "Date de naissance requise." : "Date of birth required.";
+    }
+    if (step === 1) {
+      if (!idFront) return fr ? "Veuillez télécharger le recto de la pièce." : "Please upload the front of your ID.";
+      if (!idBack) return fr ? "Veuillez télécharger le verso de la pièce." : "Please upload the back of your ID.";
+    }
+    if (step === 2) {
+      if (!selfie) return fr ? "Veuillez prendre votre selfie." : "Please take your selfie.";
+    }
+    return null;
+  };
 
   const handleNext = () => {
+    setError("");
+    const err = validate();
+    if (err) { setError(err); return; }
     if (step < 3) setStep(step + 1);
-    else setSubmitted(true);
+    else handleSubmit();
   };
+
+  const handleSubmit = async () => {
+    setError("");
+    setSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const upload = async (file: File, prefix: string) => {
+        const path = `${user.id}/${prefix}_${Date.now()}`;
+        const { error: upErr } = await supabase.storage.from("kyc-documents").upload(path, file);
+        if (upErr) throw upErr;
+        return path;
+      };
+
+      const frontPath = await upload(idFront!, "id_front");
+      const backPath = await upload(idBack!, "id_back");
+      const selfiePath = await upload(selfie!, "selfie");
+
+      const { error: insertErr } = await supabase.from("kyc_documents").insert([
+        { user_id: user.id, document_type: docType, storage_path: frontPath, status: "pending" },
+        { user_id: user.id, document_type: docType, storage_path: backPath, status: "pending" },
+        { user_id: user.id, document_type: "selfie", storage_path: selfiePath, status: "pending" },
+      ]);
+      if (insertErr) throw insertErr;
+
+      const { error: updateErr } = await supabase
+        .from("users")
+        .update({ kyc_status: "pending" })
+        .eq("id", user.id);
+      if (updateErr) throw updateErr;
+
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err.message || fr ? "Erreur lors de la soumission." : "Submission error.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number) =>
+    bytes < 1024 * 1024
+      ? `${(bytes / 1024).toFixed(0)} Ko`
+      : `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 
   if (submitted) {
     return (
@@ -87,6 +167,11 @@ export default function KYCOnboarding() {
           })}
         </div>
 
+        {/* Error banner */}
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+        )}
+
         {/* Step content */}
         <div className="bg-card rounded-2xl border border-border p-8">
           {step === 0 && (
@@ -96,25 +181,25 @@ export default function KYCOnboarding() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">{fr ? "Prénom" : "First name"}</label>
-                    <input defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                    <label className="text-sm font-medium">{fr ? "Prénom" : "First name"} *</label>
+                    <input value={firstName} onChange={e => setFirstName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">{fr ? "Nom de famille" : "Last name"}</label>
-                    <input defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                    <label className="text-sm font-medium">{fr ? "Nom de famille" : "Last name"} *</label>
+                    <input value={lastName} onChange={e => setLastName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">{fr ? "Date de naissance" : "Date of birth"}</label>
-                  <input type="date" defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                  <label className="text-sm font-medium">{fr ? "Date de naissance" : "Date of birth"} *</label>
+                  <input type="date" value={dob} onChange={e => setDob(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">{fr ? "Ville de résidence" : "City of residence"}</label>
-                  <input defaultValue="" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                  <input value={city} onChange={e => setCity(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Douala" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">{fr ? "Activité professionnelle" : "Professional activity"}</label>
-                  <select className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                  <select value={profession} onChange={e => setProfession(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
                     <option>{fr ? "Entrepreneur" : "Entrepreneur"}</option>
                     <option>{fr ? "Étudiant" : "Student"}</option>
                     <option>{fr ? "Salarié" : "Employee"}</option>
@@ -132,21 +217,55 @@ export default function KYCOnboarding() {
               <p className="text-sm text-muted-foreground mb-6">{fr ? "Téléchargez le recto et le verso de votre pièce d'identité nationale." : "Upload the front and back of your national identity document."}</p>
               <div className="mb-4">
                 <label className="text-sm font-medium">{fr ? "Type de document" : "Document type"}</label>
-                <select className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                <select value={docType} onChange={e => setDocType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
                   <option>{fr ? "Carte Nationale d'Identité" : "National ID Card"}</option>
                   <option>{fr ? "Passeport" : "Passport"}</option>
                   <option>{fr ? "Permis de conduire" : "Driver's license"}</option>
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                {[fr ? "Recto (face)" : "Front", fr ? "Verso (dos)" : "Back"].map((side) => (
-                  <div key={side} className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 hover:border-[#4CAF68]/50 cursor-pointer transition-colors group">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-[#E8F5EC] transition-colors">
-                      <Upload size={18} className="text-muted-foreground group-hover:text-[#4CAF68]" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium">{side}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{fr ? "JPG, PNG — max 5 Mo" : "JPG, PNG — max 5 MB"}</p>
+                {[
+                  { key: "front", label: fr ? "Recto (face)" : "Front", file: idFront, setFile: setIdFront, ref: idFrontRef },
+                  { key: "back", label: fr ? "Verso (dos)" : "Back", file: idBack, setFile: setIdBack, ref: idBackRef },
+                ].map(({ key, label, file, setFile, ref }) => (
+                  <div key={key}>
+                    <input
+                      ref={ref}
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={e => setFile(e.target.files?.[0] ?? null)}
+                    />
+                    <div
+                      onClick={() => ref.current?.click()}
+                      className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 hover:border-[#4CAF68]/50 cursor-pointer transition-colors group relative"
+                    >
+                      {file ? (
+                        <>
+                          <div className="w-full flex flex-col items-center gap-2">
+                            <ImageIcon size={24} className="text-[#4CAF68]" />
+                            <p className="text-sm font-medium text-center break-all">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setFile(null); }}
+                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200"
+                          >
+                            <X size={12} color="#E5484D" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-[#E8F5EC] transition-colors">
+                            <Upload size={18} className="text-muted-foreground group-hover:text-[#4CAF68]" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-medium">{label}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{fr ? "JPG, PNG, PDF — max 5 Mo" : "JPG, PNG, PDF — max 5 MB"}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -158,17 +277,48 @@ export default function KYCOnboarding() {
             <div>
               <h3 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Selfie de vérification" : "Verification selfie"}</h3>
               <p className="text-sm text-muted-foreground mb-6">{fr ? "Prenez une photo de vous-même pour confirmer votre identité. Assurez-vous que votre visage est bien visible." : "Take a photo of yourself to confirm your identity. Make sure your face is clearly visible."}</p>
-              <div className="border-2 border-dashed border-border rounded-2xl p-12 flex flex-col items-center gap-4 hover:border-[#4CAF68]/50 cursor-pointer transition-colors group mx-auto max-w-sm">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center group-hover:bg-[#E8F5EC] transition-colors">
-                    <Camera size={32} className="text-muted-foreground group-hover:text-[#4CAF68]" />
-                  </div>
-                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#4CAF68]/30" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium">{fr ? "Prendre mon selfie" : "Take my selfie"}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{fr ? "Visage centré, bonne lumière" : "Centered face, good lighting"}</p>
-                </div>
+              <input
+                ref={selfieRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="hidden"
+                onChange={e => setSelfie(e.target.files?.[0] ?? null)}
+              />
+              <div
+                onClick={() => selfieRef.current?.click()}
+                className="border-2 border-dashed border-border rounded-2xl p-12 flex flex-col items-center gap-4 hover:border-[#4CAF68]/50 cursor-pointer transition-colors group mx-auto max-w-sm relative"
+              >
+                {selfie ? (
+                  <>
+                    <img
+                      src={URL.createObjectURL(selfie)}
+                      alt="Selfie preview"
+                      className="w-40 h-40 rounded-full object-cover border-4 border-[#4CAF68]/30"
+                    />
+                    <p className="text-sm font-medium text-[#4CAF68]">{fr ? "✓ Selfie capturé" : "✓ Selfie captured"}</p>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setSelfie(null); }}
+                      className="text-xs text-red-500 hover:underline"
+                    >
+                      {fr ? "Reprendre" : "Retake"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center group-hover:bg-[#E8F5EC] transition-colors">
+                        <Camera size={32} className="text-muted-foreground group-hover:text-[#4CAF68]" />
+                      </div>
+                      <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#4CAF68]/30" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium">{fr ? "Prendre mon selfie" : "Take my selfie"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{fr ? "Visage centré, bonne lumière" : "Centered face, good lighting"}</p>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="mt-6 p-4 rounded-xl bg-[#F0E8FF] border border-[#6E3A9A]/20">
                 <p className="text-xs text-[#6E3A9A] leading-relaxed">{fr ? "🔒 Votre selfie est utilisé uniquement pour la vérification d'identité et est stocké de façon sécurisée. Il ne sera jamais partagé." : "🔒 Your selfie is used solely for identity verification and is stored securely. It will never be shared."}</p>
@@ -182,16 +332,17 @@ export default function KYCOnboarding() {
               <p className="text-sm text-muted-foreground mb-6">{fr ? "Vérifiez vos informations avant de soumettre votre dossier." : "Verify your information before submitting your application."}</p>
               <div className="space-y-3">
                 {[
-                  { label: fr ? "Nom complet" : "Full name", value: "" },
-                  { label: fr ? "Date de naissance" : "Date of birth", value: "" },
-                  { label: fr ? "Ville" : "City", value: "" },
-                  { label: fr ? "Type de document" : "Document type", value: fr ? "Carte Nationale d'Identité" : "National ID Card" },
-                  { label: fr ? "Statut pièce d'identité" : "ID document status", value: fr ? "✓ Téléchargée" : "✓ Uploaded", green: true },
-                  { label: fr ? "Statut selfie" : "Selfie status", value: fr ? "✓ Capturé" : "✓ Captured", green: true },
+                  { label: fr ? "Nom complet" : "Full name", value: `${firstName} ${lastName}` },
+                  { label: fr ? "Date de naissance" : "Date of birth", value: dob },
+                  { label: fr ? "Ville" : "City", value: city || "-" },
+                  { label: fr ? "Type de document" : "Document type", value: docType },
+                  { label: fr ? "Recto (face)" : "Front side", value: idFront ? `✓ ${idFront.name}` : "✗ Manquant", green: !!idFront },
+                  { label: fr ? "Verso (dos)" : "Back side", value: idBack ? `✓ ${idBack.name}` : "✗ Manquant", green: !!idBack },
+                  { label: fr ? "Selfie" : "Selfie", value: selfie ? "✓ Capturé" : "✗ Manquant", green: !!selfie },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between py-2.5 px-4 rounded-xl bg-muted/40">
                     <span className="text-sm text-muted-foreground">{row.label}</span>
-                    <span className={`text-sm font-medium ${row.green ? "text-[#1F9D55]" : "text-foreground"}`}>{row.value}</span>
+                    <span className={`text-sm font-medium ${row.green ? "text-[#1F9D55]" : "text-[#E5484D]"}`}>{row.value}</span>
                   </div>
                 ))}
               </div>
@@ -212,10 +363,13 @@ export default function KYCOnboarding() {
           </button>
           <button
             onClick={handleNext}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all"
+            disabled={submitting}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
             style={{ background: "#4CAF68" }}
           >
-            {step === 3 ? (fr ? "Soumettre mon dossier" : "Submit application") : (fr ? "Continuer" : "Continue")}
+            {submitting
+              ? (fr ? "Soumission..." : "Submitting...")
+              : step === 3 ? (fr ? "Soumettre mon dossier" : "Submit application") : (fr ? "Continuer" : "Continue")}
             <ArrowRight size={15} />
           </button>
         </div>

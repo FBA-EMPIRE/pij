@@ -25,7 +25,7 @@ export default function MemberDashboard() {
           fetchTransactions(userId),
           supabase.from("savings_goals").select("*").eq("user_id", userId),
           supabase.from("tontine_members").select("*, tontine:tontines(*)").eq("user_id", userId),
-          supabase.from("users").select("*").eq("id", userId).single(),
+          supabase.from("users").select("*, profiles(first_name, last_name)").eq("id", userId).single(),
         ]);
         setTransactions(txns ?? []);
         setSavingsGoals(goals ?? []);
@@ -39,6 +39,10 @@ export default function MemberDashboard() {
     })();
   }, []);
 
+  const displayName = profile?.profiles
+    ? `${profile.profiles.first_name} ${profile.profiles.last_name}`
+    : profile?.email || "";
+
   const recentTxns = transactions.slice(0, 5);
   const mainGoal = savingsGoals[0];
   const activeTontine = tontines[0]?.tontine ? { ...tontines[0].tontine, enrolled: tontines.length } : null;
@@ -49,6 +53,16 @@ export default function MemberDashboard() {
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+      {/* Welcome header */}
+      <div className="mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
+          {fr ? `Bonjour, ${displayName}` : `Hello, ${displayName}`}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {fr ? "Bienvenue sur votre espace membre PIJ." : "Welcome to your PIJ member space."}
+        </p>
+      </div>
+
       {/* KYC banner */}
       <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#F0E8FF] border border-[#6E3A9A]/20">
         <AlertCircle size={16} color="#6E3A9A" className="shrink-0" />
