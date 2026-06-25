@@ -92,7 +92,8 @@ export default function KYCOnboarding() {
 
       setSubmitted(true);
     } catch (err: any) {
-      setError(err.message || fr ? "Erreur lors de la soumission." : "Submission error.");
+      console.error("KYC submit error:", err);
+      setError(err?.message || (fr ? "Erreur lors de la soumission." : "Submission error."));
     } finally {
       setSubmitting(false);
     }
