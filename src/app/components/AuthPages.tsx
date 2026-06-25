@@ -169,7 +169,7 @@ export function RegisterPage() {
       return;
     }
     setLoading(false);
-    navigate("/verify-email");
+    navigate(data?.session ? "/kyc" : "/verify-email");
   };
 
   return (
