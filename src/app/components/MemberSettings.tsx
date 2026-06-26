@@ -1,31 +1,90 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Sun, Moon, Globe, Bell, Shield, Eye, Download, Trash2,
-  ChevronRight, Smartphone, Monitor, LogOut
+  ChevronRight, Smartphone, Monitor, LogOut, ArrowLeft
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
+import { getCurrentUserId } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
 
 export default function MemberSettings() {
-  const { lang, darkMode, toggleDark, toggleLang } = useAppContext();
+  const { lang, darkMode, toggleDark, toggleLang, userProfile } = useAppContext();
   const fr = lang === "fr";
+  const navigate = useNavigate();
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(false);
   const [pushNotif, setPushNotif] = useState(true);
   const [visibility, setVisibility] = useState<"public" | "members" | "private">("members");
   const [twoFactor, setTwoFactor] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const sessions: { device: string; ip: string; current: boolean; time: string }[] = [];
 
+  const handleDeleteAccount = async () => {
+    try {
+      const userId = await getCurrentUserId();
+      const { error } = await supabase.auth.admin.deleteUser(userId);
+      if (error) throw error;
+      await supabase.from("users").delete().eq("id", userId);
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Failed to delete account:", err);
+    }
+  };
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const userId = await getCurrentUserId();
+      const [profiles, goals, txns, tontines, consultations] = await Promise.all([
+        supabase.from("users").select("*").eq("id", userId).single(),
+        supabase.from("savings_goals").select("*").eq("user_id", userId),
+        supabase.from("transactions").select("*").eq("user_id", userId),
+        supabase.from("tontine_members").select("*, tontines(*)").eq("user_id", userId),
+        supabase.from("consultation_requests").select("*").eq("user_id", userId),
+      ]);
+
+      const exportData = {
+        profile: profiles.data,
+        savings_goals: goals.data,
+        transactions: txns.data,
+        tontines: tontines.data,
+        consultations: consultations.data,
+        exported_at: new Date().toISOString(),
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pij-export-${userId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export data:", err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6">
-      <div>
-        <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>
-          {fr ? "Paramètres" : "Settings"}
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {fr ? "Personnalisez votre expérience" : "Customize your experience"}
-        </p>
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-muted transition-colors">
+          <ArrowLeft size={20} className="text-muted-foreground" />
+        </button>
+        <div>
+          <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>
+            {fr ? "Paramètres" : "Settings"}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {fr ? "Personnalisez votre expérience" : "Customize your experience"}
+          </p>
+        </div>
       </div>
 
       {/* Appearance */}
@@ -201,9 +260,9 @@ export default function MemberSettings() {
           </div>
         </div>
         <div className="space-y-3">
-          <button className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-border hover:bg-muted/50 transition-colors text-left">
+          <button onClick={handleExportData} disabled={exporting} className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-border hover:bg-muted/50 transition-colors text-left disabled:opacity-50">
             <div>
-              <p className="text-sm font-medium">{fr ? "Exporter mes données" : "Export my data"}</p>
+              <p className="text-sm font-medium">{exporting ? (fr ? "Export en cours..." : "Exporting...") : (fr ? "Exporter mes données" : "Export my data")}</p>
               <p className="text-xs text-muted-foreground">{fr ? "Téléchargez une copie de vos informations" : "Download a copy of your information"}</p>
             </div>
             <Download size={16} className="text-muted-foreground shrink-0" />
@@ -226,7 +285,7 @@ export default function MemberSettings() {
                   : "Are you sure you want to delete your account? All your data will be lost."}
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
-                <button className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors min-h-[44px]">
+                <button onClick={handleDeleteAccount} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors min-h-[44px]">
                   {fr ? "Oui, supprimer" : "Yes, delete"}
                 </button>
                 <button

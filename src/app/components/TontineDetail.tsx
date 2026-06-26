@@ -71,7 +71,7 @@ export default function TontineDetail() {
   if (!tontine) {
     return (
       <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-        <button onClick={() => navigate("/tontines")} className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground transition-colors mb-6">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground transition-colors mb-6">
           <ArrowLeft size={16} />
         </button>
         <p className="text-muted-foreground">{fr ? "Tontine introuvable" : "Tontine not found"}</p>
@@ -83,7 +83,7 @@ export default function TontineDetail() {
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate("/tontines")} className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft size={16} />
         </button>
         <div className="flex-1">

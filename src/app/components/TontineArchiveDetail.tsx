@@ -63,7 +63,7 @@ export default function TontineArchiveDetail() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <button onClick={() => navigate("/tontines")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft size={16} /> {fr ? "Retour à mes tontines" : "Back to my tontines"}
       </button>
 

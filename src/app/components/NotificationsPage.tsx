@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Bell, CheckCircle, Clock, Trophy, Send, CreditCard, CheckCheck, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router";
+import { ArrowLeft, Bell, CheckCircle, Clock, Trophy, Send, CreditCard, CheckCheck, ArrowRight } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { getCurrentUserId } from "../lib/supabase/queries";
 import { supabase } from "../lib/supabase/client";
@@ -35,6 +36,7 @@ interface Notification {
 }
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [filter, setFilter] = useState<"all" | "unread">("all");
@@ -71,6 +73,9 @@ export default function NotificationsPage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Notifications" : "Notifications"}</h2>

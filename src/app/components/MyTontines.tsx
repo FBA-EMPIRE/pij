@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ChevronRight, Users, Calendar, Trophy, Archive, Clock } from "lucide-react";
+import { ArrowLeft, ChevronRight, Users, Calendar, Trophy, Archive, Clock } from "lucide-react";
 import { formatXAF } from "../lib/format";
 import { fetchMyTontines, getCurrentUserId } from "../lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
@@ -30,6 +30,9 @@ export default function MyTontines() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mes Tontines" : "My Tontines"}</h2>

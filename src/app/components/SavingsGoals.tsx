@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Calendar, Bike, House, Book, Briefcase, Shield, Plane, Car, Pill, GraduationCap, Sprout, Baby, Dumbbell } from "lucide-react";
+import { Plus, Calendar, Bike, House, Book, Briefcase, Shield, Plane, Car, Pill, GraduationCap, Sprout, Baby, Dumbbell, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router";
 import { getCurrentUserId } from "../lib/supabase/queries";
 import { supabase } from "../lib/supabase/client";
 import { formatXAF } from "../lib/format";
@@ -10,24 +11,58 @@ import { useAppContext } from "../context/AppContext";
 export default function SavingsGoals() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [goals, setGoals] = useState<any[]>([]);
+  const [newGoal, setNewGoal] = useState({ name: "", target_amount: "", deadline: "" });
+  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
+  const loadGoals = () => {
     getCurrentUserId().then(async (userId) => {
       const { data } = await supabase.from("savings_goals").select("*").eq("user_id", userId);
       if (data) setGoals(data);
     }).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { loadGoals(); }, []);
+
+  const handleCreateGoal = async () => {
+    if (!newGoal.name || !newGoal.target_amount) return;
+    setCreating(true);
+    try {
+      const userId = await getCurrentUserId();
+      const { error } = await supabase.from("savings_goals").insert({
+        user_id: userId,
+        name: newGoal.name,
+        target_amount: parseFloat(newGoal.target_amount),
+        current_amount: 0,
+        deadline: newGoal.deadline || null,
+        status: "active",
+      });
+      if (error) throw error;
+      setNewGoal({ name: "", target_amount: "", deadline: "" });
+      setShowCreate(false);
+      loadGoals();
+    } catch (err) {
+      console.error("Failed to create goal:", err);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-2">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-muted transition-colors">
+          <ArrowLeft size={20} className="text-muted-foreground" />
+        </button>
         <div>
           <h2 className="text-lg sm:text-xl" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Objectifs d'épargne" : "Savings goals"}</h2>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{goals.length} {fr ? "objectifs actifs" : "active goals"}</p>
         </div>
+      </div>
+      <div className="flex justify-end mb-6">
         <button onClick={() => setShowCreate(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all w-full sm:w-auto min-h-[44px]" style={{ background: "#4CAF68" }}>
           <Plus size={16} /> {fr ? "Nouvel objectif" : "New goal"}
         </button>
@@ -100,15 +135,31 @@ export default function SavingsGoals() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">{fr ? "Nom de l'objectif" : "Goal name"}</label>
-                <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Ex: Acheter une moto" : "E.g. Buy a motorbike"} />
+                <input
+                  value={newGoal.name}
+                  onChange={(e) => setNewGoal((prev) => ({ ...prev, name: e.target.value }))}
+                  className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                  placeholder={fr ? "Ex: Acheter une moto" : "E.g. Buy a motorbike"}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">{fr ? "Montant cible (XAF)" : "Target amount (XAF)"}</label>
-                <input type="number" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="1 000 000" />
+                <input
+                  type="number"
+                  value={newGoal.target_amount}
+                  onChange={(e) => setNewGoal((prev) => ({ ...prev, target_amount: e.target.value }))}
+                  className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                  placeholder="1 000 000"
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">{fr ? "Date d'échéance" : "Target date"}</label>
-                <input type="date" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                <input
+                  type="date"
+                  value={newGoal.deadline}
+                  onChange={(e) => setNewGoal((prev) => ({ ...prev, deadline: e.target.value }))}
+                  className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">{fr ? "Icône" : "Icon"}</label>
@@ -126,11 +177,11 @@ export default function SavingsGoals() {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground">
+              <button onClick={() => { setShowCreate(false); setNewGoal({ name: "", target_amount: "", deadline: "" }); }} className="flex-1 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground">
                 {fr ? "Annuler" : "Cancel"}
               </button>
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90" style={{ background: "#4CAF68" }}>
-                {fr ? "Créer l'objectif" : "Create goal"}
+              <button onClick={handleCreateGoal} disabled={creating} className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50" style={{ background: "#4CAF68" }}>
+                {creating ? (fr ? "Création..." : "Creating...") : (fr ? "Créer l'objectif" : "Create goal")}
               </button>
             </div>
           </div>

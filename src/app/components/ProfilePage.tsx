@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { User, Camera, Lock, Bell, Mail, Smartphone, Check, X } from "lucide-react";
+import { User, Camera, Lock, Bell, Mail, Smartphone, Check, X, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router";
 
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
+import { getCurrentUserId, fetchUserProfile } from "../lib/supabase/queries";
 
 const NOTIFICATION_CATEGORIES = [
   { id: "contributions", icon: Bell, fr: "Contributions", en: "Contributions" },
@@ -11,8 +14,9 @@ const NOTIFICATION_CATEGORIES = [
 ] as const;
 
 export default function ProfilePage() {
-  const { lang, user, userProfile } = useAppContext();
+  const { lang, user, userProfile, setUserProfile } = useAppContext();
   const fr = lang === "fr";
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState(userProfile?.name ?? user?.user_metadata?.name ?? "");
@@ -29,19 +33,66 @@ export default function ProfilePage() {
   const [smsNotif, setSmsNotif] = useState(false);
   const [pushNotif, setPushNotif] = useState(true);
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
+  const [saving, setSaving] = useState(false);
 
   const toggleNotif = (id: string) =>
     setNotifications((prev) => ({ ...prev, [id]: !prev[id as keyof typeof prev] }));
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const userId = await getCurrentUserId();
+      const nameParts = name.trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || firstName;
+
+      await supabase.from("profiles").upsert({
+        user_id: userId,
+        first_name: firstName,
+        last_name: lastName,
+        city: city,
+      }, { onConflict: "user_id" });
+
+      if (phone !== userProfile?.phone) {
+        await supabase.from("users").update({ phone }).eq("id", userId);
+      }
+
+      const profile = await fetchUserProfile(userId);
+      setUserProfile({ ...profile, name, city, phone });
+      setEditing(false);
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (passwords.newPass !== passwords.confirm) return;
+    try {
+      const { error } = await supabase.auth.updateUser({ password: passwords.newPass });
+      if (error) throw error;
+      setPasswords({ current: "", newPass: "", confirm: "" });
+      setShowPassword(false);
+    } catch (err) {
+      console.error("Failed to update password:", err);
+    }
+  };
+
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6">
-      {/* Header */}
+      {/* Back button & Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mon profil" : "My profile"}</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {fr ? "Gérez vos informations personnelles" : "Manage your personal information"}
-          </p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-muted transition-colors">
+            <ArrowLeft size={20} className="text-muted-foreground" />
+          </button>
+          <div>
+            <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mon profil" : "My profile"}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {fr ? "Gérez vos informations personnelles" : "Manage your personal information"}
+            </p>
+          </div>
         </div>
         <button
           onClick={() => setEditing(!editing)}
@@ -93,7 +144,13 @@ export default function ProfilePage() {
               {editing ? (
                 <input
                   type={f.type || "text"}
-                  defaultValue={f.value}
+                  value={f.key === "name" ? name : f.key === "email" ? email : f.key === "phone" ? phone : city}
+                  onChange={(e) => {
+                    if (f.key === "name") setName(e.target.value);
+                    else if (f.key === "email") setEmail(e.target.value);
+                    else if (f.key === "phone") setPhone(e.target.value);
+                    else if (f.key === "city") setCity(e.target.value);
+                  }}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 min-h-[44px]"
                 />
               ) : (
@@ -105,11 +162,12 @@ export default function ProfilePage() {
 
         {editing && (
           <button
-            className="mt-5 w-full sm:w-auto px-6 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all min-h-[44px]"
+            disabled={saving}
+            className="mt-5 w-full sm:w-auto px-6 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all min-h-[44px] disabled:opacity-50"
             style={{ background: "#4CAF68" }}
-            onClick={() => setEditing(false)}
+            onClick={handleSave}
           >
-            {fr ? "Enregistrer les modifications" : "Save changes"}
+            {saving ? (fr ? "Enregistrement..." : "Saving...") : (fr ? "Enregistrer les modifications" : "Save changes")}
           </button>
         )}
       </div>
@@ -151,6 +209,7 @@ export default function ProfilePage() {
               </div>
             ))}
             <button
+              onClick={handlePasswordUpdate}
               className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all min-h-[44px]"
               style={{ background: "#4CAF68" }}
             >

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Users, Calendar, Coins, ArrowRight, Inbox } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Coins, ArrowRight, Inbox } from "lucide-react";
 import { formatXAF } from "../lib/format";
 import { fetchTontines } from "../lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
@@ -23,6 +23,9 @@ export default function TontineMarketplace() {
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="mb-6">
         <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Marketplace des Tontines" : "Tontine Marketplace"}</h2>
         <p className="text-sm text-muted-foreground mt-1">{fr ? "Rejoignez une tontine disponible et commencez à épargner collectivement." : "Join an available tontine and start saving collectively."}</p>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Users, ChevronRight, AlertCircle } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Users, ChevronRight, AlertCircle, ArrowLeft } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { getCurrentUserId, fetchTransactions } from "../lib/supabase/queries";
@@ -55,11 +55,14 @@ export default function MemberDashboard() {
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
       {/* Welcome header */}
       <div className="mb-6">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+          <ArrowLeft size={20} className="text-muted-foreground" />
+        </button>
         <h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
-          {fr ? `Bonjour, ${displayName}` : `Hello, ${displayName}`}
+          {fr ? `Bonjour ${displayName}, bienvenue dans votre espace membre PIJ` : `Hello ${displayName}, welcome to your PIJ member space`}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {fr ? "Bienvenue sur votre espace membre PIJ." : "Welcome to your PIJ member space."}
+          {fr ? "Voici un aperçu de vos activités" : "Here's an overview of your activities"}
         </p>
       </div>
 

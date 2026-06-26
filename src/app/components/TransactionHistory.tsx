@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowUpRight, ArrowDownRight, Search, Download } from "lucide-react";
+import { useNavigate } from "react-router";
+import { ArrowLeft, ArrowUpRight, ArrowDownRight, Search, Download } from "lucide-react";
 import { fetchTransactions, getCurrentUserId } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import TransactionDetailModal from "./TransactionDetailModal";
@@ -7,6 +8,7 @@ import type { Transaction } from "../types";
 import { useAppContext } from "../context/AppContext";
 
 export default function TransactionHistory() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
@@ -35,6 +37,9 @@ export default function TransactionHistory() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
         <div>
           <h2 className="text-lg sm:text-xl" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Historique des transactions" : "Transaction history"}</h2>

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Award, BookOpen, CheckCircle, ChevronRight, Clock, FileText, GraduationCap, Play, Send, Star, Users } from "lucide-react";
+import { Award, BookOpen, CheckCircle, ChevronRight, Clock, FileText, GraduationCap, Play, Send, Star, Users, ArrowLeft } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { getCurrentUserId } from "../lib/supabase/queries";
 
 interface FormationsProps { view?: "dashboard" | "course" | "learning" | "consultation"; }
 
@@ -145,8 +146,57 @@ function MyLearning({ courses }: { courses: any[] }) {
 function ConsultationRequest({ consultations }: { consultations: any[] }) {
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  const navigate = useNavigate();
   const [type, setType] = useState(consultationTypes[0]);
-  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Demande de consultation" : "Consultation request"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Mentorat, consultation, revue business ou évaluation de projet." : "Mentorship, consultation, business review or project evaluation."}</p><div className="grid grid-cols-1 lg:grid-cols-2 gap-6"><div className="bg-card rounded-2xl border border-border p-4 sm:p-6 space-y-4"><div><label className="text-sm font-medium">{fr ? "Type" : "Type"}</label><select value={type} onChange={(e) => setType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">{consultationTypes.map((t) => <option key={t}>{t}</option>)}</select></div><div><label className="text-sm font-medium">{fr ? "Projet" : "Project"}</label><input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Nom de votre projet" : "Project name"} /></div><div><label className="text-sm font-medium">{fr ? "Besoin" : "Need"}</label><textarea rows={4} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" placeholder={fr ? "Décrivez votre besoin..." : "Describe your need..."} /></div><button className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm" style={{ background: "linear-gradient(135deg, #1E2530, #2A3444)" }}><Send size={16} />{fr ? "Envoyer la demande" : "Send request"}</button></div><div className="bg-card rounded-2xl border border-border p-6"><h2 className="text-lg font-bold mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Suivi des demandes" : "Request tracking"}</h2><div className="space-y-4">{consultations.length ? consultations.map((r: any) => <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"><div><p className="text-sm font-medium">{r.type}</p><p className="text-xs text-muted-foreground">{r.project}</p></div><StatusBadge status={r.status as any} size="sm" /></div>) : <p className="text-sm text-muted-foreground">{fr ? "Aucune demande pour le moment." : "No requests yet."}</p>}</div></div></div></div>;
+  const [project, setProject] = useState("");
+  const [need, setNeed] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSendRequest = async () => {
+    if (!project || !need) return;
+    setSending(true);
+    try {
+      const userId = await getCurrentUserId();
+      const { error } = await supabase.from("consultation_requests").insert({
+        user_id: userId, type, project, need, status: "pending",
+      });
+      if (error) throw error;
+      setSent(true);
+      setProject("");
+      setNeed("");
+    } catch (err) {
+      console.error("Failed to send consultation request:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+    <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-3">
+      <ArrowLeft size={20} className="text-muted-foreground" />
+    </button>
+    <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Demande de consultation" : "Consultation request"}</h1>
+    <p className="text-sm text-muted-foreground mb-6">{fr ? "Mentorat, consultation, revue business ou évaluation de projet." : "Mentorship, consultation, business review or project evaluation."}</p>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="bg-card rounded-2xl border border-border p-4 sm:p-6 space-y-4">
+        {sent ? (
+          <div className="text-center py-8">
+            <CheckCircle size={48} className="mx-auto text-[#4CAF68] mb-3" />
+            <p className="font-medium text-lg">{fr ? "Demande envoyée !" : "Request sent!"}</p>
+            <p className="text-sm text-muted-foreground mt-1">{fr ? "Nous reviendrons vers vous rapidement." : "We'll get back to you soon."}</p>
+            <button onClick={() => setSent(false)} className="mt-4 px-4 py-2 rounded-xl bg-[#4CAF68] text-white text-sm">{fr ? "Nouvelle demande" : "New request"}</button>
+          </div>
+        ) : (<>
+        <div><label className="text-sm font-medium">{fr ? "Type" : "Type"}</label><select value={type} onChange={(e) => setType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">{consultationTypes.map((t) => <option key={t}>{t}</option>)}</select></div>
+        <div><label className="text-sm font-medium">{fr ? "Projet" : "Project"}</label><input value={project} onChange={(e) => setProject(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Nom de votre projet" : "Project name"} /></div>
+        <div><label className="text-sm font-medium">{fr ? "Besoin" : "Need"}</label><textarea value={need} onChange={(e) => setNeed(e.target.value)} rows={4} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" placeholder={fr ? "Décrivez votre besoin..." : "Describe your need..."} /></div>
+        <button onClick={handleSendRequest} disabled={sending || !project || !need} className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm disabled:opacity-50" style={{ background: "linear-gradient(135deg, #1E2530, #2A3444)" }}>
+          {sending ? <span className="animate-spin">⟳</span> : <Send size={16} />}{sending ? (fr ? "Envoi..." : "Sending...") : (fr ? "Envoyer la demande" : "Send request")}
+        </button>
+        </>)}
+      </div>
+      <div className="bg-card rounded-2xl border border-border p-6"><h2 className="text-lg font-bold mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Suivi des demandes" : "Request tracking"}</h2><div className="space-y-4">{consultations.length ? consultations.map((r: any) => <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"><div><p className="text-sm font-medium">{r.type}</p><p className="text-xs text-muted-foreground">{r.project}</p></div><StatusBadge status={r.status as any} size="sm" /></div>) : <p className="text-sm text-muted-foreground">{fr ? "Aucune demande pour le moment." : "No requests yet."}</p>}</div></div></div></div>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
