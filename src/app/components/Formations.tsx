@@ -8,7 +8,12 @@ import { getCurrentUserId } from "../lib/supabase/queries";
 
 interface FormationsProps { view?: "dashboard" | "course" | "learning" | "consultation"; }
 
-const consultationTypes = ["Mentorat", "Consultation", "Business Review", "Évaluation de Projet"];
+const consultationTypes = [
+  { fr: "Mentorat", en: "Mentorship" },
+  { fr: "Consultation", en: "Consultation" },
+  { fr: "Business Review", en: "Business Review" },
+  { fr: "Évaluation de Projet", en: "Project Evaluation" },
+];
 
 export default function Formations({ view = "dashboard" }: FormationsProps) {
   const { lang } = useAppContext();
@@ -152,7 +157,7 @@ function ConsultationRequest({ consultations, onRefresh }: { consultations: any[
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
-  const [type, setType] = useState(consultationTypes[0]);
+  const [type, setType] = useState(consultationTypes[0].fr);
   const [project, setProject] = useState("");
   const [need, setNeed] = useState("");
   const [sending, setSending] = useState(false);
@@ -194,7 +199,7 @@ function ConsultationRequest({ consultations, onRefresh }: { consultations: any[
             <button onClick={() => setSent(false)} className="mt-4 px-4 py-2 rounded-xl bg-[#4CAF68] text-white text-sm">{fr ? "Nouvelle demande" : "New request"}</button>
           </div>
         ) : (<>
-        <div><label className="text-sm font-medium">{fr ? "Type" : "Type"}</label><select value={type} onChange={(e) => setType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">{consultationTypes.map((t) => <option key={t}>{t}</option>)}</select></div>
+        <div><label className="text-sm font-medium">{fr ? "Type" : "Type"}</label><select value={type} onChange={(e) => setType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">{consultationTypes.map((t) => <option key={t.fr} value={t.fr}>{fr ? t.fr : t.en}</option>)}</select></div>
         <div><label className="text-sm font-medium">{fr ? "Projet" : "Project"}</label><input value={project} onChange={(e) => setProject(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Nom de votre projet" : "Project name"} /></div>
         <div><label className="text-sm font-medium">{fr ? "Besoin" : "Need"}</label><textarea value={need} onChange={(e) => setNeed(e.target.value)} rows={4} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" placeholder={fr ? "Décrivez votre besoin..." : "Describe your need..."} /></div>
         <button onClick={handleSendRequest} disabled={sending || !project || !need} className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm disabled:opacity-50" style={{ background: "linear-gradient(135deg, #1E2530, #2A3444)" }}>

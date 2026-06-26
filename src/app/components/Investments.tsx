@@ -9,8 +9,18 @@ import { formatXAF } from "../lib/format";
 
 interface InvestmentsProps { view?: "marketplace" | "detail" | "portfolio" | "wallet"; }
 
-const sectors = ["Tous les secteurs", "Agriculture", "Technologie", "Énergie"];
-const risks = ["Tous les risques", "Faible", "Modéré", "Élevé"];
+const sectors = [
+  { fr: "Tous les secteurs", en: "All sectors" },
+  { fr: "Agriculture", en: "Agriculture" },
+  { fr: "Technologie", en: "Technology" },
+  { fr: "Énergie", en: "Energy" },
+];
+const risks = [
+  { fr: "Tous les risques", en: "All risks" },
+  { fr: "Faible", en: "Low" },
+  { fr: "Modéré", en: "Moderate" },
+  { fr: "Élevé", en: "High" },
+];
 
 export default function Investments({ view = "marketplace" }: InvestmentsProps) {
   const { lang } = useAppContext();
@@ -56,9 +66,9 @@ function InvestmentMarketplace({ opportunities, walletData }: { opportunities: a
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
-  const [sector, setSector] = useState(sectors[0]);
-  const [risk, setRisk] = useState(risks[0]);
-  return <div className="p-4 lg:p-8 max-w-6xl mx-auto"><button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4"><ArrowLeft size={20} className="text-muted-foreground" /></button><div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8"><div><h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Marketplace d'Investissement" : "Investment Marketplace"}</h1><p className="text-sm text-muted-foreground max-w-lg">{fr ? "Découvrez des projets vérifiés, transparents et alignés avec la croissance entrepreneuriale locale." : "Discover verified, transparent projects aligned with local entrepreneurial growth."}</p></div><div className="flex flex-col sm:flex-row gap-2"><button onClick={() => navigate("/investissements/portfolio")} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm" style={{ background: "linear-gradient(135deg, #6E3A9A, #9B6FCA)" }}><TrendingUp size={16} />{fr ? "Mon portfolio" : "My portfolio"}</button><button onClick={() => navigate("/investissements/wallet")} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border text-sm font-medium hover:bg-muted"><Wallet size={16} />Wallet</button></div></div><div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"><SummaryCard label={fr ? "Disponible" : "Available"} value={formatXAF(walletData.available)} /><SummaryCard label={fr ? "Investi" : "Invested"} value={formatXAF(walletData.invested)} /><SummaryCard label={fr ? "Gains" : "Earnings"} value={`+${formatXAF(walletData.earnings)}`} positive /></div><div className="flex flex-wrap items-center gap-3 mb-6"><div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border text-sm font-medium"><Filter size={14} />{fr ? "Filtres :" : "Filters:"}</div><Select value={sector} onChange={setSector} options={sectors} /><Select value={risk} onChange={setRisk} options={risks} /><div className="ml-auto text-sm text-muted-foreground hidden sm:block">{fr ? "Priorité:" : "Priority:"} <span className="font-bold">{opportunities.length} {fr ? "projets" : "projects"}</span></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">{opportunities.length ? opportunities.map((opp) => <InvestmentCard key={opp.id} opportunity={opp} />) : <p className="text-sm text-muted-foreground col-span-full text-center py-12">{fr ? "Aucune opportunité disponible" : "No opportunities available"}</p>}</div></div>;
+  const [sector, setSector] = useState(sectors[0].fr);
+  const [risk, setRisk] = useState(risks[0].fr);
+  return <div className="p-4 lg:p-8 max-w-6xl mx-auto"><button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4"><ArrowLeft size={20} className="text-muted-foreground" /></button><div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8"><div><h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Marketplace d'Investissement" : "Investment Marketplace"}</h1><p className="text-sm text-muted-foreground max-w-lg">{fr ? "Découvrez des projets vérifiés, transparents et alignés avec la croissance entrepreneuriale locale." : "Discover verified, transparent projects aligned with local entrepreneurial growth."}</p></div><div className="flex flex-col sm:flex-row gap-2"><button onClick={() => navigate("/investissements/portfolio")} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm" style={{ background: "linear-gradient(135deg, #6E3A9A, #9B6FCA)" }}><TrendingUp size={16} />{fr ? "Mon portfolio" : "My portfolio"}</button><button onClick={() => navigate("/investissements/wallet")} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border text-sm font-medium hover:bg-muted"><Wallet size={16} />Wallet</button></div></div><div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"><SummaryCard label={fr ? "Disponible" : "Available"} value={formatXAF(walletData.available)} /><SummaryCard label={fr ? "Investi" : "Invested"} value={formatXAF(walletData.invested)} /><SummaryCard label={fr ? "Gains" : "Earnings"} value={`+${formatXAF(walletData.earnings)}`} positive /></div><div className="flex flex-wrap items-center gap-3 mb-6"><div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border text-sm font-medium"><Filter size={14} />{fr ? "Filtres :" : "Filters:"}</div><Select value={sector} onChange={setSector} options={sectors.map((s: any) => fr ? s.fr : s.en)} /><Select value={risk} onChange={setRisk} options={risks.map((r: any) => fr ? r.fr : r.en)} /><div className="ml-auto text-sm text-muted-foreground hidden sm:block">{fr ? "Priorité:" : "Priority:"} <span className="font-bold">{opportunities.length} {fr ? "projets" : "projects"}</span></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">{opportunities.length ? opportunities.map((opp) => <InvestmentCard key={opp.id} opportunity={opp} />) : <p className="text-sm text-muted-foreground col-span-full text-center py-12">{fr ? "Aucune opportunité disponible" : "No opportunities available"}</p>}</div></div>;
 }
 
 function InvestmentCard({ opportunity }: { opportunity: any }) {

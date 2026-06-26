@@ -20,7 +20,18 @@ export default function MemberSettings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const sessions: { device: string; ip: string; current: boolean; time: string }[] = [];
+  const sessions: { device: string; ip: string; current: boolean; time: string }[] = [
+    { device: navigator.userAgent.includes("iPhone") || navigator.userAgent.includes("Safari") ? "Safari Browser" : "Chrome Browser", ip: "", current: true, time: new Date().toLocaleString() },
+  ];
+
+  const handleLogoutAllDevices = async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Failed to logout all devices:", err);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     try {
@@ -241,7 +252,7 @@ export default function MemberSettings() {
               </div>
             ))}
           </div>
-          <button className="mt-3 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={handleLogoutAllDevices} className="mt-3 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <LogOut size={14} />
             {fr ? "Déconnecter tous les appareils" : "Log out all devices"}
           </button>

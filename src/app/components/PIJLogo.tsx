@@ -14,7 +14,7 @@ export function PIJLogo({ variant = "full", size = "md", theme = "light" }: PIJL
   };
 
   const s = sizes[size];
-  const textColor = theme === "dark" ? "#FFFFFF" : "#1E2530";
+  const textColor = "var(--foreground)";
 
   return (
     <div className="flex items-center gap-2.5 select-none">

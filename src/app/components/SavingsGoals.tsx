@@ -16,6 +16,8 @@ export default function SavingsGoals() {
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [goals, setGoals] = useState<any[]>([]);
   const [newGoal, setNewGoal] = useState({ name: "", target_amount: "", deadline: "" });
+  const [selectedIcon, setSelectedIcon] = useState<number | null>(null);
+  const goalIcons = [Bike, House, Book, Briefcase, Shield, Plane, Car, Pill, GraduationCap, Sprout, Baby, Dumbbell];
   const [creating, setCreating] = useState(false);
 
   const loadGoals = () => {
@@ -164,12 +166,8 @@ export default function SavingsGoals() {
               <div>
                 <label className="text-sm font-medium">{fr ? "Icône" : "Icon"}</label>
                 <div className="mt-1.5 grid grid-cols-4 sm:grid-cols-6 gap-2">
-                  {[
-                    Bike, House, Book, Briefcase,
-                    Shield, Plane, Car, Pill,
-                    GraduationCap, Sprout, Baby, Dumbbell,
-                  ].map((Icon, i) => (
-                    <button key={i} className="flex items-center justify-center py-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-[#4CAF68] hover:bg-[#E8F5EC] transition-all min-h-[44px]">
+                  {goalIcons.map((Icon, i) => (
+                    <button key={i} onClick={() => setSelectedIcon(i)} className={`flex items-center justify-center py-2 rounded-xl border transition-all min-h-[44px] ${selectedIcon === i ? "border-[#4CAF68] bg-[#E8F5EC] text-[#4CAF68]" : "border-border text-muted-foreground hover:text-foreground hover:border-[#4CAF68] hover:bg-[#E8F5EC]"}`}>
                       <Icon size={20} className="sm:w-6 sm:h-6" />
                     </button>
                   ))}

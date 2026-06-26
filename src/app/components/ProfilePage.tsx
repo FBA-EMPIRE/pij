@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Camera, Lock, Bell, Mail, Smartphone, Check, X, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -34,6 +34,16 @@ export default function ProfilePage() {
   const [pushNotif, setPushNotif] = useState(true);
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setName(userProfile?.name ?? user?.user_metadata?.name ?? "");
+    setEmail(user?.email ?? "");
+    setPhone(userProfile?.phone ?? "");
+    setCity(userProfile?.city ?? "");
+  }, [userProfile, user]);
+
+  const initials = (userProfile?.name || user?.user_metadata?.name || "AD")
+    .split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
   const toggleNotif = (id: string) =>
     setNotifications((prev) => ({ ...prev, [id]: !prev[id as keyof typeof prev] }));
@@ -111,7 +121,7 @@ export default function ProfilePage() {
           {/* Avatar */}
           <div className="relative shrink-0">
             <div className="w-20 h-20 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-2xl font-bold">
-              AD
+              {initials}
             </div>
             {editing && (
               <label className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#4CAF68] flex items-center justify-center cursor-pointer hover:opacity-90 transition-all shadow-lg">

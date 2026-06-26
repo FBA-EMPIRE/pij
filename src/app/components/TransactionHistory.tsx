@@ -17,6 +17,23 @@ export default function TransactionHistory() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const rows = [["Description", "Date", "Compte", "Montant", "Type"]];
+      filtered.forEach((t) => {
+        rows.push([t.description || "", t.date || t.created_at || "", t.account || t.account_type || "", String(t.amount ?? 0), (t.amount ?? 0) > 0 ? "Crédit" : "Débit"]);
+      });
+      const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (err) { console.error(err); }
+    finally { setExporting(false); }
+  };
 
   useEffect(() => {
     getCurrentUserId().then(async (uid) => {
@@ -45,8 +62,8 @@ export default function TransactionHistory() {
           <h2 className="text-lg sm:text-xl" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Historique des transactions" : "Transaction history"}</h2>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{filtered.length} {fr ? "transactions" : "transactions"}</p>
         </div>
-        <button className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto min-h-[44px]">
-          <Download size={15} /> <span className="sm:hidden">{fr ? "Exporter" : "Export"}</span><span className="hidden sm:inline">{fr ? "Exporter" : "Export"}</span>
+        <button onClick={handleExport} disabled={exporting} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto min-h-[44px] disabled:opacity-50">
+          <Download size={15} /> <span className="sm:hidden">{exporting ? "..." : (fr ? "Exporter" : "Export")}</span><span className="hidden sm:inline">{exporting ? "..." : (fr ? "Exporter" : "Export")}</span>
         </button>
       </div>
 
