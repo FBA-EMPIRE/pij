@@ -39,9 +39,14 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
     })();
   }, []);
 
+  const refreshConsultations = async () => {
+    const { data } = await supabase.from("consultation_requests").select("*");
+    setConsultations(data ?? []);
+  };
+
   if (view === "course") return <CourseDetail courses={courses} contents={contents} />;
   if (view === "learning") return <MyLearning courses={courses} />;
-  if (view === "consultation") return <ConsultationRequest consultations={consultations} />;
+  if (view === "consultation") return <ConsultationRequest consultations={consultations} onRefresh={refreshConsultations} />;
   return <FormationDashboard categories={categories} courses={courses} />;
 }
 
@@ -143,7 +148,7 @@ function MyLearning({ courses }: { courses: any[] }) {
   return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Mon apprentissage" : "My learning"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Suivez vos cours terminés et en cours." : "Track completed and in-progress courses."}</p><div className="space-y-6"><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "En cours" : "In progress"}</h2><div className="space-y-4">{courses.filter((c: any) => c.progress < 100).map((c: any) => <CourseRow key={c.id} course={c} />)}</div></section><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Terminés" : "Completed"}</h2><div className="space-y-4">{courses.filter((c: any) => c.progress === 100).map((c: any) => <CourseRow key={c.id} course={c} />)}</div></section></div></div>;
 }
 
-function ConsultationRequest({ consultations }: { consultations: any[] }) {
+function ConsultationRequest({ consultations, onRefresh }: { consultations: any[]; onRefresh?: () => void }) {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
@@ -165,6 +170,7 @@ function ConsultationRequest({ consultations }: { consultations: any[] }) {
       setSent(true);
       setProject("");
       setNeed("");
+      await onRefresh?.();
     } catch (err) {
       console.error("Failed to send consultation request:", err);
     } finally {

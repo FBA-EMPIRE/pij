@@ -53,11 +53,15 @@ export async function getCurrentUserId(): Promise<string> {
 export async function fetchUserProfile(userId: string) {
   const { data, error } = await supabase
     .from("users")
-    .select("*")
+    .select("*, profiles(*)")
     .eq("id", userId)
     .single();
   if (error) throw error;
-  return data;
+  const profiles = (data as any).profiles;
+  const name = profiles ? `${profiles.first_name} ${profiles.last_name}`.trim() : data.email;
+  const merged = { ...data, ...profiles, name, id: userId };
+  delete merged.profiles;
+  return merged;
 }
 
 export async function fetchUsers() {

@@ -60,11 +60,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProfileLoading(true);
     const { data, error } = await supabase
       .from("users")
-      .select("*")
+      .select("*, profiles(*)")
       .eq("id", userId)
       .maybeSingle();
     if (!error && data) {
-      setUserProfile(data as UserProfile);
+      const profiles = (data as any).profiles;
+      const name = profiles ? `${profiles.first_name} ${profiles.last_name}`.trim() : data.email;
+      const merged = { ...data, ...profiles, name, id: userId };
+      delete merged.profiles;
+      setUserProfile(merged as UserProfile);
     }
     setProfileLoading(false);
   };
