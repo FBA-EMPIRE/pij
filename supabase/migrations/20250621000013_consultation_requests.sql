@@ -1,4 +1,4 @@
-create table public.consultation_requests (
+﻿create table public.consultation_requests (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users (id) on delete cascade,
   type text not null,

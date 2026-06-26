@@ -1,5 +1,4 @@
-import { getSupabaseClient, extractUserId } from "../_shared/supabase-client.ts";
-import { validateTontineApply } from "../_shared/validators.ts";
+import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,24 +20,25 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const supabase = getSupabaseClient(authHeader);
-
-    const userId = authHeader ? extractUserId(authHeader) : null;
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    const supabase = getServiceClient();
 
     const body = await req.json();
-    const validated = validateTontineApply(body);
 
-    const { data: member, error } = await supabase
-      .from("tontine_members")
+    if (!body.user_id || typeof body.user_id !== "string") {
+      throw new Error("user_id is required and must be a string");
+    }
+    if (!body.tontine_id || typeof body.tontine_id !== "string") {
+      throw new Error("tontine_id is required and must be a string");
+    }
+
+    const { data, error } = await supabase
+      .from("tontine_join_requests")
       .insert({
-        tontine_id: validated.tontine_id,
-        user_id: userId,
+        user_id: body.user_id,
+        tontine_id: body.tontine_id,
+        status: "Pending",
+        created_at: new Date().toISOString(),
+        created_by: authHeader ? extractUserId(authHeader) : null,
       })
       .select()
       .single();
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, member }),
+      JSON.stringify({ success: true, request: data }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

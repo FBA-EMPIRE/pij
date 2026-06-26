@@ -1,9 +1,9 @@
-import { getSupabaseClient } from "../_shared/supabase-client.ts";
-import { validateGetTransactions, validatePagination } from "../_shared/validators.ts";
+import { getServiceClient } from "../_shared/supabase-client.ts";
+import { validatePagination } from "../_shared/validators.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  if (req.method !== "POST") {
+  if (req.method !== "GET") {
     return new Response(
       JSON.stringify({ success: false, error: "Method not allowed" }),
       { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -21,27 +21,32 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const supabase = getSupabaseClient(authHeader);
+    const supabase = getServiceClient();
 
-    const body = await req.json();
-    const filters = validateGetTransactions(body);
-    const { page, limit } = validatePagination(body.page, body.limit);
+    const url = new URL(req.url);
+    const user_id = url.searchParams.get("user_id");
+    const account_type = url.searchParams.get("account_type");
+    const page = url.searchParams.get("page");
+    const limit = url.searchParams.get("limit");
 
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
+    const { page: p, limit: l } = validatePagination(
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
 
-    let query = supabase
-      .from("transactions")
-      .select("*, accounts!inner(user_id, account_type)", { count: "exact" });
+    const from = (p - 1) * l;
+    const to = from + l - 1;
 
-    if (filters.user_id) {
-      query = query.eq("accounts.user_id", filters.user_id);
+    let query = supabase.from("transactions").select("*", { count: "exact" });
+
+    if (user_id) {
+      query = query.eq("user_id", user_id);
     }
-    if (filters.account_type) {
-      query = query.eq("accounts.account_type", filters.account_type);
+    if (account_type) {
+      query = query.eq("account_type", account_type);
     }
 
-    const { data: transactions, error, count } = await query
+    const { data, error, count } = await query
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -53,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, transactions, page, limit, total: count ?? 0 }),
+      JSON.stringify({ success: true, transactions: data, total: count, page: p, limit: l }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

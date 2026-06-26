@@ -1,4 +1,4 @@
-import { getSupabaseClient, extractUserId, isServiceRoleKey } from "../_shared/supabase-client.ts";
+import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
 import { validateTontineGroup } from "../_shared/validators.ts";
 
 const corsHeaders = {
@@ -21,24 +21,15 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const supabase = getSupabaseClient(authHeader);
+    const supabase = getServiceClient();
 
     const body = await req.json();
     const validated = validateTontineGroup(body);
 
-    let adminId = authHeader ? extractUserId(authHeader) : null;
-    if (!adminId && authHeader && isServiceRoleKey(authHeader)) {
-      adminId = body.admin_id ?? null;
-    }
-    if (!adminId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    const createdBy = authHeader ? extractUserId(authHeader) : null;
 
-    const { data: tontine, error } = await supabase
-      .from("tontines")
+    const { data, error } = await supabase
+      .from("tontine_groups")
       .insert({
         type_id: validated.type_id,
         name: validated.name,
@@ -46,7 +37,11 @@ Deno.serve(async (req) => {
         frequency: validated.frequency,
         entry_fee: validated.entry_fee,
         start_date: validated.start_date,
-        created_by: adminId,
+        contribution: body.contribution ?? 0,
+        description: body.description ?? "",
+        status: "Draft",
+        created_by: createdBy,
+        created_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -59,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, tontine }),
+      JSON.stringify({ success: true, group: data }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

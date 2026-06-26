@@ -1,4 +1,4 @@
-import { getSupabaseClient, extractUserId, isServiceRoleKey } from "../_shared/supabase-client.ts";
+import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
 import { validateKycAction } from "../_shared/validators.ts";
 
 const corsHeaders = {
@@ -21,60 +21,38 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const supabase = getSupabaseClient(authHeader);
+    const supabase = getServiceClient();
 
     const body = await req.json();
     const validated = validateKycAction(body);
 
-    let adminId = authHeader ? extractUserId(authHeader) : null;
-    if (!adminId && authHeader && isServiceRoleKey(authHeader)) {
-      adminId = body.admin_id ?? null;
-    }
-    if (!adminId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    const reviewedBy = authHeader ? extractUserId(authHeader) : null;
 
-    if (!validated.reason) {
-      return new Response(
-        JSON.stringify({ success: false, error: "reason is required for rejection" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    const updateData: Record<string, unknown> = {
+      kyc: "Rejected",
+      kyc_reviewed_by: reviewedBy,
+      kyc_reviewed_at: new Date().toISOString(),
+    };
+    if (validated.reason) {
+      updateData.kyc_rejection_reason = validated.reason;
     }
 
-    const { error: docError } = await supabase
-      .from("kyc_documents")
-      .update({
-        status: "rejected",
-        reviewed_by: adminId,
-        reviewed_at: new Date().toISOString(),
-        rejection_reason: validated.reason,
-      })
-      .eq("user_id", validated.user_id);
+    const { data, error } = await supabase
+      .from("members")
+      .update(updateData)
+      .eq("id", validated.user_id)
+      .select()
+      .single();
 
-    if (docError) {
+    if (error) {
       return new Response(
-        JSON.stringify({ success: false, error: docError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const { error: userError } = await supabase
-      .from("users")
-      .update({ kyc_status: "rejected" })
-      .eq("id", validated.user_id);
-
-    if (userError) {
-      return new Response(
-        JSON.stringify({ success: false, error: userError.message }),
+        JSON.stringify({ success: false, error: error.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "KYC rejected" }),
+      JSON.stringify({ success: true, member: data }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
