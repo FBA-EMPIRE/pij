@@ -27,13 +27,13 @@ export default function SuperAdminDashboard() {
     (async () => {
       try {
         const [s, u, a] = await Promise.all([
-          fetchDashboardStats(),
-          fetchUsers(),
-          fetchAdmins(),
+          fetchDashboardStats().catch(() => null),
+          fetchUsers().catch(() => []),
+          fetchAdmins().catch(() => []),
         ]);
         setStats(s);
-        setUsers(u);
-        setAdmins(a);
+        setUsers(u ?? []);
+        setAdmins(a ?? []);
       } catch {
         setError(true);
       } finally {
@@ -42,7 +42,7 @@ export default function SuperAdminDashboard() {
     })();
   }, []);
 
-  const activeAdmins = admins.filter((a: any) => a.status === "Active" || a.status === "active").length;
+  const activeAdmins = admins.filter((a: any) => a.is_active === true || a.is_active === "true").length;
   const totalAdmins = admins.length;
   const activeUsers = users.filter((u: any) => u.status === "active").length;
 
@@ -263,12 +263,12 @@ export default function SuperAdminDashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">{admin.full_name || admin.name || admin.email}</p>
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${(admin.status === "Active" || admin.status === "active") ? "bg-[#4CAF68]" : "bg-red-400"}`} />
+                    <p className="text-sm font-medium truncate">{admin.first_name || admin.name || admin.email}</p>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${admin.is_active ? "bg-[#4CAF68]" : "bg-red-400"}`} />
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-muted-foreground truncate">{admin.email}</span>
-                    {roleBadge(admin.role)}
+                    {roleBadge((admin as any).roles?.name || "admin")}
                   </div>
                 </div>
               </div>

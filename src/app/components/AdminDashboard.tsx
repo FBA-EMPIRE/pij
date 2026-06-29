@@ -25,13 +25,13 @@ export default function AdminDashboard() {
     (async () => {
       try {
         const [s, u, k] = await Promise.all([
-          fetchDashboardStats(),
-          fetchUsers(),
-          fetchKycQueue(),
+          fetchDashboardStats().catch(() => null),
+          fetchUsers().catch(() => []),
+          fetchKycQueue().catch(() => []),
         ]);
         setStats(s);
-        setUsers(u);
-        setKycQueue(k);
+        setUsers(u ?? []);
+        setKycQueue(k ?? []);
       } catch {
         setError(true);
       } finally {

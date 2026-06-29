@@ -107,9 +107,19 @@ export async function kycReject({ user_id, note }: { user_id: string; note?: str
 }
 
 export async function fetchDashboardStats() {
-  const { data, error } = await supabase.functions.invoke("dashboard-stats");
-  if (error) throw error;
-  return data;
+  const { data: memberCount, error: mErr } = await supabase
+    .from("users")
+    .select("id", { count: "exact", head: true });
+  const { data: tontineCount, error: tErr } = await supabase
+    .from("tontines")
+    .select("id", { count: "exact", head: true });
+  const { data: savingsData, error: sErr } = await supabase
+    .from("accounts")
+    .select("balance")
+    .eq("account_type", "savings");
+  if (mErr || tErr) throw mErr || tErr;
+  const totalSavings = (savingsData as any[] ?? []).reduce((sum: number, a: any) => sum + Number(a.balance ?? 0), 0);
+  return { memberCount: memberCount?.length ?? 0, tontineCount: tontineCount?.length ?? 0, totalSavings };
 }
 
 export async function fetchAdminInvitations() {
