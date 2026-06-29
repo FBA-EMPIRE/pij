@@ -16,6 +16,9 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
   const [member, setMember] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const memberName = (m: any) =>
+    [m?.profiles?.first_name, m?.profiles?.last_name].filter(Boolean).join(" ") || m?.email || "Unknown";
+
   useEffect(() => {
     fetchUsers().then((users) => {
       const found = users.find((u: any) => u.id === memberId);
@@ -32,7 +35,7 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
 
   useEffect(() => {
     if (member) {
-      setName(member.name ?? "");
+      setName(memberName(member));
       setEmail(member.email ?? "");
       setPhone(member.phone ?? "");
       setStatus(member.status ?? "Active");
@@ -69,7 +72,7 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
         <div className="p-5 space-y-4">
           <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
             <div className="w-10 h-10 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-sm font-bold shrink-0">
-              {member.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+              {memberName(member).split(" ").map((n) => n[0]).join("").slice(0, 2)}
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">{member.id}</p>
