@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, CreditCard, Users, User,
   LogOut, Menu, X, Sun, Moon, ChevronRight,
-  TrendingUp, Settings, BookOpen
+  TrendingUp, Settings, BookOpen, Shield
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
@@ -80,6 +80,23 @@ export function MemberLayout({ children }: MemberLayoutProps) {
                 </Link>
               );
             })}
+            {(userProfile?.role === "admin" || userProfile?.role === "super_admin") && (
+              <div className="pt-3 mt-3 border-t border-sidebar-border">
+                <Link
+                  to="/admin/dashboard"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm transition-all duration-150 ${
+                    location.pathname.startsWith("/admin")
+                      ? "bg-[#6E3A9A]/20 text-[#9B6FCA] font-medium"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  }`}
+                >
+                  <Shield size={18} />
+                  {lang === "fr" ? "Portail Admin" : "Admin Portal"}
+                  {location.pathname.startsWith("/admin") && <ChevronRight size={14} className="ml-auto" />}
+                </Link>
+              </div>
+            )}
         </nav>
 
         {/* Bottom */}

@@ -68,6 +68,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const name = profiles ? `${profiles.first_name} ${profiles.last_name}`.trim() : data.email;
       const merged = { ...data, ...profiles, name, id: userId };
       delete merged.profiles;
+
+      const { data: adminRole } = await supabase.rpc("current_admin_role");
+      if (adminRole) {
+        merged.role = adminRole as "admin" | "super_admin";
+      }
+
       setUserProfile(merged as UserProfile);
     }
     setProfileLoading(false);

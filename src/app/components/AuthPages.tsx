@@ -75,7 +75,9 @@ export function LoginPage() {
       setError(signInError.message);
       return;
     }
-    navigate("/dashboard");
+
+    const { data: adminRole } = await supabase.rpc("current_admin_role");
+    navigate(adminRole ? "/admin/dashboard" : "/dashboard");
   };
 
   return (
