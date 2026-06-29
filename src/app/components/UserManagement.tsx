@@ -4,7 +4,7 @@ import { StatusBadge } from "./StatusBadge";
 import MemberDetailModal from "./MemberDetailModal";
 import MemberEditModal from "./MemberEditModal";
 import { useAppContext } from "../context/AppContext";
-import { fetchUsers } from "../lib/supabase/queries";
+import { fetchAccountsWithUsers } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 
 export default function UserManagement() {
@@ -19,13 +19,7 @@ export default function UserManagement() {
   const [editMemberId, setEditMemberId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers().then((data) => {
-      setMembers((data ?? []).map((u: any) => ({
-        ...u,
-        name: [u.profiles?.first_name, u.profiles?.last_name].filter(Boolean).join(" ") || u.email || "Unknown",
-        kyc: u.kyc_status,
-      })));
-    }).finally(() => setLoading(false));
+    fetchAccountsWithUsers().then(setMembers).finally(() => setLoading(false));
   }, []);
 
   const filtered = members.filter((m) => {
@@ -111,7 +105,7 @@ export default function UserManagement() {
                   <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
                   <td className="px-5 py-4"><StatusBadge status={m.status as any} size="sm" /></td>
                   <td className="px-5 py-4 text-right text-sm font-medium whitespace-nowrap" style={{ fontFamily: "Geist Mono, monospace" }}>
-                    {(m.balance_savings ?? 0) > 0 ? formatXAF(m.balance_savings) : <span className="text-muted-foreground">—</span>}
+                    {(m.savings ?? 0) > 0 ? formatXAF(m.savings) : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">

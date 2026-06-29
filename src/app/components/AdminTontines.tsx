@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Plus, CheckCircle, XCircle, Eye, Archive, Loader2 } from "lucide-react";
-import { fetchTontines } from "../lib/supabase/queries";
+import { Plus, CheckCircle, XCircle, Eye, Archive, Loader2, Check } from "lucide-react";
+import { fetchTontines, fetchTontineTypes } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
+import { supabase } from "../lib/supabase/client";
 import { useAppContext } from "../context/AppContext";
 
 export default function AdminTontines() {
@@ -12,14 +13,29 @@ export default function AdminTontines() {
   const fr = lang === "fr";
   const [tab, setTab] = useState<"list" | "create">("list");
   const [tontines, setTontines] = useState<any[]>([]);
+  const [tontineTypes, setTontineTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const [name, setName] = useState("");
+  const [typeId, setTypeId] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [frequency, setFrequency] = useState<"weekly" | "monthly">("weekly");
+  const [entryFee, setEntryFee] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await fetchTontines();
+        const [data, types] = await Promise.all([
+          fetchTontines(),
+          fetchTontineTypes(),
+        ]);
         setTontines(data);
+        setTontineTypes(types);
       } catch {
         setError(true);
       } finally {
@@ -135,8 +151,97 @@ export default function AdminTontines() {
       )}
 
       {tab === "create" && (
-        <div className="max-w-lg bg-card rounded-2xl border border-border p-6 space-y-4">
-          <p className="text-sm text-muted-foreground">{fr ? "Création de tontine via l'interface à implémenter avec les appels API" : "Tontine creation via UI to be implemented with API calls"}</p>
+        <div className="max-w-lg">
+          {created ? (
+            <div className="bg-card rounded-2xl border border-border p-8 text-center">
+              <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-[#E8F5EC]">
+                <Check size={24} color="#4CAF68" />
+              </div>
+              <h3 className="mb-2" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Tontine créée" : "Tontine created"}</h3>
+              <p className="text-sm text-muted-foreground mb-5">{fr ? "La tontine a été créée avec succès." : "The tontine has been created successfully."}</p>
+              <button onClick={() => { setTab("list"); setCreated(false); }} className="px-5 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>
+                {fr ? "Voir la liste" : "View list"}
+              </button>
+            </div>
+          ) : (
+            <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+              <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Créer une tontine" : "Create tontine"}</h3>
+
+              {createError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{createError}</div>
+              )}
+
+              <div>
+                <label className="text-sm font-medium">{fr ? "Nom" : "Name"}</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Tontine A" : "Tontine A"} />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">{fr ? "Type de tontine" : "Tontine type"}</label>
+                <select value={typeId} onChange={(e) => setTypeId(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                  <option value="">{fr ? "Sélectionner..." : "Select..."}</option>
+                  {tontineTypes.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name} — {formatXAF(t.contribution_amount)}/{t.frequency === "weekly" ? fr ? "sem" : "wk" : fr ? "mois" : "mo"}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">{fr ? "Capacité" : "Capacity"}</label>
+                  <input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="10" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">{fr ? "Fréquence" : "Frequency"}</label>
+                  <select value={frequency} onChange={(e) => setFrequency(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                    <option value="weekly">{fr ? "Hebdomadaire" : "Weekly"}</option>
+                    <option value="monthly">{fr ? "Mensuelle" : "Monthly"}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">{fr ? "Frais d'entrée (XAF)" : "Entry fee (XAF)"}</label>
+                  <input type="number" value={entryFee} onChange={(e) => setEntryFee(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">{fr ? "Date de début" : "Start date"}</label>
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setCreateError("");
+                  if (!name || !typeId || !capacity || !startDate) {
+                    setCreateError(fr ? "Veuillez remplir tous les champs obligatoires." : "Please fill in all required fields.");
+                    return;
+                  }
+                  setCreating(true);
+                  const { error: err } = await supabase.from("tontines").insert({
+                    type_id: typeId,
+                    name,
+                    capacity: Number(capacity),
+                    frequency,
+                    entry_fee: Number(entryFee || 0),
+                    start_date: startDate,
+                  });
+                  setCreating(false);
+                  if (err) {
+                    setCreateError(err.message);
+                  } else {
+                    setCreated(true);
+                  }
+                }}
+                disabled={creating}
+                className="w-full py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+                style={{ background: "#4CAF68" }}
+              >
+                {creating ? (fr ? "Création..." : "Creating...") : (fr ? "Créer la tontine" : "Create tontine")}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

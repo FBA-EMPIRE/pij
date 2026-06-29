@@ -189,3 +189,28 @@ export async function fetchTontineTypes() {
   if (error) throw error;
   return data ?? [];
 }
+
+export async function fetchAccountsWithUsers() {
+  const { data: accounts, error: accErr } = await supabase
+    .from("accounts")
+    .select("user_id, account_type, balance");
+  if (accErr) throw accErr;
+
+  const { data: users, error: usrErr } = await supabase
+    .from("users")
+    .select("*, profiles(first_name, last_name)");
+  if (usrErr) throw usrErr;
+
+  const balanceMap: Record<string, { current: number; savings: number; investment: number }> = {};
+  for (const a of accounts ?? []) {
+    if (!balanceMap[a.user_id]) balanceMap[a.user_id] = { current: 0, savings: 0, investment: 0 };
+    if (a.account_type === "current") balanceMap[a.user_id].current += Number(a.balance ?? 0);
+    else if (a.account_type === "savings") balanceMap[a.user_id].savings += Number(a.balance ?? 0);
+  }
+
+  return (users ?? []).map((u: any) => {
+    const name = [u.profiles?.first_name, u.profiles?.last_name].filter(Boolean).join(" ") || u.email || "Unknown";
+    const b = balanceMap[u.id] || { current: 0, savings: 0, investment: 0 };
+    return { ...u, ...b, name, kyc: u.kyc_status };
+  });
+}

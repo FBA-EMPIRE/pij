@@ -44,11 +44,11 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
   if (!member) return null;
 
   const handleSave = async () => {
-    const { error } = await supabase
+    const { error: userErr } = await supabase
       .from("users")
-      .update({ name, email, phone, status, kyc_status: kyc })
+      .update({ email, phone, status, kyc_status: kyc })
       .eq("id", memberId);
-    if (!error) {
+    if (!userErr) {
       onSave();
       onClose();
     }

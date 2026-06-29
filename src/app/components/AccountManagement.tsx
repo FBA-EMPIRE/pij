@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, ArrowDownLeft, ArrowUpRight, Check } from "lucide-react";
-import { fetchUsers, getCurrentUserId, recordDeposit, recordWithdrawal } from "../lib/supabase/queries";
+import { Plus, ArrowDownLeft, ArrowUpRight, Check, Loader2 } from "lucide-react";
+import { fetchAccountsWithUsers, getCurrentUserId, recordDeposit, recordWithdrawal } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_MAP } from "../constants";
@@ -10,12 +10,13 @@ export default function AccountManagement() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<"accounts" | "deposit" | "withdrawal">("accounts");
 
   useEffect(() => {
     getCurrentUserId().then(setCurrentUserId).catch(() => {});
-    fetchUsers().then(setMembers).catch(() => {});
+    fetchAccountsWithUsers().then(setMembers).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   // Wizard state
@@ -102,9 +103,9 @@ export default function AccountManagement() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-right text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.balance_current)}</td>
-                    <td className="px-5 py-4 text-right text-sm font-bold text-[#1F9D55]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.balance_savings)}</td>
-                    <td className="px-5 py-4 text-right text-sm font-bold text-[#6E3A9A]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.balance_investment)}</td>
+                    <td className="px-5 py-4 text-right text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.current)}</td>
+                    <td className="px-5 py-4 text-right text-sm font-bold text-[#1F9D55]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.savings)}</td>
+                    <td className="px-5 py-4 text-right text-sm font-bold text-[#6E3A9A]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.investment)}</td>
                     <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
                   </tr>
                 ))}
