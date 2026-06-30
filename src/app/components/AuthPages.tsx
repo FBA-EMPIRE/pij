@@ -1,17 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
-import { supabase } from "../lib/supabase/client";
-import { fetchDashboardStats } from "../lib/supabase/queries";
-import { formatXAF } from "../lib/format";
+
+const DISPOSABLE_DOMAINS = new Set([
+  "mailinator.com", "guerrillamail.com", "tempmail.com", "10minutemail.com",
+  "throwaway.email", "yopmail.com", "trashmail.com", "sharklasers.com",
+  "burnermail.io", "maildrop.cc", "getnada.com", "temp-mail.org",
+]);
+
+function validateEmail(email: string) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(email)) return { valid: false, reason: "format" };
+  const domain = email.split("@")[1].toLowerCase();
+  if (DISPOSABLE_DOMAINS.has(domain)) return { valid: false, reason: "disposable" };
+  return { valid: true, reason: null };
+}
+
+interface PasswordCriterion {
+  key: string;
+  label: { fr: string; en: string };
+  test: (pw: string) => boolean;
+}
+
+const PASSWORD_CRITERIA: PasswordCriterion[] = [
+  { key: "upper", label: { fr: "1 lettre majuscule", en: "1 uppercase letter" }, test: (pw) => /[A-Z]/.test(pw) },
+  { key: "lower", label: { fr: "1 lettre minuscule", en: "1 lowercase letter" }, test: (pw) => /[a-z]/.test(pw) },
+  { key: "digit", label: { fr: "1 chiffre", en: "1 digit" }, test: (pw) => /\d/.test(pw) },
+  { key: "special", label: { fr: "1 caractère spécial", en: "1 special character" }, test: (pw) => /[^A-Za-z0-9]/.test(pw) },
+  { key: "length", label: { fr: "8 caractères minimum", en: "At least 8 characters" }, test: (pw) => pw.length >= 8 },
+];
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
-  const [stats, setStats] = useState({ memberCount: 0, tontineCount: 0, totalSavings: 0 });
-  useEffect(() => {
-    fetchDashboardStats().then(setStats).catch(console.error);
-  }, []);
   return (
     <div className={`min-h-screen flex ${darkMode ? "dark" : ""}`} style={{ fontFamily: "Inter, sans-serif" }}>
       <div className="flex flex-1">
@@ -25,18 +46,12 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
             <p className="text-white/60 text-sm">Programme d'Investissement des Jeunes — Afrique Centrale</p>
           </div>
           <div className="flex flex-col gap-3 text-sm text-white/70">
-            <div className="flex items-center gap-2">
-              <CheckCircle size={14} color="#4CAF68" />
-              {stats.memberCount.toLocaleString()} {stats.memberCount > 1 ? "membres actifs" : "membre actif"}
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle size={14} color="#4CAF68" />
-              {stats.tontineCount.toLocaleString()} {stats.tontineCount > 1 ? "tontines actives" : "tontine active"}
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle size={14} color="#4CAF68" />
-              {formatXAF(stats.totalSavings)} XAF en épargne
-            </div>
+            {["847 membres actifs", "7 tontines actives", "284M+ XAF en épargne"].map((s) => (
+              <div key={s} className="flex items-center gap-2">
+                <CheckCircle size={14} color="#4CAF68" />
+                {s}
+              </div>
+            ))}
           </div>
         </div>
         {/* Right panel */}
@@ -49,36 +64,10 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
 }
 
 export function LoginPage() {
-  const { darkMode, lang } = useAppContext();
+  const { darkMode, lang, loginUser, loginAdmin } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const fr = lang === "fr";
-
-  const handleLogin = async () => {
-    setError("");
-    if (!email || !password) {
-      setError(fr ? "Veuillez remplir tous les champs." : "Please fill in all fields.");
-      return;
-    }
-    if (!supabase) {
-      setError(fr ? "Erreur de connexion au serveur." : "Server connection error.");
-      return;
-    }
-    setLoading(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
-    }
-
-    const { data: adminRole } = await supabase.rpc("current_admin_role");
-    navigate(adminRole ? "/admin/dashboard" : "/dashboard");
-  };
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -87,19 +76,15 @@ export function LoginPage() {
         <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Se connecter" : "Log in"}</h2>
         <p className="text-sm text-muted-foreground mb-8">{fr ? "Accédez à votre espace membre PIJ." : "Access your PIJ member space."}</p>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
-        )}
-
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+            <input defaultValue="amara.diallo@email.com" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">{fr ? "Mot de passe" : "Password"}</label>
             <div className="relative mt-1.5">
-              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10" />
+              <input type={showPw ? "text" : "password"} defaultValue="••••••••" className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10" />
               <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPw(!showPw)}>
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -114,8 +99,8 @@ export function LoginPage() {
               {fr ? "Mot de passe oublié ?" : "Forgot password?"}
             </button>
           </div>
-          <button onClick={handleLogin} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: "#4CAF68" }}>
-            {loading ? (fr ? "Connexion..." : "Logging in...") : (fr ? "Se connecter" : "Log in")}
+          <button onClick={() => { loginUser("PIJ-2024-001"); navigate("/dashboard"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+            {fr ? "Se connecter" : "Log in"}
           </button>
         </div>
 
@@ -123,6 +108,12 @@ export function LoginPage() {
           {fr ? "Pas encore membre ?" : "Not a member yet?"}{" "}
           <button onClick={() => navigate("/register")} className="text-[#4CAF68] font-medium hover:underline">
             {fr ? "S'inscrire" : "Sign up"}
+          </button>
+        </p>
+        <p className="text-center text-xs text-muted-foreground/60 mt-4">
+          {fr ? "Accès admin ?" : "Admin access?"}{" "}
+          <button onClick={() => { loginAdmin("ADM-001"); navigate("/admin/dashboard"); }} className="text-[#6E3A9A] hover:underline">
+            {fr ? "Portail Admin →" : "Admin Portal →"}
           </button>
         </p>
       </div>
@@ -134,45 +125,22 @@ export function RegisterPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const fr = lang === "fr";
 
-  const handleSignUp = async () => {
-    setError("");
-    if (!email || !password || !firstName || !lastName) {
-      setError(fr ? "Veuillez remplir tous les champs obligatoires." : "Please fill in all required fields.");
-      return;
-    }
-    if (!supabase) {
-      setError(fr ? "Erreur de connexion au serveur." : "Server connection error.");
-      return;
-    }
-    setLoading(true);
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          phone: phone || "",
-        },
-      },
-    });
-    if (signUpError) {
-      setLoading(false);
-      setError(signUpError.message);
-      return;
-    }
-    setLoading(false);
-    navigate(data?.session ? "/kyc" : "/verify-email");
-  };
+  const emailCheck = useMemo(() => {
+    if (!email) return null;
+    return validateEmail(email);
+  }, [email]);
+
+  const criteria = useMemo(() =>
+    PASSWORD_CRITERIA.map((c) => ({ ...c, met: c.test(password) })),
+    [password]
+  );
+
+  const allMet = criteria.every((c) => c.met);
+  const emailValid = emailCheck?.valid === true;
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -184,33 +152,81 @@ export function RegisterPage() {
         <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Créer un compte" : "Create account"}</h2>
         <p className="text-sm text-muted-foreground mb-8">{fr ? "Rejoignez la communauté PIJ dès aujourd'hui." : "Join the PIJ community today."}</p>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
-        )}
-
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">{fr ? "Prénom" : "First name"}</label>
-              <input value={firstName} onChange={e => setFirstName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
+              <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
             </div>
             <div>
               <label className="text-sm font-medium">{fr ? "Nom" : "Last name"}</label>
-              <input value={lastName} onChange={e => setLastName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
+              <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
             </div>
           </div>
           <div>
             <label className="text-sm font-medium">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+            <div className="relative mt-1.5">
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10"
+                placeholder="vous@email.com"
+              />
+              {emailCheck && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {emailCheck.valid ? (
+                    <Check size={16} className="text-green-500" />
+                  ) : (
+                    <X size={16} className="text-red-500" />
+                  )}
+                </span>
+              )}
+            </div>
+            {emailCheck && !emailCheck.valid && (
+              <p className="text-xs text-red-500 mt-1">
+                {emailCheck.reason === "disposable"
+                  ? (fr ? "Les emails jetables ne sont pas autorisés" : "Disposable emails are not allowed")
+                  : (fr ? "Format d'email invalide" : "Invalid email format")}
+              </p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Téléphone" : "Phone"}</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="+237 6 XX XX XX XX" />
+            <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="+237 6 XX XX XX XX" />
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Mot de passe" : "Password"}</label>
-            <div className="relative mt-1.5">
-              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10" placeholder="••••••••" />
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 mb-2">
+              {criteria.map((c) => (
+                <span
+                  key={c.key}
+                  className={`text-xs flex items-center gap-1 ${
+                    password.length === 0
+                      ? "text-muted-foreground"
+                      : c.met
+                      ? "text-green-600"
+                      : "text-red-500"
+                  }`}
+                >
+                  {password.length === 0 ? (
+                    <span className="w-3 h-3 rounded-full border border-muted-foreground" />
+                  ) : c.met ? (
+                    <Check size={12} className="text-green-500" />
+                  ) : (
+                    <X size={12} className="text-red-500" />
+                  )}
+                  {fr ? c.label.fr : c.label.en}
+                </span>
+              ))}
+            </div>
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10"
+                placeholder="••••••••"
+              />
               <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPw(!showPw)}>
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -220,8 +236,13 @@ export function RegisterPage() {
             <input type="checkbox" className="mt-0.5 rounded border-border accent-[#4CAF68]" />
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
-          <button onClick={handleSignUp} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: "#4CAF68" }}>
-            {loading ? (fr ? "Inscription..." : "Signing up...") : (fr ? "Créer mon compte" : "Create my account")}
+          <button
+            onClick={() => navigate("/verify-email")}
+            disabled={!allMet || !emailValid}
+            className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: "#4CAF68" }}
+          >
+            {fr ? "Créer mon compte" : "Create my account"}
           </button>
         </div>
 
@@ -239,33 +260,8 @@ export function RegisterPage() {
 export function ForgotPasswordPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const fr = lang === "fr";
-
-  const handleReset = async () => {
-    setError("");
-    if (!email) {
-      setError(fr ? "Veuillez entrer votre email." : "Please enter your email.");
-      return;
-    }
-    if (!supabase) {
-      setError(fr ? "Erreur de connexion au serveur." : "Server connection error.");
-      return;
-    }
-    setLoading(true);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
-    });
-    setLoading(false);
-    if (resetError) {
-      setError(resetError.message);
-      return;
-    }
-    setSent(true);
-  };
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -277,18 +273,13 @@ export function ForgotPasswordPage() {
           <>
             <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mot de passe oublié" : "Forgot password"}</h2>
             <p className="text-sm text-muted-foreground mb-8">{fr ? "Entrez votre email. Nous vous enverrons un lien de réinitialisation." : "Enter your email. We'll send you a reset link."}</p>
-
-            {error && (
-              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
-            )}
-
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+                <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
               </div>
-              <button onClick={handleReset} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: "#4CAF68" }}>
-                {loading ? (fr ? "Envoi..." : "Sending...") : (fr ? "Envoyer le lien" : "Send reset link")}
+              <button onClick={() => setSent(true)} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+                {fr ? "Envoyer le lien" : "Send reset link"}
               </button>
             </div>
           </>
