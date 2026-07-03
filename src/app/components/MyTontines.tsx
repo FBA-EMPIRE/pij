@@ -22,10 +22,10 @@ export default function MyTontines() {
   }, []);
 
   const myActiveTontines = myTontines.filter(
-    (item) => item.tontines?.status !== "Completed" && item.tontines?.status !== "Archived"
+    (item) => item.tontines?.status === "open" || item.tontines?.status === "active"
   );
   const myCompletedTontines = myTontines.filter(
-    (item) => item.tontines?.status === "Completed" || item.tontines?.status === "Archived"
+    (item) => item.tontines?.status === "closed"
   );
 
   return (
@@ -63,7 +63,6 @@ export default function MyTontines() {
             <div className="space-y-3">
               {myActiveTontines.map((item) => {
                 const t = item.tontines;
-                const pct = t?.current_week > 0 ? Math.round((t.current_week / t.total_weeks) * 100) : 0;
                 return (
                   <div
                     key={t.id}
@@ -83,30 +82,19 @@ export default function MyTontines() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
                       <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
                         <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Votre position" : "Your position"}</p>
-                        <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.position ?? 1}</p>
+                        <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.payout_order ?? 1}</p>
                       </div>
                       <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
                         <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Membres" : "Members"}</p>
                         <p className="text-xs sm:text-sm font-bold flex items-center gap-1" style={{ fontFamily: "Geist Mono, monospace" }}>
-                          <Users size={12} /> {t.enrolled}/{t.capacity}
+                          <Users size={12} /> ?/{t.capacity}
                         </p>
                       </div>
                       <div className="bg-muted/30 rounded-xl p-2 sm:p-3 col-span-2 sm:col-span-1">
                         <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Pot du tour" : "Round pool"}</p>
-                        <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.pool_amount)}</p>
+                        <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF((t.tontine_types?.contribution_amount ?? 0) * t.capacity)}</p>
                       </div>
                     </div>
-                    {t.current_week > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1.5">
-                          <span className="text-muted-foreground">{fr ? "Semaine" : "Week"} {t.current_week}/{t.total_weeks}</span>
-                          <span className="font-medium text-[#4CAF68]">{pct}%</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div className="h-2 rounded-full bg-[#4CAF68]" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    )}
                     <div className="flex items-center gap-2 mt-3">
                       <Trophy size={14} color="#F2994A" />
                       <p className="text-xs text-[#F2994A] font-medium">{fr ? "Vous avez reçu votre paiement (Tour 1)" : "You received your payout (Round 1)"}</p>
@@ -154,27 +142,27 @@ export default function MyTontines() {
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t?.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{t?.start_date ?? ""} · {t?.total_weeks ?? "?"} {fr ? "semaines" : "weeks"}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t?.start_date ?? ""}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <StatusBadge status="Completed" size="sm" />
+                      <StatusBadge status="closed" size="sm" />
                       <ChevronRight size={16} className="text-muted-foreground" />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
                     <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
                       <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Position" : "Position"}</p>
-                      <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.position ?? "?"}</p>
+                      <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.payout_order ?? "?"}</p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
                       <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Contributions" : "Contributions"}</p>
                       <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>
-                        {(item.contributions?.filter(Boolean)?.length ?? 0)}/{item.contributions?.length ?? "?"}
+                        ?
                       </p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
                       <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Paiement" : "Payout"}</p>
-                      <p className="text-xs sm:text-sm font-bold">{item.payout_received ? <span className="text-[#F2994A]">🏆 {fr ? "Reçu" : "Received"}</span> : "—"}</p>
+                      <p className="text-xs sm:text-sm font-bold">{item.has_received_payout ? <span className="text-[#F2994A]">{fr ? "Reçu" : "Received"}</span> : "—"}</p>
                     </div>
                   </div>
                 </div>

@@ -98,7 +98,7 @@ export default function AdminTontines() {
       {tab === "list" && (
         <div className="space-y-4">
           {tontines.map((t: any) => {
-            const pct = t.current_week > 0 ? Math.round((t.current_week / t.total_weeks) * 100) : 0;
+            const contribution = t.tontine_types?.contribution_amount ?? 0;
             return (
               <div key={t.id} className="bg-card rounded-2xl border border-border p-5">
                 <div className="flex items-start justify-between mb-4">
@@ -107,7 +107,7 @@ export default function AdminTontines() {
                       <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t.name}</h3>
                       <StatusBadge status={t.status as any} size="sm" />
                     </div>
-                    <p className="text-xs text-muted-foreground">{t.tontine_types?.name || t.type} · {t.duration} · {fr ? "Début:" : "Start:"} {t.start_date}</p>
+                    <p className="text-xs text-muted-foreground">{t.tontine_types?.name ?? ""} · {fr ? "Début:" : "Start:"} {t.start_date}</p>
                   </div>
                   <button onClick={() => navigate(`/admin/tontines/${t.id}`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
                     <Eye size={13} /> {fr ? "Détails" : "Details"}
@@ -117,11 +117,11 @@ export default function AdminTontines() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Cotisation" : "Contribution"}</p>
-                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.contribution)}</p>
+                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contribution)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Membres" : "Members"}</p>
-                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{t.enrolled || 0}/{t.capacity}</p>
+                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>?/{t.capacity}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Frais d'entrée" : "Entry fee"}</p>
@@ -129,21 +129,9 @@ export default function AdminTontines() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Pot par tour" : "Pool/round"}</p>
-                    <p className="text-sm font-bold mt-0.5 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.pool_amount || 0)}</p>
+                    <p className="text-sm font-bold mt-0.5 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contribution * t.capacity)}</p>
                   </div>
                 </div>
-
-                {t.current_week > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-muted-foreground">{fr ? "Semaine" : "Week"} {t.current_week}/{t.total_weeks}</span>
-                      <span className="font-medium text-[#4CAF68]">{pct}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-1.5">
-                      <div className="h-1.5 rounded-full bg-[#4CAF68]" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}

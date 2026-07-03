@@ -73,11 +73,13 @@ export default function SavingsGoals() {
       {/* Goals grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
         {goals.map((goal) => {
-          const pct = Math.round((goal.current / goal.target) * 100);
+          const current = goal.current_amount ?? 0;
+          const target = goal.target_amount ?? 1;
+          const pct = Math.min(Math.round((current / target) * 100), 100);
           return (
             <button key={goal.id} onClick={() => setSelectedGoal(goal)} className="bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-[#4CAF68]/40 transition-all cursor-pointer group text-left w-full">
               <div className="flex items-center gap-3 mb-5">
-                <span className="text-3xl">{goal.icon}</span>
+                <span className="text-3xl">🎯</span>
                 <div>
                   <p className="font-medium text-sm">{goal.name}</p>
                   <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
@@ -91,12 +93,12 @@ export default function SavingsGoals() {
               <div className="mb-4">
                 <div className="flex justify-between text-xs mb-1.5">
                   <span className="text-muted-foreground">{fr ? "Progression" : "Progress"}</span>
-                  <span className="font-bold" style={{ color: goal.color, fontFamily: "Geist Mono, monospace" }}>{pct}%</span>
+                  <span className="font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{pct}%</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2.5">
                   <div
-                    className="h-2.5 rounded-full transition-all duration-700"
-                    style={{ width: `${pct}%`, background: goal.color }}
+                    className="h-2.5 rounded-full bg-[#4CAF68] transition-all duration-700"
+                    style={{ width: `${pct}%` }}
                   />
                 </div>
               </div>
@@ -104,15 +106,15 @@ export default function SavingsGoals() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{fr ? "Épargné" : "Saved"}</span>
-                  <span className="font-semibold" style={{ fontFamily: "Geist Mono, monospace", color: goal.color }}>{formatXAF(goal.current)}</span>
+                  <span className="font-semibold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(current)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{fr ? "Objectif" : "Target"}</span>
-                  <span className="font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goal.target)}</span>
+                  <span className="font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(target)}</span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-2 mt-2">
                   <span className="text-muted-foreground">{fr ? "Manquant" : "Remaining"}</span>
-                  <span className="font-medium text-[#E5484D]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goal.target - goal.current)}</span>
+                  <span className="font-medium text-[#E5484D]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(target - current)}</span>
                 </div>
               </div>
             </button>

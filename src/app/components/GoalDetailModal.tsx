@@ -15,7 +15,7 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
   const fr = lang === "fr";
   const [tab, setTab] = useState<"overview" | "history" | "edit">("overview");
   const [editName, setEditName] = useState(goal.name);
-  const [editTarget, setEditTarget] = useState(String(goal.target));
+  const [editTarget, setEditTarget] = useState(String(goal.target_amount));
   const [editDeadline, setEditDeadline] = useState(goal.deadline);
   const [contributionAmount, setContributionAmount] = useState("");
   const [goalTxns, setGoalTxns] = useState<any[]>([]);
@@ -31,7 +31,9 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
       });
   }, [goal.id]);
 
-  const pct = Math.round((goal.current / goal.target) * 100);
+  const goalCurrent = goal.current_amount ?? 0;
+  const goalTarget = goal.target_amount ?? 1;
+  const pct = Math.min(Math.round((goalCurrent / goalTarget) * 100), 100);
   const totalSaved = goalTxns.reduce((sum: number, t: any) => sum + t.amount, 0);
 
   return (
@@ -39,7 +41,7 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
       <div className="bg-card rounded-2xl border border-border w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">{goal.icon}</span>
+            <span className="text-2xl">🎯</span>
             <div>
               <p className="text-sm font-semibold">{goal.name}</p>
               <p className="text-xs text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{goal.id}</p>
@@ -73,25 +75,25 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
               <div>
                 <div className="flex justify-between text-sm mb-1.5">
                   <span className="text-muted-foreground">{fr ? "Progression" : "Progress"}</span>
-                  <span className="font-bold" style={{ color: goal.color, fontFamily: "Geist Mono, monospace" }}>{pct}%</span>
+                  <span className="font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{pct}%</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-3">
-                  <div className="h-3 rounded-full transition-all" style={{ width: `${pct}%`, background: goal.color }} />
+                  <div className="h-3 rounded-full bg-[#4CAF68] transition-all" style={{ width: `${pct}%` }} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl border border-border">
                   <p className="text-xs text-muted-foreground">{fr ? "Épargné" : "Saved"}</p>
-                  <p className="text-sm font-bold mt-0.5" style={{ color: goal.color, fontFamily: "Geist Mono, monospace" }}>{formatXAF(goal.current)}</p>
+                  <p className="text-sm font-bold mt-0.5 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goalCurrent)}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
                   <p className="text-xs text-muted-foreground">{fr ? "Objectif" : "Target"}</p>
-                  <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goal.target)}</p>
+                  <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goalTarget)}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
                   <p className="text-xs text-muted-foreground">{fr ? "Restant" : "Remaining"}</p>
-                  <p className="text-sm font-bold mt-0.5 text-[#E5484D]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goal.target - goal.current)}</p>
+                  <p className="text-sm font-bold mt-0.5 text-[#E5484D]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(goalTarget - goalCurrent)}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
                   <p className="text-xs text-muted-foreground">{fr ? "Échéance" : "Deadline"}</p>
@@ -116,11 +118,10 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                         await supabase.from("transactions").insert({
                           goal_id: goal.id,
                           amount: amt,
-                          type: "Deposit",
-                          description: fr ? `Dépôt objectif: ${goal.name}` : `Deposit for: ${goal.name}`,
-                          status: "Completed",
+                          type: "deposit",
+                          notes: fr ? `Dépôt objectif: ${goal.name}` : `Deposit for: ${goal.name}`,
                         });
-                        goal.current += amt;
+                        goal.current_amount += amt;
                         setContributionAmount("");
                         const { data } = await supabase
                           .from("transactions")
@@ -153,7 +154,7 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm truncate">{txn.description}</p>
-                      <p className="text-xs text-muted-foreground">{txn.date} · {txn.account}</p>
+                      <p className="text-xs text-muted-foreground">{txn.created_at?.slice(0, 10)}</p>
                     </div>
                     <span className="text-sm font-bold text-[#1F9D55] shrink-0" style={{ fontFamily: "Geist Mono, monospace" }}>
                       +{formatXAF(txn.amount)}
@@ -161,10 +162,10 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                   </div>
                 ))
               )}
-              {totalSaved < goal.target && (
+              {totalSaved < goalTarget && (
                 <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
                   <div className="flex-1 h-px bg-muted" />
-                  {totalSaved > 0 ? `${formatXAF(goal.target - totalSaved)} ${fr ? "restants" : "remaining"}` : ""}
+                  {totalSaved > 0 ? `${formatXAF(goalTarget - totalSaved)} ${fr ? "restants" : "remaining"}` : ""}
                   <div className="flex-1 h-px bg-muted" />
                 </div>
               )}
@@ -191,7 +192,7 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                     .from("savings_goals")
                     .update({
                       name: editName,
-                      target: parseInt(editTarget) || goal.target,
+                      target_amount: parseInt(editTarget) || goalTarget,
                       deadline: editDeadline,
                     })
                     .eq("id", goal.id);

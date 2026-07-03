@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, CheckCircle, XCircle, Trophy, Users, Award } from "lucide-react";
+import { ArrowLeft, Users, Trophy, Award } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { fetchTontineById, fetchTontineMembers } from "../lib/supabase/queries";
@@ -13,7 +13,6 @@ export default function AdminTontineParticipants() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [override, setOverride] = useState(false);
   const [tontine, setTontine] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,11 +25,8 @@ export default function AdminTontineParticipants() {
     ]).then(([tontineData, memberData]) => {
       setTontine(tontineData);
       setMembers(memberData.map((m: any) => ({
-        ...m.users,
         ...m,
-        contributions: m.contributions ?? [],
-        payout_received: m.payout_received ?? false,
-        position: m.position ?? 0,
+        name: m.users?.full_name || m.users?.email || "User",
       })));
       setLoading(false);
     });
@@ -48,65 +44,29 @@ export default function AdminTontineParticipants() {
     );
   }
 
-  const weeks = Array.from({ length: tontine.total_weeks ?? 0 }, (_, i) => i + 1);
-  const unassignedMembers = members.filter((m: any) => !m.payout_received);
-  const allPaid = members.every((m: any) => m.contributions?.[tontine.current_week - 1] ?? false);
-  const canCompleteRound = allPaid || override;
-
-  const toggleContribution = async (memberId: string, week: number) => {
-    if (week > tontine.current_week) return;
-    const member = members.find((m: any) => m.id === memberId);
-    if (!member) return;
-    const prev = member.contributions?.[week - 1] ?? false;
-    member.contributions[week - 1] = !prev;
-
-    await supabase.from("tontine_members").update({
-      contributions: member.contributions,
-    }).eq("id", member.tontine_member_id ?? member.id);
-
-    await supabase.from("audit_logs").insert({
-      actor: "Admin",
-      action: prev ? "Contribution Unmarked" : "Contribution Marked Paid",
-      entity: `${tontine.id} / Member ${memberId} / Week ${week}`,
-      ip: "admin",
-    });
-
-    setMembers([...members]);
-  };
+  const unassignedMembers = members.filter((m: any) => !m.has_received_payout);
+  const contribution = tontine.tontine_types?.contribution_amount ?? 0;
 
   const handleAssignPayout = async () => {
     if (!selectedMemberId) return;
-    const member = members.find((m: any) => m.id === selectedMemberId);
+    const member = members.find((m: any) => m.user_id === selectedMemberId);
     if (!member) return;
-    member.payout_received = true;
 
     await supabase.from("tontine_members").update({
-      payout_received: true,
-    }).eq("id", member.tontine_member_id ?? member.id);
-
-    await supabase.from("round_recipients").insert({
-      tontine_id: tontine.id,
-      round: tontine.current_week,
-      member_id: member.id,
-      amount: tontine.pool_amount,
-    });
-
-    const nextWeek = (tontine.current_week ?? 0) + 1;
-    await supabase.from("tontines").update({
-      current_week: nextWeek,
-      status: nextWeek > (tontine.total_weeks ?? 0) ? "Completed" : tontine.status,
-    }).eq("id", tontine.id);
+      has_received_payout: true,
+    }).eq("id", member.id);
 
     await supabase.from("audit_logs").insert({
       actor: "Admin",
       action: "Round Payout Recorded",
-      entity: `${tontine.id} / Round ${tontine.current_week} / ${member.name}`,
+      entity: `${tontine.id} / Member ${selectedMemberId}`,
       ip: "admin",
     });
 
-    setTontine({ ...tontine, current_week: nextWeek, status: nextWeek > (tontine.total_weeks ?? 0) ? "Completed" : tontine.status });
+    setMembers(members.map((m: any) =>
+      m.user_id === selectedMemberId ? { ...m, has_received_payout: true } : m
+    ));
     setSelectedMemberId(null);
-    setOverride(false);
   };
 
   return (
@@ -121,22 +81,16 @@ export default function AdminTontineParticipants() {
             <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{tontine.name}</h2>
             <StatusBadge status={tontine.status as any} size="sm" />
           </div>
-          <p className="text-sm text-muted-foreground">{fr ? "Gestion des participants et contributions" : "Participant & contribution management"}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground">{fr ? "Tour actuel" : "Current round"}</p>
-          <p className="text-lg font-bold text-[#F2994A]" style={{ fontFamily: "Geist Mono, monospace" }}>
-            {tontine.current_week > 0 ? `${tontine.current_week} / ${tontine.total_weeks}` : fr ? "Pas commencé" : "Not started"}
-          </p>
+          <p className="text-sm text-muted-foreground">{fr ? "Gestion des participants" : "Participant management"}</p>
         </div>
       </div>
 
       {/* Payout Assignment */}
-      {tontine.current_week > 0 && tontine.current_week <= tontine.total_weeks && unassignedMembers.length > 0 && (
+      {unassignedMembers.length > 0 && (
         <div className="bg-card rounded-2xl border border-border p-5 mb-6">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <Award size={16} className="text-[#F2994A]" />
-            {fr ? "Attribuer le paiement du tour" : "Assign payout for current round"}
+            {fr ? "Attribuer le paiement" : "Assign payout"}
           </h3>
           <div className="flex items-center gap-3 flex-wrap">
             <select
@@ -146,129 +100,62 @@ export default function AdminTontineParticipants() {
             >
               <option value="">{fr ? "Sélectionner un membre" : "Select a member"}</option>
               {unassignedMembers.map((m: any) => (
-                <option key={m.id} value={m.id}>#{m.position} {m.name}</option>
+                <option key={m.user_id} value={m.user_id}>#{m.payout_order} {m.name}</option>
               ))}
             </select>
-            <div className="flex items-center gap-2">
-              {!allPaid && (
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                  <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="rounded border-border" />
-                  {fr ? "Forcer le tour" : "Override round"}
-                </label>
-              )}
-              <button
-                onClick={handleAssignPayout}
-                disabled={!selectedMemberId || !canCompleteRound}
-                className="px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                style={{ background: "#F2994A" }}
-              >
-                <Trophy size={14} className="inline mr-1" />
-                {fr ? "Marquer comme bénéficiaire" : "Mark as recipient"}
-              </button>
-            </div>
+            <button
+              onClick={handleAssignPayout}
+              disabled={!selectedMemberId}
+              className="px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              style={{ background: "#F2994A" }}
+            >
+              <Trophy size={14} className="inline mr-1" />
+              {fr ? "Marquer comme bénéficiaire" : "Mark as recipient"}
+            </button>
           </div>
-          {!allPaid && !override && (
-            <p className="text-xs text-muted-foreground mt-2">
-              {fr ? "Tous les membres doivent avoir payé leur cotisation, ou utiliser le forcement." : "All members must have paid their contribution, or use the override."}
-            </p>
-          )}
         </div>
       )}
 
-      {/* Interactive Contribution Grid */}
+      {/* Members list */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="p-5 border-b border-border">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Users size={16} className="text-muted-foreground" />
-            {fr ? "Grille de contributions interactive" : "Interactive contribution grid"}
+            {fr ? "Participants" : "Participants"} ({members.length})
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">{fr ? "Cliquez sur une cellule pour basculer entre payé/non payé" : "Click a cell to toggle paid/unpaid"}</p>
         </div>
-        <div className="overflow-x-auto p-2 sm:p-4">
-          <div className="flex gap-1 sm:gap-1.5 mb-3 ml-28 sm:ml-36">
-            {weeks.map((w) => (
-              <div
-                key={w}
-                className={`w-8 sm:w-12 text-center text-[10px] sm:text-xs font-medium flex-shrink-0 ${
-                  w === tontine.current_week ? "text-[#F2994A]" : w < tontine.current_week ? "text-muted-foreground" : "text-muted-foreground/40"
-                }`}
-                style={{ fontFamily: "Geist Mono, monospace" }}
-              >
-                {fr ? "Sem" : "Wk"} {w}
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-1 sm:space-y-1.5">
-            {members.map((member: any) => (
-              <div key={member.id} className="flex items-center gap-1 sm:gap-1.5">
-                <div className="w-28 sm:w-36 flex items-center gap-2 flex-shrink-0 pr-1 sm:pr-2">
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold shrink-0 ${member.payout_received ? "bg-[#F2994A]" : "bg-[#6E3A9A]"}`}>
-                    {member.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] sm:text-xs font-medium truncate">{member.name}</p>
-                    <p className="text-[10px] text-muted-foreground">#{member.position}</p>
-                  </div>
-                </div>
-
-                {member.contributions.map((paid, wi) => {
-                  const weekNum = wi + 1;
-                  const isPast = weekNum <= tontine.current_week;
-                  const isCurrent = weekNum === tontine.current_week;
-                  const isFuture = weekNum > tontine.current_week;
-                  return (
-                    <button
-                      key={wi}
-                      onClick={() => toggleContribution(member.id, weekNum)}
-                      disabled={isFuture}
-                      className={`w-8 h-8 sm:w-12 sm:h-12 rounded-md sm:rounded-lg flex items-center justify-center text-[10px] sm:text-xs flex-shrink-0 transition-all cursor-pointer
-                        ${isFuture
-                          ? "bg-muted/30 text-muted-foreground/30 cursor-not-allowed"
-                          : paid
-                            ? "bg-[#4CAF68] text-white shadow-sm hover:bg-[#3d9a57]"
-                            : "bg-[#E5484D]/12 border border-[#E5484D]/25 text-[#E5484D] hover:bg-[#E5484D]/20"
-                        }
-                        ${isCurrent && !isFuture ? "ring-1 sm:ring-2 ring-[#F2994A]/50" : ""}
-                      `}
-                      title={`${member.name} - ${fr ? "Semaine" : "Week"} ${weekNum}: ${paid ? fr ? "Payé" : "Paid" : isFuture ? fr ? "À venir" : "Upcoming" : fr ? "Non payé" : "Unpaid"}`}
-                    >
-                      {isFuture ? (
-                        <span>·</span>
-                      ) : paid ? (
-                        <CheckCircle size={12} className="sm:w-[16px] sm:h-[16px]" />
-                      ) : (
-                        <XCircle size={12} className="sm:w-[15px] sm:h-[15px]" />
-                      )}
-                    </button>
-                  );
-                })}
-
-                {/* Payout badge */}
-                {member.payout_received && (
-                  <div className="ml-1 sm:ml-2 shrink-0" title={fr ? "Tour reçu" : "Round Received"}>
-                    <span className="text-xs">🏆</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-[#4CAF68]" />
-          <span>{fr ? "Payé (cliquer pour défaire)" : "Paid (click to undo)"}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-[#E5484D]/20 border border-[#E5484D]/30" />
-          <span>{fr ? "Non payé (cliquer pour marquer)" : "Unpaid (click to mark)"}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span>🏆</span>
-          <span>{fr ? "Tour reçu" : "Round Received"}</span>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="text-xs text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/20">
+                <th className="px-5 py-3 text-left">#</th>
+                <th className="px-5 py-3 text-left">{fr ? "Membre" : "Member"}</th>
+                <th className="px-5 py-3 text-center">{fr ? "Paiement reçu" : "Payout received"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m: any) => (
+                <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                  <td className="px-5 py-4 text-sm text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{m.payout_order}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {m.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium">{m.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    {m.has_received_payout ? (
+                      <Trophy size={16} className="inline text-[#F2994A]" />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

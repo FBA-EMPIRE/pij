@@ -7,9 +7,11 @@ interface SuperAdminRouteProps {
 }
 
 export default function SuperAdminRoute({ children }: SuperAdminRouteProps) {
-  const { lang, userProfile } = useAppContext();
+  const { lang, userProfile, profileLoading } = useAppContext();
   const navigate = useNavigate();
   const fr = lang === "fr";
+
+  if (profileLoading) return null;
 
   if (!userProfile || userProfile.role !== "super_admin") {
     return (

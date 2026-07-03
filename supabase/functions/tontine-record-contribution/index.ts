@@ -39,16 +39,44 @@ Deno.serve(async (req) => {
 
     const adminId = authHeader ? extractUserId(authHeader) : null;
 
+    const { data: existingRound, error: roundErr } = await supabase
+      .from("tontine_rounds")
+      .select("id")
+      .eq("tontine_id", body.tontine_id)
+      .eq("round_number", body.round)
+      .maybeSingle();
+
+    if (roundErr) throw roundErr;
+
+    let roundId: string;
+    if (existingRound) {
+      roundId = existingRound.id;
+    } else {
+      const { data: newRound, error: createRoundErr } = await supabase
+        .from("tontine_rounds")
+        .insert({
+          tontine_id: body.tontine_id,
+          round_number: body.round,
+          status: "pending",
+          recorded_by: adminId,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (createRoundErr) throw createRoundErr;
+      roundId = newRound.id;
+    }
+
     const { data, error } = await supabase
-      .from("contribution_logs")
+      .from("tontine_contributions")
       .insert({
-        tontine_id: body.tontine_id,
+        round_id: roundId,
         member_id: body.member_id,
-        round: body.round,
         amount: body.amount,
+        status: "paid",
         recorded_by: adminId,
-        status: "completed",
-        created_at: new Date().toISOString(),
+        paid_at: new Date().toISOString(),
       })
       .select()
       .single();

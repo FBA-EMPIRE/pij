@@ -28,26 +28,27 @@ Deno.serve(async (req) => {
 
     const reviewedBy = authHeader ? extractUserId(authHeader) : null;
 
-    const { data, error } = await supabase
-      .from("members")
-      .update({
-        kyc: "Approved",
-        kyc_reviewed_by: reviewedBy,
-        kyc_reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", validated.user_id)
-      .select()
-      .single();
+    const { error: userErr } = await supabase
+      .from("users")
+      .update({ kyc_status: "approved" })
+      .eq("id", validated.user_id);
 
-    if (error) {
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (userErr) throw userErr;
+
+    const { error: docErr } = await supabase
+      .from("kyc_documents")
+      .update({
+        status: "approved",
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("user_id", validated.user_id)
+      .eq("status", "pending");
+
+    if (docErr) throw docErr;
 
     return new Response(
-      JSON.stringify({ success: true, member: data }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

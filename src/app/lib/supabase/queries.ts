@@ -1,11 +1,22 @@
 import { supabase } from "./client";
 
 export async function fetchTransactions(userId: string) {
-  const { data, error } = await supabase.functions.invoke("get-transactions", {
-    body: { user_id: userId },
-  });
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*, accounts!inner(id, account_type, user_id)")
+    .eq("accounts.user_id", userId)
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((txn: any) => ({
+    id: txn.id,
+    account_id: txn.account_id,
+    account_type: txn.accounts?.account_type ?? null,
+    type: txn.type,
+    amount: txn.amount,
+    balance_after: txn.balance_after,
+    notes: txn.notes,
+    created_at: txn.created_at,
+  }));
 }
 
 export async function recordDeposit({
@@ -131,7 +142,7 @@ export async function fetchAdminInvitations() {
 export async function fetchTontines() {
   const { data, error } = await supabase
     .from("tontines")
-    .select("*, tontine_types(name)")
+    .select("*, tontine_types(name, contribution_amount)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -140,7 +151,7 @@ export async function fetchTontines() {
 export async function fetchTontineById(id: string) {
   const { data, error } = await supabase
     .from("tontines")
-    .select("*, tontine_types(name)")
+    .select("*, tontine_types(name, contribution_amount)")
     .eq("id", id)
     .single();
   if (error) throw error;
@@ -150,11 +161,20 @@ export async function fetchTontineById(id: string) {
 export async function fetchTontineMembers(tontineId: string) {
   const { data, error } = await supabase
     .from("tontine_members")
-    .select("*, users(id, email, full_name, name)")
+    .select("*, users(id, email, profiles(first_name, last_name))")
     .eq("tontine_id", tontineId)
-    .order("position", { ascending: true });
+    .order("payout_order", { ascending: true });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((m: any) => {
+    const profile = m.users?.profiles;
+    const name = profile ? `${profile.first_name} ${profile.last_name}`.trim() : (m.users?.email ?? "User");
+    return {
+      ...m,
+      position: m.payout_order,
+      payout_received: m.has_received_payout,
+      users: { id: m.users?.id, email: m.users?.email, name, full_name: name },
+    };
+  });
 }
 
 export async function fetchMyTontines(userId: string) {
@@ -201,16 +221,16 @@ export async function fetchAccountsWithUsers() {
     .select("*, profiles(first_name, last_name)");
   if (usrErr) throw usrErr;
 
-  const balanceMap: Record<string, { current: number; savings: number; investment: number }> = {};
+  const balanceMap: Record<string, { current: number; savings: number }> = {};
   for (const a of accounts ?? []) {
-    if (!balanceMap[a.user_id]) balanceMap[a.user_id] = { current: 0, savings: 0, investment: 0 };
+    if (!balanceMap[a.user_id]) balanceMap[a.user_id] = { current: 0, savings: 0 };
     if (a.account_type === "current") balanceMap[a.user_id].current += Number(a.balance ?? 0);
     else if (a.account_type === "savings") balanceMap[a.user_id].savings += Number(a.balance ?? 0);
   }
 
   return (users ?? []).map((u: any) => {
     const name = [u.profiles?.first_name, u.profiles?.last_name].filter(Boolean).join(" ") || u.email || "Unknown";
-    const b = balanceMap[u.id] || { current: 0, savings: 0, investment: 0 };
+    const b = balanceMap[u.id] || { current: 0, savings: 0 };
     return { ...u, ...b, name, kyc: u.kyc_status };
   });
 }

@@ -54,7 +54,7 @@ export default function AdminTontineDetail() {
     );
   }
 
-  const pct = tontine.current_week > 0 ? Math.round((tontine.current_week / tontine.total_weeks) * 100) : 0;
+  const contribution = tontine.tontine_types?.contribution_amount ?? 0;
 
   return (
     <div className="p-4 lg:p-6 max-w-5xl mx-auto">
@@ -68,11 +68,10 @@ export default function AdminTontineDetail() {
             <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{tontine.name}</h2>
             <StatusBadge status={tontine.status as any} size="sm" />
           </div>
-          <p className="text-sm text-muted-foreground">{tontine.tontine_types?.name || tontine.type} · {tontine.duration} · {fr ? "Début" : "Start"}: {tontine.start_date}</p>
-          {tontine.description && <p className="text-sm text-muted-foreground mt-2 max-w-xl">{tontine.description}</p>}
+          <p className="text-sm text-muted-foreground">{tontine.tontine_types?.name ?? ""} · {fr ? "Début" : "Start"}: {tontine.start_date}</p>
         </div>
         <div className="flex gap-2">
-          {(tontine.status === "In Progress" || tontine.status === "Open") && (
+          {(tontine.status === "active" || tontine.status === "open") && (
             <button onClick={() => navigate(`/admin/tontines/${tontine.id}/participants`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
               <Users size={13} /> {fr ? "Participants" : "Participants"}
             </button>
@@ -84,11 +83,11 @@ export default function AdminTontineDetail() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Cotisation" : "Contribution"}</p>
-          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(tontine.contribution)}</p>
+          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contribution)}</p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Membres" : "Members"}</p>
-          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{tontine.enrolled || 0}/{tontine.capacity}</p>
+          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{members.length}/{tontine.capacity}</p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Frais d'entrée" : "Entry fee"}</p>
@@ -96,24 +95,9 @@ export default function AdminTontineDetail() {
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Pot par tour" : "Pool/round"}</p>
-          <p className="text-lg font-bold mt-1 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(tontine.pool_amount || 0)}</p>
+          <p className="text-lg font-bold mt-1 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contribution * tontine.capacity)}</p>
         </div>
       </div>
-
-      {/* Progress */}
-      {tontine.current_week > 0 && (
-        <div className="bg-card rounded-2xl border border-border p-5 mb-6">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">{fr ? "Progression" : "Progress"}</span>
-            <span className="font-medium text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>
-              {fr ? "Tour" : "Round"} {tontine.current_week}/{tontine.total_weeks}
-            </span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2.5">
-            <div className="h-2.5 rounded-full bg-[#4CAF68] transition-all" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-      )}
 
       {/* Participants */}
       <div className="bg-card rounded-2xl border border-border mb-6">
@@ -141,9 +125,9 @@ export default function AdminTontineDetail() {
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                          {(m.users?.full_name || m.users?.name || m.users?.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                          {(m.users?.full_name || m.users?.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                         </div>
-                        <span className="text-sm font-medium">{m.users?.full_name || m.users?.name || m.users?.email}</span>
+                        <span className="text-sm font-medium">{m.users?.full_name || m.users?.email}</span>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-sm text-muted-foreground">{m.users?.email || "—"}</td>

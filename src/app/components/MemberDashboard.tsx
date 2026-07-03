@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Users, ChevronRight, AlertCircle, ArrowLeft } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Users, ChevronRight, AlertCircle, ArrowLeft, Calendar } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { getCurrentUserId, fetchTransactions } from "../lib/supabase/queries";
@@ -15,22 +15,25 @@ export default function MemberDashboard() {
   const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
   const [tontines, setTontines] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
         const userId = await getCurrentUserId();
-        const [txns, { data: goals }, { data: myTontines }, { data: prof }] = await Promise.all([
+        const [txns, { data: goals }, { data: myTontines }, { data: prof }, { data: accts }] = await Promise.all([
           fetchTransactions(userId),
           supabase.from("savings_goals").select("*").eq("user_id", userId),
           supabase.from("tontine_members").select("*, tontine:tontines(*)").eq("user_id", userId),
           supabase.from("users").select("*, profiles(first_name, last_name)").eq("id", userId).single(),
+          supabase.from("accounts").select("account_type, balance").eq("user_id", userId),
         ]);
         setTransactions(txns ?? []);
         setSavingsGoals(goals ?? []);
         setTontines(myTontines ?? []);
         setProfile(prof ?? null);
+        setAccounts(accts ?? []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -46,10 +49,9 @@ export default function MemberDashboard() {
   const recentTxns = transactions.slice(0, 5);
   const mainGoal = savingsGoals[0];
   const activeTontine = tontines[0]?.tontine ? { ...tontines[0].tontine, enrolled: tontines.length } : null;
-  const goalPct = mainGoal ? Math.round((mainGoal.current / mainGoal.target) * 100) : 0;
-  const currentAccount = profile?.balance_current ?? 0;
-  const savingsAccount = profile?.balance_savings ?? 0;
-  const investmentAccount = profile?.balance_investment ?? 0;
+  const goalPct = mainGoal ? Math.round((mainGoal.current_amount / mainGoal.target_amount) * 100) : 0;
+  const currentAccount = (accounts.find((a) => a.account_type === "current")?.balance ?? 0);
+  const savingsAccount = (accounts.find((a) => a.account_type === "savings")?.balance ?? 0);
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -101,17 +103,7 @@ export default function MemberDashboard() {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 rounded-2xl text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg, #6E3A9A 0%, #4A2570 100%)" }}>
-          <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-20" style={{ background: "#FFFFFF", transform: "translate(30%, -30%)" }} />
-          <p className="text-white/70 text-xs uppercase tracking-wider mb-1">{fr ? "Compte Investissement" : "Investment Account"}</p>
-          <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
-            {formatXAF(investmentAccount)}
-          </p>
-          <p className="text-xs text-white/60">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
-          <div className="mt-4 flex items-center gap-2">
-            <StatusBadge status="Active" size="sm" />
-          </div>
-        </div>
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -157,7 +149,7 @@ export default function MemberDashboard() {
               <button onClick={() => navigate("/savings")} className="text-xs text-[#4CAF68] font-medium hover:underline shrink-0">{fr ? "Voir tout" : "View all"}</button>
             </div>
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-xl sm:text-2xl">{mainGoal.icon}</span>
+              <span className="text-xl sm:text-2xl">🎯</span>
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{mainGoal.name}</p>
                 <p className="text-xs text-muted-foreground">{fr ? "Échéance:" : "Deadline:"} {mainGoal.deadline}</p>
@@ -185,15 +177,15 @@ export default function MemberDashboard() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{fr ? "Actuel" : "Current"}</span>
-                <span className="font-medium text-[#1F9D55]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(mainGoal.current)}</span>
+                <span className="font-medium text-[#1F9D55]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(mainGoal.current_amount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{fr ? "Objectif" : "Target"}</span>
-                <span className="font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(mainGoal.target)}</span>
+                <span className="font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(mainGoal.target_amount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{fr ? "Restant" : "Remaining"}</span>
-                <span className="font-medium text-[#E5484D]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(mainGoal.target - mainGoal.current)}</span>
+                <span className="font-medium text-[#E5484D]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(mainGoal.target_amount - mainGoal.current_amount)}</span>
               </div>
             </div>
           </div>
@@ -217,20 +209,9 @@ export default function MemberDashboard() {
                 <StatusBadge status="Active" size="sm" />
               </div>
               <p className="text-sm font-medium">{activeTontine.name}</p>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{fr ? "Progression" : "Progress"}</span>
-                <span className="font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>
-                  {fr ? "Semaine" : "Week"} {activeTontine.current_week}/{activeTontine.total_weeks}
-                </span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div className="h-2 rounded-full bg-[#4CAF68] transition-all" style={{ width: `${(activeTontine.current_week / activeTontine.total_weeks) * 100}%` }} />
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <div className="w-2 h-2 rounded-full bg-amber-400" />
-                <span className="text-xs text-muted-foreground">
-                  {fr ? "Prochaine contribution: 17 juin" : "Next contribution: June 17"}
-                </span>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar size={11} />
+                {fr ? "Début:" : "Start:"} {activeTontine.start_date}
               </div>
               <div className="flex items-center gap-2">
                 <Users size={14} className="text-muted-foreground" />

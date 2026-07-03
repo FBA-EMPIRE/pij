@@ -24,7 +24,7 @@ export default function TransactionHistory() {
     try {
       const rows = [["Description", "Date", "Compte", "Montant", "Type"]];
       filtered.forEach((t) => {
-        rows.push([t.description || "", t.date || t.created_at || "", t.account || t.account_type || "", String(t.amount ?? 0), (t.amount ?? 0) > 0 ? "Crédit" : "Débit"]);
+        rows.push([t.notes || "", t.created_at || "", t.account_type || "", String(t.amount ?? 0), t.type || ""]);
       });
       const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -45,8 +45,8 @@ export default function TransactionHistory() {
   }, []);
 
   const filtered = transactions.filter((t) => {
-    const desc = t.description || "";
-    const type = (t.type || t.transaction_type || "").toLowerCase();
+    const desc = t.notes || "";
+    const type = (t.type || "").toLowerCase();
     const matchSearch = desc.toLowerCase().includes(search.toLowerCase());
     const matchType = typeFilter === "all" || type === typeFilter;
     return matchSearch && matchType;
@@ -83,7 +83,6 @@ export default function TransactionHistory() {
             { value: "all", label: fr ? "Tout" : "All" },
             { value: "deposit", label: fr ? "Dépôts" : "Deposits" },
             { value: "withdrawal", label: fr ? "Retraits" : "Withdrawals" },
-            { value: "tontine", label: "Tontine" },
           ].map((f) => (
             <button
               key={f.value}
@@ -120,11 +119,11 @@ export default function TransactionHistory() {
               <div className="col-span-2 text-right">{fr ? "Montant" : "Amount"}</div>
             </div>
             {filtered.map((txn) => {
-              const desc = txn.description || "";
+              const desc = txn.notes || "";
               const amount = txn.amount ?? 0;
-              const date = txn.date || txn.created_at || "";
-              const account = txn.account || txn.account_type || "";
-              const isCredit = amount > 0;
+              const date = txn.created_at || "";
+              const account = txn.account_type || "";
+              const isCredit = txn.type === "deposit";
               return (
                 <button key={txn.id} onClick={() => setSelectedTxn(txn)} className="w-full text-left grid grid-cols-12 items-center gap-1 sm:gap-0 px-3 sm:px-5 py-3 sm:py-4 border-b border-border last:border-0 hover:bg-muted/20 transition-colors min-h-[44px]">
                   <div className="col-span-1 flex justify-center">

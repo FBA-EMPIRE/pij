@@ -159,18 +159,24 @@ export default function AdminDashboard() {
             </button>
           </div>
           <div className="space-y-2">
-            {kycQueue.map((kyc: any) => (
+            {kycQueue.map((kyc: any) => {
+              const user = kyc.users || {};
+              const profile = user.profiles || {};
+              const name = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || user.email || "?";
+              const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2);
+              return (
               <div key={kyc.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/60 cursor-pointer transition-colors" onClick={() => navigate("/admin/kyc")}>
                 <div className="w-9 h-9 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {((kyc.full_name || kyc.name || kyc.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2))}
+                  {initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{kyc.full_name || kyc.name || kyc.email}</p>
-                  <p className="text-xs text-muted-foreground">{kyc.id_type || kyc.kyc_status || "—"} · {kyc.created_at ? new Date(kyc.created_at).toLocaleDateString("fr-FR") : "—"}</p>
+                  <p className="text-sm font-medium truncate">{name}</p>
+                  <p className="text-xs text-muted-foreground">{kyc.status || "—"} · {kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString("fr-FR") : "—"}</p>
                 </div>
-                <StatusBadge status={kyc.kyc_status || "pending"} size="sm" />
+                <StatusBadge status={kyc.status || "pending"} size="sm" />
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -192,7 +198,6 @@ export default function AdminDashboard() {
                 <th className="pb-3 text-left">{fr ? "Téléphone" : "Phone"}</th>
                 <th className="pb-3 text-left">KYC</th>
                 <th className="pb-3 text-left">{fr ? "Statut" : "Status"}</th>
-                <th className="pb-3 text-right">{fr ? "Épargne" : "Savings"}</th>
               </tr>
             </thead>
             <tbody>
@@ -202,17 +207,14 @@ export default function AdminDashboard() {
                   <td className="py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">
-                        {(m.full_name || m.name || m.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                        {(m.profiles ? `${m.profiles.first_name ?? ""} ${m.profiles.last_name ?? ""}`.trim() : m.email || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                       </div>
-                      <span className="text-sm font-medium">{m.full_name || m.name || m.email}</span>
+                      <span className="text-sm font-medium">{m.profiles ? `${m.profiles.first_name ?? ""} ${m.profiles.last_name ?? ""}`.trim() : m.email}</span>
                     </div>
                   </td>
                   <td className="py-3 text-sm text-muted-foreground">{m.phone || "—"}</td>
                   <td className="py-3"><StatusBadge status={(m.kyc_status || "pending") as any} size="sm" /></td>
                   <td className="py-3"><StatusBadge status={(m.status || "active") as any} size="sm" /></td>
-                  <td className="py-3 text-right text-sm font-medium" style={{ fontFamily: "Geist Mono, monospace" }}>
-                    {m.balance_savings ? formatXAF(m.balance_savings) : "—"}
-                  </td>
                 </tr>
               ))}
             </tbody>

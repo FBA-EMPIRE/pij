@@ -20,7 +20,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
     const url = new URL(req.url);
@@ -37,13 +36,15 @@ Deno.serve(async (req) => {
     const from = (p - 1) * l;
     const to = from + l - 1;
 
-    let query = supabase.from("transactions").select("*", { count: "exact" });
+    let query = supabase
+      .from("transactions")
+      .select("*, accounts!inner(id, account_type, user_id)", { count: "exact" });
 
     if (user_id) {
-      query = query.eq("user_id", user_id);
+      query = query.eq("accounts.user_id", user_id);
     }
     if (account_type) {
-      query = query.eq("account_type", account_type);
+      query = query.eq("accounts.account_type", account_type);
     }
 
     const { data, error, count } = await query
@@ -57,8 +58,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    const transactions = (data ?? []).map((txn: any) => ({
+      id: txn.id,
+      account_id: txn.account_id,
+      account_type: txn.accounts?.account_type ?? null,
+      type: txn.type,
+      amount: txn.amount,
+      balance_after: txn.balance_after,
+      notes: txn.notes,
+      recorded_by: txn.recorded_by,
+      created_at: txn.created_at,
+    }));
+
     return new Response(
-      JSON.stringify({ success: true, transactions: data, total: count, page: p, limit: l }),
+      JSON.stringify({ success: true, transactions, total: count, page: p, limit: l }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

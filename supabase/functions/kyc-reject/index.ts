@@ -28,31 +28,32 @@ Deno.serve(async (req) => {
 
     const reviewedBy = authHeader ? extractUserId(authHeader) : null;
 
-    const updateData: Record<string, unknown> = {
-      kyc: "Rejected",
-      kyc_reviewed_by: reviewedBy,
-      kyc_reviewed_at: new Date().toISOString(),
+    const { error: userErr } = await supabase
+      .from("users")
+      .update({ kyc_status: "rejected" })
+      .eq("id", validated.user_id);
+
+    if (userErr) throw userErr;
+
+    const docUpdate: Record<string, unknown> = {
+      status: "rejected",
+      reviewed_by: reviewedBy,
+      reviewed_at: new Date().toISOString(),
     };
     if (validated.reason) {
-      updateData.kyc_rejection_reason = validated.reason;
+      docUpdate.rejection_reason = validated.reason;
     }
 
-    const { data, error } = await supabase
-      .from("members")
-      .update(updateData)
-      .eq("id", validated.user_id)
-      .select()
-      .single();
+    const { error: docErr } = await supabase
+      .from("kyc_documents")
+      .update(docUpdate)
+      .eq("user_id", validated.user_id)
+      .eq("status", "pending");
 
-    if (error) {
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (docErr) throw docErr;
 
     return new Response(
-      JSON.stringify({ success: true, member: data }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

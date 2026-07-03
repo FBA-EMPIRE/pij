@@ -19,7 +19,7 @@ export default function TontineMarketplace() {
       .finally(() => setLoading(false));
   }, []);
 
-  const openTontines = tontines.filter((t) => t.status === "Open");
+  const openTontines = tontines.filter((t) => t.status === "open");
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -42,24 +42,24 @@ export default function TontineMarketplace() {
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {openTontines.map((t) => {
-          const fillPct = Math.round((t.enrolled / t.capacity) * 100);
+          const contribution = t.tontine_types?.contribution_amount ?? 0;
+          const poolAmount = contribution * t.capacity;
+          const fillPct = 0;
           const status = t.status as any;
           return (
             <div key={t.id} className="bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-[#4CAF68]/40 transition-all group">
               <div className="flex items-start justify-between mb-4 gap-2">
                 <div className="min-w-0">
                   <h3 className="text-sm sm:text-base truncate" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{t.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.tontine_types?.name ?? t.frequency ?? ""} · {t.duration}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.tontine_types?.name ?? t.frequency ?? ""}</p>
                 </div>
                 <StatusBadge status={status} size="sm" />
               </div>
 
-              <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-5 leading-relaxed line-clamp-2 sm:line-clamp-none">{t.description}</p>
-
               <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-5">
                 <div className="bg-muted/40 rounded-xl p-2 sm:p-3">
                   <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{fr ? "Cotisation" : "Contribution"}</p>
-                  <p className="text-xs sm:text-sm font-bold truncate" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.contribution)}</p>
+                  <p className="text-xs sm:text-sm font-bold truncate" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contribution)}</p>
                 </div>
                 <div className="bg-muted/40 rounded-xl p-2 sm:p-3">
                   <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{fr ? "Frais d'entrée" : "Entry fee"}</p>
@@ -67,7 +67,7 @@ export default function TontineMarketplace() {
                 </div>
                 <div className="bg-muted/40 rounded-xl p-2 sm:p-3">
                   <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{fr ? "Pot par tour" : "Pool per round"}</p>
-                  <p className="text-xs sm:text-sm font-bold text-[#4CAF68] truncate" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(t.pool_amount)}</p>
+                  <p className="text-xs sm:text-sm font-bold text-[#4CAF68] truncate" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(poolAmount)}</p>
                 </div>
                 <div className="bg-muted/40 rounded-xl p-2 sm:p-3">
                   <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">{fr ? "Début" : "Start date"}</p>
@@ -80,15 +80,8 @@ export default function TontineMarketplace() {
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Users size={11} />
-                    {t.enrolled} / {t.capacity} {fr ? "membres" : "members"}
+                    ? / {t.capacity} {fr ? "membres" : "members"}
                   </div>
-                  <span className="font-medium" style={{ color: fillPct >= 90 ? "#F2994A" : "#4CAF68" }}>{fillPct}%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full transition-all"
-                    style={{ width: `${fillPct}%`, background: fillPct >= 90 ? "#F2994A" : "#4CAF68" }}
-                  />
                 </div>
               </div>
 

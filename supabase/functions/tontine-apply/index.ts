@@ -32,13 +32,12 @@ Deno.serve(async (req) => {
     }
 
     const { data, error } = await supabase
-      .from("tontine_join_requests")
+      .from("tontine_members")
       .insert({
-        user_id: body.user_id,
         tontine_id: body.tontine_id,
-        status: "Pending",
-        created_at: new Date().toISOString(),
-        created_by: authHeader ? extractUserId(authHeader) : null,
+        user_id: body.user_id,
+        status: "pending",
+        joined_at: new Date().toISOString(),
       })
       .select()
       .single();

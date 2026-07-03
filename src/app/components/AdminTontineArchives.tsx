@@ -1,33 +1,23 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Archive, Users, Calendar, Download, FileText, Eye } from "lucide-react";
+import { ArrowLeft, Archive, Eye } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 import { formatXAF } from "../lib/format";
-
-interface Archive {
-  id: string;
-  name: string;
-  frequency: string;
-  members: any[];
-  total_weeks: number;
-  start_date: string;
-  end_date: string;
-  total_collected: number;
-}
 
 export default function AdminTontineArchives() {
   const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
-  const [archives, setArchives] = useState<Archive[]>([]);
+  const [archives, setArchives] = useState<any[]>([]);
 
   useEffect(() => {
     supabase
-      .from("tontine_archives")
-      .select("*")
+      .from("tontines")
+      .select("*, tontine_types(name, contribution_amount)")
+      .eq("status", "closed")
       .then(({ data }) => {
-        if (data) setArchives(data as Archive[]);
+        if (data) setArchives(data);
       });
   }, []);
 
@@ -49,50 +39,39 @@ export default function AdminTontineArchives() {
         </div>
       ) : (
         <div className="space-y-4">
-          {archives.map((arc) => (
+          {archives.map((arc) => {
+            const contribution = arc.tontine_types?.contribution_amount ?? 0;
+            return (
             <div key={arc.id} className="bg-card rounded-2xl border border-border p-5">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{arc.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{arc.id} · {arc.frequency === "weekly" ? (fr ? "Hebdomadaire" : "Weekly") : arc.frequency === "biweekly" ? (fr ? "Bihebdomadaire" : "Biweekly") : (fr ? "Mensuel" : "Monthly")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{arc.tontine_types?.name ?? ""}</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => navigate(`/tontines/archives/${arc.id}`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
                     <Eye size={13} /> {fr ? "Voir" : "View"}
                   </button>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
-                    <Download size={13} /> PDF
-                  </button>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
-                    <FileText size={13} /> Excel
-                  </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
-                  <p className="text-xs text-muted-foreground">{fr ? "Participants" : "Participants"}</p>
-                  <p className="text-sm font-bold mt-0.5">{arc.members.length}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{fr ? "Durée" : "Duration"}</p>
-                  <p className="text-sm font-bold mt-0.5">{arc.total_weeks} {fr ? "semaines" : "weeks"}</p>
+                  <p className="text-xs text-muted-foreground">{fr ? "Capacité" : "Capacity"}</p>
+                  <p className="text-sm font-bold mt-0.5">{arc.capacity}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{fr ? "Début" : "Start"}</p>
                   <p className="text-sm font-bold mt-0.5">{arc.start_date}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">{fr ? "Fin" : "End"}</p>
-                  <p className="text-sm font-bold mt-0.5">{arc.end_date}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{fr ? "Total collecté" : "Total collected"}</p>
-                  <p className="text-sm font-bold mt-0.5 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(arc.total_collected)}</p>
+                  <p className="text-xs text-muted-foreground">{fr ? "Cotisation" : "Contribution"}</p>
+                  <p className="text-sm font-bold mt-0.5 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contribution)}</p>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

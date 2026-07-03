@@ -81,7 +81,6 @@ export default function UserManagement() {
                 <th className="px-5 py-3 text-left">{fr ? "Membre" : "Member"}</th>
                 <th className="px-5 py-3 text-left">{fr ? "Téléphone" : "Phone"}</th>
                 <th className="px-5 py-3 text-left">KYC</th>
-                <th className="px-5 py-3 text-left">{fr ? "Compte" : "Account"}</th>
                 <th className="px-5 py-3 text-right">{fr ? "Épargne" : "Savings"}</th>
                 <th className="px-5 py-3 text-right">{fr ? "Actions" : "Actions"}</th>
               </tr>
@@ -103,7 +102,6 @@ export default function UserManagement() {
                   </td>
                   <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{m.phone}</td>
                   <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
-                  <td className="px-5 py-4"><StatusBadge status={m.status as any} size="sm" /></td>
                   <td className="px-5 py-4 text-right text-sm font-medium whitespace-nowrap" style={{ fontFamily: "Geist Mono, monospace" }}>
                     {(m.savings ?? 0) > 0 ? formatXAF(m.savings) : <span className="text-muted-foreground">—</span>}
                   </td>

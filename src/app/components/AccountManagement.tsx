@@ -85,12 +85,11 @@ export default function AccountManagement() {
                   <th className="px-5 py-3 text-left">{fr ? "Membre" : "Member"}</th>
                   <th className="px-5 py-3 text-right">{fr ? "Solde courant" : "Current"}</th>
                   <th className="px-5 py-3 text-right">{fr ? "Épargne" : "Savings"}</th>
-                  <th className="px-5 py-3 text-right">{fr ? "Investissement" : "Investment"}</th>
                   <th className="px-5 py-3 text-left">KYC</th>
                 </tr>
               </thead>
               <tbody>
-                      {members.filter((m) => m.status === "active" || m.status === "Active").map((m) => (
+                      {members.map((m) => (
                   <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -105,7 +104,6 @@ export default function AccountManagement() {
                     </td>
                     <td className="px-5 py-4 text-right text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.current)}</td>
                     <td className="px-5 py-4 text-right text-sm font-bold text-[#1F9D55]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.savings)}</td>
-                    <td className="px-5 py-4 text-right text-sm font-bold text-[#6E3A9A]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(m.investment)}</td>
                     <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
                   </tr>
                 ))}
@@ -160,7 +158,7 @@ export default function AccountManagement() {
                   <div>
                     <label className="text-sm font-medium">{fr ? "Membre" : "Member"}</label>
                     <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                {members.filter((m) => m.status === "active" || m.status === "Active").map((m) => (
+                {members.map((m) => (
                         <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
                       ))}
                     </select>
@@ -179,7 +177,7 @@ export default function AccountManagement() {
                       <select value={goalId} onChange={(e) => setGoalId(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
                         <option value="">{fr ? "Aucun objectif" : "No goal"}</option>
                         {[].map((g: any) => (
-                          <option key={g.id} value={g.id}>{g.name} — {formatXAF(g.target - g.current)} {fr ? "restant" : "remaining"}</option>
+                          <option key={g.id} value={g.id}>{g.name} — {formatXAF((g.target_amount ?? 0) - (g.current_amount ?? 0))} {fr ? "restant" : "remaining"}</option>
                         ))}
                       </select>
                     </div>

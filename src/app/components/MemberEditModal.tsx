@@ -30,16 +30,14 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState("Active");
-  const [kyc, setKyc] = useState("Pending");
+  const [kyc, setKyc] = useState("pending");
 
   useEffect(() => {
     if (member) {
       setName(memberName(member));
       setEmail(member.email ?? "");
       setPhone(member.phone ?? "");
-      setStatus(member.status ?? "Active");
-      setKyc(member.kyc_status ?? "Pending");
+      setKyc(member.kyc_status ?? "pending");
     }
   }, [member]);
 
@@ -49,7 +47,7 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
   const handleSave = async () => {
     const { error: userErr } = await supabase
       .from("users")
-      .update({ email, phone, status, kyc_status: kyc })
+      .update({ email, phone, kyc_status: kyc })
       .eq("id", memberId);
     if (!userErr) {
       onSave();
@@ -94,23 +92,13 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
             <input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">{fr ? "Statut" : "Status"}</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                <option value="Active">Active</option>
-                <option value="Pending">{fr ? "En attente" : "Pending"}</option>
-                <option value="Suspended">{fr ? "Suspendu" : "Suspended"}</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">KYC</label>
-              <select value={kyc} onChange={(e) => setKyc(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                <option value="Approved">{fr ? "Approuvé" : "Approved"}</option>
-                <option value="Pending">{fr ? "En attente" : "Pending"}</option>
-                <option value="Rejected">{fr ? "Rejeté" : "Rejected"}</option>
-              </select>
-            </div>
+          <div>
+            <label className="text-sm font-medium">KYC</label>
+            <select value={kyc} onChange={(e) => setKyc(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+              <option value="approved">{fr ? "Approuvé" : "Approved"}</option>
+              <option value="pending">{fr ? "En attente" : "Pending"}</option>
+              <option value="rejected">{fr ? "Rejeté" : "Rejected"}</option>
+            </select>
           </div>
         </div>
 

@@ -28,30 +28,49 @@ Deno.serve(async (req) => {
 
     const recordedBy = authHeader ? extractUserId(authHeader) : null;
 
-    const { data, error } = await supabase
+    const { data: account, error: acctErr } = await supabase
+      .from("accounts")
+      .select("id, balance")
+      .eq("user_id", validated.user_id)
+      .eq("account_type", validated.account_type)
+      .single();
+
+    if (acctErr || !account) {
+      throw new Error("Account not found for this user and account type");
+    }
+
+    const currentBalance = Number(account.balance);
+    if (currentBalance < validated.amount) {
+      throw new Error("Insufficient funds");
+    }
+
+    const newBalance = currentBalance - validated.amount;
+
+    const { error: updateErr } = await supabase
+      .from("accounts")
+      .update({ balance: newBalance })
+      .eq("id", account.id);
+
+    if (updateErr) throw updateErr;
+
+    const { data: txn, error: txnErr } = await supabase
       .from("transactions")
       .insert({
-        user_id: validated.user_id,
-        account_type: validated.account_type,
+        account_id: account.id,
         type: "withdrawal",
         amount: validated.amount,
-        description: body.description ?? null,
+        balance_after: newBalance,
         recorded_by: recordedBy,
-        status: "completed",
+        notes: body.description ?? null,
         created_at: new Date().toISOString(),
       })
       .select()
       .single();
 
-    if (error) {
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (txnErr) throw txnErr;
 
     return new Response(
-      JSON.stringify({ success: true, transaction: data }),
+      JSON.stringify({ success: true, transaction: txn }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

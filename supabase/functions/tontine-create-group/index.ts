@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const createdBy = authHeader ? extractUserId(authHeader) : null;
 
     const { data, error } = await supabase
-      .from("tontine_groups")
+      .from("tontines")
       .insert({
         type_id: validated.type_id,
         name: validated.name,
@@ -37,9 +37,7 @@ Deno.serve(async (req) => {
         frequency: validated.frequency,
         entry_fee: validated.entry_fee,
         start_date: validated.start_date,
-        contribution: body.contribution ?? 0,
-        description: body.description ?? "",
-        status: "Draft",
+        status: "open",
         created_by: createdBy,
         created_at: new Date().toISOString(),
       })

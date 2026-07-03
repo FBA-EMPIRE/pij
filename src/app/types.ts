@@ -1,4 +1,4 @@
-export type AccountType = "current" | "savings" | "investment";
+export type AccountType = "savings" | "current";
 
 export type AdminRole = "super_admin" | "admin";
 
@@ -39,52 +39,59 @@ export interface TontineType {
   status: "Active" | "Inactive";
 }
 
+export type UserStatus = "pending" | "active" | "suspended" | "deactivated";
+export type KycStatus = "not_submitted" | "pending" | "approved" | "rejected";
+
 export interface Member {
   id: string;
+  uid: string;
   name: string;
   email: string;
   phone: string;
   emailVerified: boolean;
   verificationCode?: string;
-  kyc: "Approved" | "Pending" | "Rejected";
-  status: "Active" | "Pending" | "Suspended";
+  kyc_status: KycStatus;
+  status: UserStatus;
   balance_current: number;
   balance_savings: number;
   balance_investment: number;
   joined: string;
 }
 
+export type TransactionType = "deposit" | "withdrawal";
+
 export interface Transaction {
   id: string;
-  date: string;
-  type: "Deposit" | "Withdrawal" | "Tontine";
+  account_id: string;
+  account_type: AccountType;
+  type: TransactionType;
   amount: number;
-  description: string;
-  account: "Courant" | "Épargne" | "Investissement";
-  status: "Completed";
-  goalId?: string;
-  auditLogId?: string;
+  balance_after: number;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface SavingsGoal {
   id: string;
-  memberId: string;
+  user_id: string;
+  account_id?: string;
   name: string;
-  target: number;
-  current: number;
-  deadline: string;
-  icon: string;
-  color: string;
-  allowOverfunding?: boolean;
+  target_amount: number;
+  current_amount: number;
+  deadline: string | null;
+  status: "active" | "completed" | "cancelled";
+  created_at: string;
 }
 
 export interface AuditLog {
   id: string;
-  actor: string;
+  actor_id: string | null;
   action: string;
-  entity: string;
-  timestamp: string;
-  ip: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
 }
 
 export interface InvestmentProduct {
@@ -119,65 +126,70 @@ export interface InvestmentTransaction {
   createdAt: string;
 }
 
-// ── Tontine types ──
-
-export type TontineStatus = "Draft" | "Open" | "In Progress" | "Completed" | "Archived";
-export type JoinRequestStatus = "Pending" | "Pending Entry Fee" | "Approved" | "Rejected";
-export type Frequency = "weekly" | "biweekly" | "monthly";
-export type NotificationType = "join_request" | "entry_fee" | "contribution" | "payout" | "completion" | "general" | "info" | "warning" | "success";
+export type TontineStatus = "open" | "active" | "closed";
+export type Frequency = "weekly" | "monthly";
+export type TontineMemberStatus = "pending" | "active" | "removed";
+export type ContributionStatus = "paid" | "unpaid";
+export type RoundStatus = "pending" | "paid";
+export type NotificationType = "kyc_status" | "contribution_reminder" | "payout_alert" | "system" | "general";
 
 export interface TontineMember {
-  id: number;
-  name: string;
-  avatar: string;
-  position: number;
-  payout_received: boolean;
-  contributions: boolean[];
+  id: string;
+  tontine_id: string;
+  user_id: string;
+  status: TontineMemberStatus;
+  payout_order: number | null;
+  has_received_payout: boolean;
+  joined_at: string;
+  users?: {
+    id: string;
+    email: string;
+    name: string;
+    full_name: string;
+  };
 }
 
 export interface Tontine {
   id: string;
+  type_id: string;
   name: string;
-  description: string;
-  contribution: number;
-  entry_fee: number;
   capacity: number;
-  enrolled: number;
-  total_weeks: number;
-  current_week: number;
-  start_date: string;
   frequency: Frequency;
+  entry_fee: number;
   status: TontineStatus;
-  pool_amount: number;
-  members: TontineMember[];
+  start_date: string;
+  created_by: string | null;
+  created_at: string;
+  tontine_types?: { name: string; contribution_amount: number };
 }
 
 export interface JoinRequest {
   id: string;
-  userId: string;
-  tontineId: string;
-  status: JoinRequestStatus;
-  createdAt: string;
+  tontine_id: string;
+  user_id: string;
+  status: TontineMemberStatus;
+  joined_at: string;
 }
 
 export interface ContributionLog {
   id: string;
-  adminId: string;
-  memberId: number;
-  tontineId: string;
-  round: number;
-  previousStatus: boolean;
-  newStatus: boolean;
-  timestamp: string;
+  round_id: string;
+  member_id: string;
+  amount: number;
+  status: ContributionStatus;
+  recorded_by: string | null;
+  paid_at: string | null;
 }
 
-export interface RoundRecipient {
+export interface TontineRound {
   id: string;
-  tontineId: string;
-  round: number;
-  memberId: number;
-  amount: number;
-  assignedAt: string;
+  tontine_id: string;
+  round_number: number;
+  recipient_member_id: string | null;
+  status: RoundStatus;
+  payout_date: string | null;
+  recorded_by: string | null;
+  created_at: string;
 }
 
 export interface TontineArchive {
@@ -192,19 +204,19 @@ export interface TontineArchive {
   start_date: string;
   end_date: string;
   frequency: Frequency;
-  members: TontineMember[];
-  recipients: RoundRecipient[];
+  members: any[];
+  recipients: any[];
   total_collected: number;
 }
 
 export interface Notification {
   id: string;
-  userId: string;
+  user_id: string;
   type: NotificationType;
   title: string;
   titleEn?: string;
   message: string;
   messageEn?: string;
-  read: boolean;
-  createdAt: string;
+  is_read: boolean;
+  created_at: string;
 }
