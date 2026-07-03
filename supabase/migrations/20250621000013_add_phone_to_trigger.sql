@@ -27,9 +27,11 @@ $$ language plpgsql security definer;
 
 -- 2. Allow users to insert their own row (the trigger handles actual creation,
 --    but this covers any edge case where client-side insert is needed)
+drop policy if exists users_insert_own on public.users;
 create policy users_insert_own on public.users
   for insert with check (id = auth.uid());
 
 -- 3. Allow users to insert their own profile (same reasoning)
+drop policy if exists profiles_insert_own on public.profiles;
 create policy profiles_insert_own on public.profiles
   for insert with check (user_id = auth.uid());
