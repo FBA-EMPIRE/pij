@@ -14,6 +14,7 @@ values (
 on conflict (id) do nothing;
 
 -- 2. Allow authenticated users to upload into their own folder
+drop policy if exists "kyc_uploads_insert_own" on storage.objects;
 create policy "kyc_uploads_insert_own" on storage.objects
   for insert with check (
     bucket_id = 'kyc-documents'
@@ -22,6 +23,7 @@ create policy "kyc_uploads_insert_own" on storage.objects
   );
 
 -- 3. Allow authenticated users to select their own uploads
+drop policy if exists "kyc_uploads_select_own" on storage.objects;
 create policy "kyc_uploads_select_own" on storage.objects
   for select using (
     bucket_id = 'kyc-documents'

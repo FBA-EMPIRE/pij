@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Members (users of the platform)
-CREATE TABLE members (
+CREATE TABLE IF NOT EXISTS members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE members (
 );
 
 -- Transactions (deposits, withdrawals, tontine contributions)
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES members(id),
   account_type TEXT NOT NULL CHECK (account_type IN ('savings', 'current', 'investment')),
@@ -35,7 +35,7 @@ CREATE TABLE transactions (
 );
 
 -- Tontine types (definitions/templates)
-CREATE TABLE tontine_types (
+CREATE TABLE IF NOT EXISTS tontine_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   name_en TEXT,
@@ -49,7 +49,7 @@ CREATE TABLE tontine_types (
 );
 
 -- Tontine groups (specific instances)
-CREATE TABLE tontine_groups (
+CREATE TABLE IF NOT EXISTS tontine_groups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   type_id UUID NOT NULL REFERENCES tontine_types(id),
   name TEXT NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE tontine_groups (
 );
 
 -- Join requests for tontine groups
-CREATE TABLE tontine_join_requests (
+CREATE TABLE IF NOT EXISTS tontine_join_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES members(id),
   tontine_id UUID NOT NULL REFERENCES tontine_groups(id),
@@ -79,7 +79,7 @@ CREATE TABLE tontine_join_requests (
 );
 
 -- Contribution logs for tontine rounds
-CREATE TABLE contribution_logs (
+CREATE TABLE IF NOT EXISTS contribution_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tontine_id UUID NOT NULL REFERENCES tontine_groups(id),
   member_id UUID NOT NULL REFERENCES members(id),
@@ -91,8 +91,6 @@ CREATE TABLE contribution_logs (
 );
 
 -- Indexes
-CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
-CREATE INDEX idx_tontine_join_requests_user_id ON tontine_join_requests(user_id);
-CREATE INDEX idx_tontine_join_requests_tontine_id ON tontine_join_requests(tontine_id);
-CREATE INDEX idx_contribution_logs_tontine_id ON contribution_logs(tontine_id);
+CREATE INDEX IF NOT EXISTS idx_tontine_join_requests_user_id ON tontine_join_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_tontine_join_requests_tontine_id ON tontine_join_requests(tontine_id);
+CREATE INDEX IF NOT EXISTS idx_contribution_logs_tontine_id ON contribution_logs(tontine_id);

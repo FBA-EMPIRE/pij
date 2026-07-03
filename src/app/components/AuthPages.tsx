@@ -64,7 +64,7 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
 }
 
 export function LoginPage() {
-  const { darkMode, lang, loginUser, loginAdmin } = useAppContext();
+  const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
   const fr = lang === "fr";
@@ -99,7 +99,7 @@ export function LoginPage() {
               {fr ? "Mot de passe oublié ?" : "Forgot password?"}
             </button>
           </div>
-          <button onClick={() => { loginUser("PIJ-2024-001"); navigate("/dashboard"); }} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+          <button onClick={() => navigate("/dashboard")} className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
             {fr ? "Se connecter" : "Log in"}
           </button>
         </div>
@@ -112,7 +112,7 @@ export function LoginPage() {
         </p>
         <p className="text-center text-xs text-muted-foreground/60 mt-4">
           {fr ? "Accès admin ?" : "Admin access?"}{" "}
-          <button onClick={() => { loginAdmin("ADM-001"); navigate("/admin/dashboard"); }} className="text-[#6E3A9A] hover:underline">
+          <button onClick={() => navigate("/admin/dashboard")} className="text-[#6E3A9A] hover:underline">
             {fr ? "Portail Admin →" : "Admin Portal →"}
           </button>
         </p>
