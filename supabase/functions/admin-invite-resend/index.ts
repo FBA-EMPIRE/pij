@@ -2,12 +2,7 @@ import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateInvitationId } from "../_shared/validators.ts";
 import { getCallerAdmin, requireSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
 import { sendEmail, adminInviteEmailHtml } from "../_shared/email.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const INVITATION_TTL_DAYS = 7;
 

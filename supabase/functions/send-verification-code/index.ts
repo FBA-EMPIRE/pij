@@ -1,10 +1,5 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

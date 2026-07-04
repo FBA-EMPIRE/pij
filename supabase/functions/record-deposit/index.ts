@@ -2,12 +2,7 @@ import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateDeposit } from "../_shared/validators.ts";
 import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
 import { assertNotInMaintenance } from "../_shared/system-settings.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
