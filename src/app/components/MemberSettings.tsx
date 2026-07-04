@@ -1,12 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Sun, Moon, Globe, Bell, Shield, Eye, Download, Trash2,
   ChevronRight, Smartphone, Monitor, LogOut, ArrowLeft
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
-import { getCurrentUserId } from "../lib/supabase/queries";
+import { getCurrentUserId, deleteMyAccount, fetchTransactions } from "../lib/supabase/queries";
 import { supabase } from "../lib/supabase/client";
+
+function parseBrowser(userAgent: string) {
+  if (/edg/i.test(userAgent)) return "Edge";
+  if (/chrome/i.test(userAgent)) return "Chrome";
+  if (/safari/i.test(userAgent) && !/chrome/i.test(userAgent)) return "Safari";
+  if (/firefox/i.test(userAgent)) return "Firefox";
+  return "Browser";
+}
 
 export default function MemberSettings() {
   const { lang, darkMode, toggleDark, toggleLang, userProfile } = useAppContext();
@@ -18,14 +26,24 @@ export default function MemberSettings() {
   const [visibility, setVisibility] = useState<"public" | "members" | "private">("members");
   const [twoFactor, setTwoFactor] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [lastSignIn, setLastSignIn] = useState<string | null>(null);
 
-  const sessions: { device: string; ip: string; current: boolean; time: string }[] = [
-    { device: navigator.userAgent.includes("iPhone") || navigator.userAgent.includes("Safari") ? "Safari Browser" : "Chrome Browser", ip: "", current: true, time: new Date().toLocaleString() },
-  ];
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setLastSignIn(data.user?.last_sign_in_at ?? null);
+    });
+  }, []);
+
+  const currentDevice = `${parseBrowser(navigator.userAgent)} · ${navigator.platform || ""}`.trim();
+  const isMobile = /iphone|android|mobile/i.test(navigator.userAgent);
 
   const handleLogoutAllDevices = async () => {
     try {
+      // Default scope is "global": revokes every refresh token for this
+      // user, on every device, including this one.
       await supabase.auth.signOut();
       window.location.href = "/";
     } catch (err) {
@@ -34,14 +52,16 @@ export default function MemberSettings() {
   };
 
   const handleDeleteAccount = async () => {
+    setDeleteError("");
+    setDeleting(true);
     try {
-      const userId = await getCurrentUserId();
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      if (error) throw error;
-      await supabase.from("users").delete().eq("id", userId);
+      await deleteMyAccount();
+      await supabase.auth.signOut();
       window.location.href = "/";
-    } catch (err) {
-      console.error("Failed to delete account:", err);
+    } catch (err: any) {
+      setDeleteError(err?.message || (fr ? "Erreur lors de la suppression du compte." : "Error deleting account."));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -52,7 +72,7 @@ export default function MemberSettings() {
       const [profiles, goals, txns, tontines, consultations] = await Promise.all([
         supabase.from("users").select("*").eq("id", userId).single(),
         supabase.from("savings_goals").select("*").eq("user_id", userId),
-        supabase.from("transactions").select("*").eq("user_id", userId),
+        fetchTransactions(userId),
         supabase.from("tontine_members").select("*, tontines(*)").eq("user_id", userId),
         supabase.from("consultation_requests").select("*").eq("user_id", userId),
       ]);
@@ -60,7 +80,7 @@ export default function MemberSettings() {
       const exportData = {
         profile: profiles.data,
         savings_goals: goals.data,
-        transactions: txns.data,
+        transactions: txns,
         tontines: tontines.data,
         consultations: consultations.data,
         exported_at: new Date().toISOString(),
@@ -227,31 +247,25 @@ export default function MemberSettings() {
         {/* Active sessions */}
         <div className="border-t border-border pt-4">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            {fr ? "Sessions actives" : "Active sessions"}
+            {fr ? "Session actuelle" : "Current session"}
           </p>
-          <div className="space-y-3">
-            {sessions.map((s, i) => (
-              <div key={i} className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  {s.device.includes("iPhone") || s.device.includes("Safari")
-                    ? <Smartphone size={16} className="text-muted-foreground shrink-0" />
-                    : <Monitor size={16} className="text-muted-foreground shrink-0" />
-                  }
-                  <div>
-                    <p className="text-sm">{s.device}</p>
-                    <p className="text-xs text-muted-foreground">{s.ip} · {s.time}</p>
-                  </div>
-                </div>
-                {s.current ? (
-                  <span className="text-xs text-[#4CAF68] font-medium">{fr ? "Actuelle" : "Current"}</span>
-                ) : (
-                  <button className="text-xs text-muted-foreground hover:text-destructive transition-colors">
-                    {fr ? "Déconnecter" : "Log out"}
-                  </button>
-                )}
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+              {isMobile ? <Smartphone size={16} className="text-muted-foreground shrink-0" /> : <Monitor size={16} className="text-muted-foreground shrink-0" />}
+              <div>
+                <p className="text-sm">{currentDevice}</p>
+                <p className="text-xs text-muted-foreground">
+                  {fr ? "Dernière connexion" : "Last sign-in"}: {lastSignIn ? new Date(lastSignIn).toLocaleString(fr ? "fr-FR" : "en-US") : "—"}
+                </p>
               </div>
-            ))}
+            </div>
+            <span className="text-xs text-[#4CAF68] font-medium">{fr ? "Actuelle" : "Current"}</span>
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {fr
+              ? "Le suivi détaillé par appareil n'est pas encore disponible. Utilisez le bouton ci-dessous pour déconnecter tous les appareils, y compris celui-ci."
+              : "Per-device session tracking isn't available yet. Use the button below to sign out everywhere, including this device."}
+          </p>
           <button onClick={handleLogoutAllDevices} className="mt-3 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <LogOut size={14} />
             {fr ? "Déconnecter tous les appareils" : "Log out all devices"}
@@ -295,12 +309,14 @@ export default function MemberSettings() {
                   ? "Êtes-vous sûr de vouloir supprimer votre compte ? Toutes vos données seront perdues."
                   : "Are you sure you want to delete your account? All your data will be lost."}
               </p>
+              {deleteError && <p className="text-xs text-red-600 dark:text-red-400">{deleteError}</p>}
               <div className="flex flex-col sm:flex-row gap-2">
-                <button onClick={handleDeleteAccount} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors min-h-[44px]">
-                  {fr ? "Oui, supprimer" : "Yes, delete"}
+                <button onClick={handleDeleteAccount} disabled={deleting} className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition-colors min-h-[44px]">
+                  {deleting ? (fr ? "Suppression..." : "Deleting...") : (fr ? "Oui, supprimer" : "Yes, delete")}
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
                   className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors min-h-[44px]"
                 >
                   {fr ? "Annuler" : "Cancel"}

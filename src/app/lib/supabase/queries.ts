@@ -403,6 +403,93 @@ export async function uploadFormationAsset(file: File, prefix: string): Promise<
   return supabase.storage.from("formation-assets").getPublicUrl(path).data.publicUrl;
 }
 
+// ---------------------------------------------------------------------
+// Formation enrollment & per-member progress
+// (formation_courses.progress / formation_content.completed are
+// course-level columns, not personal to a member — real per-user state
+// lives in formation_enrollments / formation_content_completions.)
+// ---------------------------------------------------------------------
+
+export async function fetchMyEnrollments(userId: string) {
+  const { data, error } = await supabase.from("formation_enrollments").select("*").eq("user_id", userId);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchMyCompletions(userId: string) {
+  const { data, error } = await supabase.from("formation_content_completions").select("content_id").eq("user_id", userId);
+  if (error) throw error;
+  return new Set((data ?? []).map((r: any) => r.content_id));
+}
+
+export async function ensureEnrolled(userId: string, courseId: string) {
+  const { data: existing } = await supabase
+    .from("formation_enrollments")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+  if (existing) return existing;
+  const { data, error } = await supabase
+    .from("formation_enrollments")
+    .insert({ user_id: userId, course_id: courseId, progress: 0 })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function recomputeEnrollmentProgress(userId: string, courseId: string) {
+  const [{ count: totalContent }, { data: courseContent }] = await Promise.all([
+    supabase.from("formation_content").select("id", { count: "exact", head: true }).eq("course_id", courseId),
+    supabase.from("formation_content").select("id").eq("course_id", courseId),
+  ]);
+  const contentIds = (courseContent ?? []).map((c: any) => c.id);
+  let completedCount = 0;
+  if (contentIds.length > 0) {
+    const { count } = await supabase
+      .from("formation_content_completions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .in("content_id", contentIds);
+    completedCount = count ?? 0;
+  }
+  const progress = totalContent && totalContent > 0 ? Math.round((completedCount / totalContent) * 100) : 0;
+  const { error } = await supabase
+    .from("formation_enrollments")
+    .update({ progress, completed_at: progress === 100 ? new Date().toISOString() : null })
+    .eq("user_id", userId)
+    .eq("course_id", courseId);
+  if (error) throw error;
+  return progress;
+}
+
+export async function deleteMyAccount() {
+  const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+  if (error) throw error;
+  if (!data?.success) throw new Error(data?.error || "Failed to delete account");
+  return data;
+}
+
+export async function markContentComplete(userId: string, contentId: string, courseId: string) {
+  const { error } = await supabase
+    .from("formation_content_completions")
+    .upsert({ user_id: userId, content_id: contentId }, { onConflict: "user_id,content_id" });
+  if (error) throw error;
+  await ensureEnrolled(userId, courseId);
+  return recomputeEnrollmentProgress(userId, courseId);
+}
+
+export async function unmarkContentComplete(userId: string, contentId: string, courseId: string) {
+  const { error } = await supabase
+    .from("formation_content_completions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("content_id", contentId);
+  if (error) throw error;
+  return recomputeEnrollmentProgress(userId, courseId);
+}
+
 export async function fetchSystemSettings(): Promise<Record<string, any>> {
   const { data, error } = await supabase.from("system_settings").select("key, value");
   if (error) throw error;

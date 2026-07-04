@@ -4,7 +4,10 @@ import { Award, BookOpen, CheckCircle, ChevronRight, Clock, FileText, Graduation
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
-import { getCurrentUserId, fetchFormationCategories, fetchFormationCourses, fetchFormationContent } from "../lib/supabase/queries";
+import {
+  getCurrentUserId, fetchFormationCategories, fetchFormationCourses, fetchFormationContent,
+  fetchMyEnrollments, fetchMyCompletions, ensureEnrolled, markContentComplete, unmarkContentComplete,
+} from "../lib/supabase/queries";
 
 interface FormationsProps { view?: "dashboard" | "course" | "learning" | "consultation"; }
 
@@ -21,21 +24,35 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
   const [courses, setCourses] = useState<any[]>([]);
   const [contents, setContents] = useState<any[]>([]);
   const [consultations, setConsultations] = useState<any[]>([]);
+  const [completions, setCompletions] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loadEnrollmentState = async (uid: string, baseCourses: any[]) => {
+    const [enrollments, myCompletions] = await Promise.all([
+      fetchMyEnrollments(uid),
+      fetchMyCompletions(uid),
+    ]);
+    const progressByCourse = new Map(enrollments.map((e: any) => [e.course_id, e.progress]));
+    setCompletions(myCompletions);
+    return baseCourses.map((c: any) => ({ ...c, progress: progressByCourse.get(c.id) ?? 0 }));
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const [cats, crs, conts, consults] = await Promise.all([
+        const [cats, crs, conts, consults, uid] = await Promise.all([
           fetchFormationCategories(),
           fetchFormationCourses({ publishedOnly: true }),
           fetchFormationContent(),
           supabase.from("consultation_requests").select("*"),
+          getCurrentUserId().catch(() => null),
         ]);
         setCategories(cats);
-        setCourses(crs);
         setContents(conts);
         setConsultations(consults.data ?? []);
+        setUserId(uid);
+        setCourses(uid ? await loadEnrollmentState(uid, crs) : crs);
       } catch (err) {
         console.error(err);
       } finally {
@@ -49,7 +66,25 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
     setConsultations(data ?? []);
   };
 
-  if (view === "course") return <CourseDetail courses={courses} contents={contents} />;
+  const handleToggleComplete = async (contentId: string, courseId: string, isComplete: boolean) => {
+    if (!userId) return;
+    const newProgress = isComplete
+      ? await unmarkContentComplete(userId, contentId, courseId)
+      : await markContentComplete(userId, contentId, courseId);
+    setCompletions((prev) => {
+      const next = new Set(prev);
+      if (isComplete) next.delete(contentId); else next.add(contentId);
+      return next;
+    });
+    setCourses((prev) => prev.map((c: any) => (c.id === courseId ? { ...c, progress: newProgress } : c)));
+  };
+
+  const handleEnroll = async (courseId: string) => {
+    if (!userId) return;
+    await ensureEnrolled(userId, courseId);
+  };
+
+  if (view === "course") return <CourseDetail courses={courses} contents={contents} completions={completions} onEnroll={handleEnroll} onToggleComplete={handleToggleComplete} />;
   if (view === "learning") return <MyLearning courses={courses} />;
   if (view === "consultation") return <ConsultationRequest consultations={consultations} onRefresh={refreshConsultations} />;
   return <FormationDashboard categories={categories} courses={courses} />;
@@ -130,20 +165,25 @@ function CourseRow({ course }: { course: any }) {
   return <div className="flex flex-col sm:flex-row gap-4 sm:items-center"><div className="h-24 sm:w-36 rounded-xl shrink-0" style={course.cover_image_path ? { backgroundImage: `url(${course.cover_image_path})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: course.image }} /><div className="flex-1"><p className="font-semibold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? course.title : course.title_en}</p><p className="text-xs text-muted-foreground mt-1">{course.lesson_count} {fr ? "leçons" : "lessons"} · {course.duration}</p><div className="w-full bg-muted rounded-full h-2 mt-3"><div className="h-2 rounded-full bg-[#4CAF68]" style={{ width: `${course.progress}%` }} /></div></div><button onClick={() => navigate(`/formations/courses/${course.id}`)} className="px-4 py-2 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>{fr ? "Reprendre" : "Resume"}</button></div>;
 }
 
-function CourseDetail({ courses, contents }: { courses: any[]; contents: any[] }) {
+function CourseDetail({ courses, contents, completions, onEnroll, onToggleComplete }: { courses: any[]; contents: any[]; completions: Set<string>; onEnroll: (courseId: string) => void; onToggleComplete: (contentId: string, courseId: string, isComplete: boolean) => void }) {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState("overview");
   const course = courses.find((c: any) => c.id === id) ?? courses[0];
+
+  useEffect(() => {
+    if (course) onEnroll(course.id);
+  }, [course?.id]);
+
   if (!course) return <div className="p-4 lg:p-8 max-w-5xl mx-auto text-center text-muted-foreground">{fr ? "Cours introuvable" : "Course not found"}</div>;
   const items = contents.filter((c: any) => c.course_id === course.id);
-  const tabs = [{ key: "overview", label: fr ? "Aperçu" : "Overview" }, { key: "video", label: fr ? "Vidéos" : "Videos" }, { key: "book", label: fr ? "Livres" : "Books" }, { key: "note", label: "Notes" }, { key: "assignment", label: fr ? "Devoirs" : "Assignments" }];
-  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate("/formations")} className="text-sm text-[#4CAF68] mb-4 hover:underline">← {fr ? "Retour aux formations" : "Back to formations"}</button><div className="bg-card rounded-2xl border border-border overflow-hidden mb-6"><div className="h-40 sm:h-48" style={course.cover_image_path ? { backgroundImage: `url(${course.cover_image_path})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: course.image }} /><div className="p-4 sm:p-6"><div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"><div><h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? course.title : course.title_en}</h1><p className="text-sm text-muted-foreground mt-2 max-w-2xl">{course.description}</p></div><button onClick={() => navigate("/formations/consultation")} className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted w-full sm:w-auto min-h-[44px]">{fr ? "Demander une consultation" : "Request consultation"}</button></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-5 text-sm"><Stat label={fr ? "Durée" : "Duration"} value={course.duration} /><Stat label={fr ? "Leçons" : "Lessons"} value={`${course.lesson_count}`} /><Stat label={fr ? "Niveau" : "Level"} value={course.level} /><Stat label={fr ? "Progression" : "Progress"} value={`${course.progress}%`} /></div></div></div><div className="flex gap-2 mb-5 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">{tabs.map((t: any) => <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium border whitespace-nowrap min-h-[44px] ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground"}`}>{t.label}</button>)}</div>{tab === "overview" ? <div className="bg-card rounded-2xl border border-border p-4 sm:p-6"><h3 className="text-sm sm:text-base" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Ce que vous allez apprendre" : "What you will learn"}</h3><p className="text-sm text-muted-foreground mt-2">{course.description}</p></div> : <ContentList items={items.filter((i: any) => tab === "overview" || i.type === tab)} fr={fr} />}</div>;
+  const tabs = [{ key: "overview", label: fr ? "Aperçu" : "Overview" }, { key: "video", label: fr ? "Vidéos" : "Videos" }, { key: "pdf", label: "PDF" }, { key: "external_link", label: fr ? "Liens" : "Links" }];
+  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate("/formations")} className="text-sm text-[#4CAF68] mb-4 hover:underline">← {fr ? "Retour aux formations" : "Back to formations"}</button><div className="bg-card rounded-2xl border border-border overflow-hidden mb-6"><div className="h-40 sm:h-48" style={course.cover_image_path ? { backgroundImage: `url(${course.cover_image_path})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: course.image }} /><div className="p-4 sm:p-6"><div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"><div><h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? course.title : course.title_en}</h1><p className="text-sm text-muted-foreground mt-2 max-w-2xl">{course.description}</p></div><button onClick={() => navigate("/formations/consultation")} className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted w-full sm:w-auto min-h-[44px]">{fr ? "Demander une consultation" : "Request consultation"}</button></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-5 text-sm"><Stat label={fr ? "Durée" : "Duration"} value={course.duration} /><Stat label={fr ? "Leçons" : "Lessons"} value={`${course.lesson_count}`} /><Stat label={fr ? "Niveau" : "Level"} value={course.level} /><Stat label={fr ? "Progression" : "Progress"} value={`${course.progress}%`} /></div></div></div><div className="flex gap-2 mb-5 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">{tabs.map((t: any) => <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium border whitespace-nowrap min-h-[44px] ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground"}`}>{t.label}</button>)}</div>{tab === "overview" ? <div className="bg-card rounded-2xl border border-border p-4 sm:p-6"><h3 className="text-sm sm:text-base" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Ce que vous allez apprendre" : "What you will learn"}</h3><p className="text-sm text-muted-foreground mt-2">{course.description}</p></div> : <ContentList items={items.filter((i: any) => i.type === tab)} fr={fr} courseId={course.id} completions={completions} onToggleComplete={onToggleComplete} />}</div>;
 }
 
-function ContentList({ items, fr }: { items: any[]; fr: boolean }) {
+function ContentList({ items, fr, courseId, completions, onToggleComplete }: { items: any[]; fr: boolean; courseId: string; completions: Set<string>; onToggleComplete: (contentId: string, courseId: string, isComplete: boolean) => void }) {
   const icon = (type: string) => (type === "video" ? Video : type === "external_link" ? LinkIcon : FileText);
   const href = (item: any) => item.external_url || item.storage_path || undefined;
   return (
@@ -151,23 +191,30 @@ function ContentList({ items, fr }: { items: any[]; fr: boolean }) {
       {items.length ? items.map((item: any) => {
         const Icon = icon(item.type);
         const url = href(item);
+        const isComplete = completions.has(item.id);
         return (
-          <a
-            key={item.id}
-            href={url}
-            target={url ? "_blank" : undefined}
-            rel="noreferrer"
-            className={`flex items-center gap-3 p-3 rounded-xl bg-muted/30 ${url ? "hover:bg-muted/60 cursor-pointer" : "cursor-default"}`}
-          >
-            <div className="w-9 h-9 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] flex items-center justify-center shrink-0">
-              <Icon size={16} color="#4CAF68" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{item.title}</p>
-              <p className="text-xs text-muted-foreground">{item.format} · {item.duration}</p>
-            </div>
-            {item.completed && <StatusBadge status="Completed" size="sm" />}
-          </a>
+          <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
+            <a
+              href={url}
+              target={url ? "_blank" : undefined}
+              rel="noreferrer"
+              className={`flex items-center gap-3 flex-1 min-w-0 ${url ? "hover:opacity-80 cursor-pointer" : "cursor-default"}`}
+            >
+              <div className="w-9 h-9 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] flex items-center justify-center shrink-0">
+                <Icon size={16} color="#4CAF68" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.format} · {item.duration}</p>
+              </div>
+            </a>
+            <button
+              onClick={() => onToggleComplete(item.id, courseId, isComplete)}
+              className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${isComplete ? "bg-[#E8F5EC] dark:bg-[#1A3326] text-[#1F9D55] dark:text-[#4CAF68]" : "border border-border text-muted-foreground hover:text-foreground"}`}
+            >
+              {isComplete ? (fr ? "✓ Terminé" : "✓ Done") : (fr ? "Marquer terminé" : "Mark done")}
+            </button>
+          </div>
         );
       }) : <p className="text-sm text-muted-foreground">{fr ? "Aucun contenu disponible pour cet onglet." : "No content available for this tab."}</p>}
     </div>
