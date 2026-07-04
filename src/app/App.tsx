@@ -39,6 +39,7 @@ import SystemMonitoring from "./components/SystemMonitoring";
 import ProfilePage from "./components/ProfilePage";
 import MemberSettings from "./components/MemberSettings";
 import AuditLogs from "./components/AuditLogs";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useAppContext } from "./context/AppContext";
 
 function AdminSettingsPlaceholder() {
@@ -82,6 +83,7 @@ function RoleDashboard() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AppProvider>
       <BrowserRouter>
         <Routes>
@@ -470,5 +472,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AppProvider>
+    </ErrorBoundary>
   );
 }

@@ -155,7 +155,7 @@ export default function TontineDetail() {
       {showJoinButton && (
         <>
           {joinError && (
-            <div className="mb-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{joinError}</div>
+            <div className="mb-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{joinError}</div>
           )}
           <button onClick={handleRequestJoin} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all mb-6" style={{ background: "#4CAF68" }}>
             <UserPlus size={18} /> {fr ? "Demander à rejoindre" : "Request To Join"}

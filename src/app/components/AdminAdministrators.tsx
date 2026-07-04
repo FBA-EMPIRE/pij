@@ -15,68 +15,109 @@ export default function AdminAdministrators() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", phone: "", role: "admin" as AdminRole });
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
+  const mapAdmin = (a: any) => ({
+    id: a.id,
+    initials: (a.first_name?.[0] ?? "") + (a.last_name?.[0] ?? ""),
+    initialsColor: "#6E3A9A",
+    name: [a.first_name, a.last_name].filter(Boolean).join(" "),
+    email: a.email,
+    phone: a.phone ?? "",
+    role: a.roles?.name === "super_admin" ? "super_admin" : "admin",
+    lastLogin: a.last_login_at ? new Date(a.last_login_at).toLocaleDateString() : "Never",
+    lastLoginFr: a.last_login_at ? new Date(a.last_login_at).toLocaleDateString("fr-FR") : "Jamais",
+    status: a.is_active ? "Active" as const : "Suspended" as const,
+    created: a.created_at?.slice(0, 10) ?? "",
+  });
+
+  const loadData = () => {
+    setLoading(true);
+    return Promise.all([
       fetchAdmins(),
       fetchAdminInvitations(),
     ]).then(([adminsData, invData]) => {
-      setAdmins((adminsData ?? []).map((a: any) => ({
-        id: a.id,
-        initials: (a.first_name?.[0] ?? "") + (a.last_name?.[0] ?? ""),
-        initialsColor: "#6E3A9A",
-        name: [a.first_name, a.last_name].filter(Boolean).join(" "),
-        email: a.email,
-        phone: a.phone ?? "",
-        role: a.roles?.name === "super_admin" ? "super_admin" : "admin",
-        lastLogin: a.last_login_at ? new Date(a.last_login_at).toLocaleDateString() : "Never",
-        lastLoginFr: a.last_login_at ? new Date(a.last_login_at).toLocaleDateString("fr-FR") : "Jamais",
-        status: a.is_active ? "Active" as const : "Suspended" as const,
-        created: a.created_at?.slice(0, 10) ?? "",
-      })));
+      setAdmins((adminsData ?? []).map(mapAdmin));
       setInvitations(invData ?? []);
     }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const activeAdmins = admins.filter((a) => a.status === "Active");
   const superAdminCount = admins.filter((a) => a.role === "super_admin" && a.status === "Active").length;
 
+  const runAdminAction = async (fnName: string, body: Record<string, unknown>) => {
+    setActionError("");
+    const { data, error } = await supabase.functions.invoke(fnName, { body });
+    if (error || !data?.success) {
+      setActionError(data?.error || error?.message || (fr ? "Une erreur est survenue." : "An error occurred."));
+      return false;
+    }
+    return true;
+  };
+
   const handlePromote = async (id: string) => {
-    await supabase.functions.invoke("admin-promote", { body: { admin_id: id } });
-    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, role: "super_admin" } : a));
+    if (await runAdminAction("admin-promote", { admin_id: id })) await loadData();
   };
 
   const handleDemote = async (id: string) => {
     if (superAdminCount <= 1) return;
-    await supabase.functions.invoke("admin-demote", { body: { admin_id: id } });
-    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, role: "admin" } : a));
+    if (await runAdminAction("admin-demote", { admin_id: id })) await loadData();
   };
 
   const handleSuspend = async (id: string) => {
-    await supabase.functions.invoke("admin-suspend", { body: { admin_id: id } });
-    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, status: "Suspended" } : a));
+    if (await runAdminAction("admin-suspend", { admin_id: id })) await loadData();
   };
 
   const handleReactivate = async (id: string) => {
-    await supabase.functions.invoke("admin-reactivate", { body: { admin_id: id } });
-    setAdmins((prev) => prev.map((a) => a.id === id ? { ...a, status: "Active" } : a));
+    if (await runAdminAction("admin-reactivate", { admin_id: id })) await loadData();
   };
 
   const handleSendInvitation = async () => {
     if (!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email) return;
-    await supabase.functions.invoke("admin-invite", {
+    setActionError("");
+    setInviteSubmitting(true);
+    const { data, error } = await supabase.functions.invoke("admin-invite", {
       body: { firstName: inviteForm.firstName, lastName: inviteForm.lastName, email: inviteForm.email, phone: inviteForm.phone, role: inviteForm.role },
     });
+    setInviteSubmitting(false);
+    if (error || !data?.success) {
+      setActionError(data?.error || error?.message || (fr ? "Erreur lors de l'envoi de l'invitation." : "Error sending invitation."));
+      return;
+    }
+    setCopyFeedback(
+      data.emailSent
+        ? (fr ? "Invitation envoyée par email !" : "Invitation sent by email!")
+        : (fr ? "Invitation créée — email non envoyé, copiez le lien." : "Invitation created — email not sent, copy the link instead.")
+    );
+    setTimeout(() => setCopyFeedback(""), 3500);
     setInviteForm({ firstName: "", lastName: "", email: "", phone: "", role: "admin" });
     setShowInvite(false);
+    await loadData();
   };
 
   const handleResend = async (id: string) => {
-    await supabase.functions.invoke("admin-invite-resend", { body: { invitation_id: id } });
+    setActionError("");
+    const { data, error } = await supabase.functions.invoke("admin-invite-resend", { body: { invitation_id: id } });
+    if (error || !data?.success) {
+      setActionError(data?.error || error?.message || (fr ? "Erreur lors du renvoi." : "Error resending invitation."));
+      return;
+    }
+    setCopyFeedback(
+      data.emailSent
+        ? (fr ? "Invitation renvoyée par email !" : "Invitation resent by email!")
+        : (fr ? "Invitation renvoyée — email non envoyé, copiez le lien." : "Invitation refreshed — email not sent, copy the link instead.")
+    );
+    setTimeout(() => setCopyFeedback(""), 3500);
+    await loadData();
   };
 
   const handleRevoke = async (id: string) => {
-    await supabase.functions.invoke("admin-invite-revoke", { body: { invitation_id: id } });
+    if (await runAdminAction("admin-invite-revoke", { invitation_id: id })) await loadData();
   };
 
   const copyLink = (token: string) => {
@@ -117,6 +158,10 @@ export default function AdminAdministrators() {
           <UserPlus size={16} /> {fr ? "Inviter" : "Invite"}
         </button>
       </div>
+
+      {actionError && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{actionError}</div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
@@ -316,9 +361,9 @@ export default function AdminAdministrators() {
               <button onClick={() => setShowInvite(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground">
                 {fr ? "Annuler" : "Cancel"}
               </button>
-              <button onClick={handleSendInvitation} disabled={!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email}
+              <button onClick={handleSendInvitation} disabled={!inviteForm.firstName || !inviteForm.lastName || !inviteForm.email || inviteSubmitting}
                 className="flex-1 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40 hover:opacity-90" style={{ background: "#4CAF68" }}>
-                {fr ? "Envoyer l'invitation" : "Send Invitation"}
+                {inviteSubmitting ? (fr ? "Envoi..." : "Sending...") : (fr ? "Envoyer l'invitation" : "Send Invitation")}
               </button>
             </div>
           </div>

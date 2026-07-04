@@ -1,6 +1,7 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateInvitationId } from "../_shared/validators.ts";
 import { getCallerAdmin, requireSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { sendEmail, adminInviteEmailHtml } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +35,7 @@ Deno.serve(async (req) => {
 
     const { data: existing, error: fetchErr } = await supabase
       .from("admin_invitations")
-      .select("id, status")
+      .select("id, status, email, roles(name)")
       .eq("id", invitation_id)
       .maybeSingle();
     if (fetchErr) throw fetchErr;
@@ -59,8 +60,16 @@ Deno.serve(async (req) => {
       entityId: invitation_id,
     });
 
+    const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
+    const activationUrl = `${appUrl}/admin/invite/${token}`;
+    const emailResult = await sendEmail({
+      to: (existing as any).email,
+      subject: "Your PIJ Administration invitation",
+      html: adminInviteEmailHtml({ activationUrl, role: (existing as any).roles?.name ?? "admin", expiresAt }),
+    });
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, emailSent: emailResult.sent, emailError: emailResult.error }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

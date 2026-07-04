@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Search, Filter, Plus, MoreHorizontal, Eye, Edit, UserX } from "lucide-react";
+import { Search, Eye, Edit, UserX, UserCheck, Loader2 } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import MemberDetailModal from "./MemberDetailModal";
 import MemberEditModal from "./MemberEditModal";
 import { useAppContext } from "../context/AppContext";
 import { fetchAccountsWithUsers } from "../lib/supabase/queries";
+import { supabase } from "../lib/supabase/client";
 import { formatXAF } from "../lib/format";
 
 export default function UserManagement() {
@@ -17,10 +18,37 @@ export default function UserManagement() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
   const [editMemberId, setEditMemberId] = useState<string | null>(null);
+  const [suspendingId, setSuspendingId] = useState<string | null>(null);
+
+  const loadMembers = () => {
+    setLoading(true);
+    return fetchAccountsWithUsers().then(setMembers).finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    fetchAccountsWithUsers().then(setMembers).finally(() => setLoading(false));
+    loadMembers();
   }, []);
+
+  const handleToggleSuspend = async (m: any) => {
+    const nextStatus = m.status === "suspended" ? "active" : "suspended";
+    setSuspendingId(m.id);
+    try {
+      const { error: updateErr } = await supabase.from("users").update({ status: nextStatus }).eq("id", m.id);
+      if (updateErr) throw updateErr;
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from("audit_logs").insert({
+        actor_id: currentUser?.id ?? null,
+        action: nextStatus === "suspended" ? "Member Suspended" : "Member Reactivated",
+        entity_type: "user",
+        entity_id: m.id,
+      });
+
+      await loadMembers();
+    } finally {
+      setSuspendingId(null);
+    }
+  };
 
   const filtered = members.filter((m) => {
     const matchSearch = m.name?.toLowerCase().includes(search.toLowerCase()) || m.uid?.includes(search) || m.phone?.includes(search);
@@ -35,9 +63,6 @@ export default function UserManagement() {
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des membres" : "User management"}</h2>
           <p className="text-sm text-muted-foreground mt-1">{filtered.length} {fr ? "membres trouvés" : "members found"}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90" style={{ background: "#4CAF68" }}>
-          <Plus size={16} /> {fr ? "Ajouter un membre" : "Add member"}
-        </button>
       </div>
 
       {/* Filters */}
@@ -81,6 +106,7 @@ export default function UserManagement() {
                 <th className="px-5 py-3 text-left">{fr ? "Membre" : "Member"}</th>
                 <th className="px-5 py-3 text-left">{fr ? "Téléphone" : "Phone"}</th>
                 <th className="px-5 py-3 text-left">KYC</th>
+                <th className="px-5 py-3 text-left">{fr ? "Statut" : "Status"}</th>
                 <th className="px-5 py-3 text-right">{fr ? "Épargne" : "Savings"}</th>
                 <th className="px-5 py-3 text-right">{fr ? "Actions" : "Actions"}</th>
               </tr>
@@ -102,6 +128,7 @@ export default function UserManagement() {
                   </td>
                   <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{m.phone}</td>
                   <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
+                  <td className="px-5 py-4"><StatusBadge status={(m.status ?? "active") as any} size="sm" /></td>
                   <td className="px-5 py-4 text-right text-sm font-medium whitespace-nowrap" style={{ fontFamily: "Geist Mono, monospace" }}>
                     {(m.savings ?? 0) > 0 ? formatXAF(m.savings) : <span className="text-muted-foreground">—</span>}
                   </td>
@@ -113,9 +140,25 @@ export default function UserManagement() {
                       <button onClick={() => setEditMemberId(m.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Modifier" : "Edit"}>
                         <Edit size={14} />
                       </button>
-                      <button className="p-1.5 rounded-lg text-muted-foreground hover:text-[#E5484D] hover:bg-red-50 transition-all" title={fr ? "Suspendre" : "Suspend"}>
-                        <UserX size={14} />
-                      </button>
+                      {m.status === "suspended" ? (
+                        <button
+                          onClick={() => handleToggleSuspend(m)}
+                          disabled={suspendingId === m.id}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-[#4CAF68] hover:bg-[#E8F5EC] transition-all disabled:opacity-50"
+                          title={fr ? "Réactiver" : "Reactivate"}
+                        >
+                          {suspendingId === m.id ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleToggleSuspend(m)}
+                          disabled={suspendingId === m.id}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-[#E5484D] hover:bg-red-50 transition-all disabled:opacity-50"
+                          title={fr ? "Suspendre" : "Suspend"}
+                        >
+                          {suspendingId === m.id ? <Loader2 size={14} className="animate-spin" /> : <UserX size={14} />}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -129,7 +172,7 @@ export default function UserManagement() {
         <MemberDetailModal memberId={detailMemberId} onClose={() => setDetailMemberId(null)} />
       )}
       {editMemberId && (
-        <MemberEditModal memberId={editMemberId} onClose={() => setEditMemberId(null)} onSave={() => setEditMemberId(null)} />
+        <MemberEditModal memberId={editMemberId} onClose={() => setEditMemberId(null)} onSave={() => { setEditMemberId(null); loadMembers(); }} />
       )}
     </div>
   );

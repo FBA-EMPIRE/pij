@@ -188,20 +188,17 @@ export default function AdminDashboard() {
           </div>
           <div className="space-y-2">
             {kycQueue.map((kyc: any) => {
-              const user = kyc.users || {};
-              const profile = user.profiles || {};
-              const name = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || user.email || "?";
-              const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2);
+              const initials = kyc.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2);
               return (
-              <div key={kyc.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/60 cursor-pointer transition-colors" onClick={() => navigate("/admin/kyc")}>
+              <div key={kyc.user_id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/60 cursor-pointer transition-colors" onClick={() => navigate("/admin/kyc")}>
                 <div className="w-9 h-9 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{name}</p>
-                  <p className="text-xs text-muted-foreground">{kyc.status || "—"} · {kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString("fr-FR") : "—"}</p>
+                  <p className="text-sm font-medium truncate">{kyc.name}</p>
+                  <p className="text-xs text-muted-foreground">{kyc.documents.length} {fr ? "document(s)" : "document(s)"} · {kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString("fr-FR") : "—"}</p>
                 </div>
-                <StatusBadge status={kyc.status || "pending"} size="sm" />
+                <StatusBadge status="Pending" size="sm" />
               </div>
               );
             })}

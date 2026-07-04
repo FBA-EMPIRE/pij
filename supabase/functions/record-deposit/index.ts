@@ -1,6 +1,7 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateDeposit } from "../_shared/validators.ts";
 import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { assertNotInMaintenance } from "../_shared/system-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,6 +26,7 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
 
     const caller = await getCallerAdmin(authHeader, supabase);
+    await assertNotInMaintenance(supabase);
 
     const body = await req.json();
     const validated = validateDeposit(body);

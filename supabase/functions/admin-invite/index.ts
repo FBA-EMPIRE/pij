@@ -1,6 +1,7 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateAdminInvite } from "../_shared/validators.ts";
 import { getCallerAdmin, requireSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { sendEmail, adminInviteEmailHtml } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,8 +68,16 @@ Deno.serve(async (req) => {
       metadata: { email: invite.email, role: invite.role },
     });
 
+    const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
+    const activationUrl = `${appUrl}/admin/invite/${token}`;
+    const emailResult = await sendEmail({
+      to: invite.email,
+      subject: "You've been invited to PIJ Administration",
+      html: adminInviteEmailHtml({ activationUrl, role: invite.role, expiresAt }),
+    });
+
     return new Response(
-      JSON.stringify({ success: true, invitation }),
+      JSON.stringify({ success: true, invitation, emailSent: emailResult.sent, emailError: emailResult.error }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

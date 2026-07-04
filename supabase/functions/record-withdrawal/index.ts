@@ -1,6 +1,7 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateWithdrawal } from "../_shared/validators.ts";
 import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { assertNotInMaintenance, getSystemSetting } from "../_shared/system-settings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,9 +26,15 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
 
     const caller = await getCallerAdmin(authHeader, supabase);
+    await assertNotInMaintenance(supabase);
 
     const body = await req.json();
     const validated = validateWithdrawal(body);
+
+    const withdrawalLimit = await getSystemSetting<number>(supabase, "withdrawal_limit", Infinity);
+    if (validated.amount > withdrawalLimit) {
+      throw new Error(`Amount exceeds the platform withdrawal limit of ${withdrawalLimit}`);
+    }
 
     const recordedBy = caller.id;
 

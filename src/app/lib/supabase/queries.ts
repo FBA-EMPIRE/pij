@@ -91,14 +91,82 @@ export async function fetchAdmins() {
   return data ?? [];
 }
 
-export async function fetchKycQueue() {
+export interface KycQueueDocument {
+  id: string;
+  document_type: string;
+  storage_path: string;
+  submitted_at: string;
+}
+
+export interface KycQueueEntry {
+  user_id: string;
+  uid: string;
+  email: string;
+  phone: string;
+  name: string;
+  submitted_at: string;
+  documents: KycQueueDocument[];
+}
+
+// One applicant can have multiple pending kyc_documents rows (ID front/back,
+// selfie); group them into a single queue entry per applicant instead of
+// showing duplicate rows for the same person.
+export async function fetchKycQueue(): Promise<KycQueueEntry[]> {
   const { data, error } = await supabase
     .from("kyc_documents")
     .select("*, users!inner(uid, email, phone, profiles(first_name, last_name))")
     .eq("status", "pending")
     .order("submitted_at", { ascending: false });
   if (error) throw error;
-  return data ?? [];
+
+  const byUser = new Map<string, KycQueueEntry>();
+  for (const doc of (data ?? []) as any[]) {
+    if (!byUser.has(doc.user_id)) {
+      const profile = doc.users?.profiles;
+      const name = profile ? `${profile.first_name} ${profile.last_name}`.trim() : (doc.users?.email ?? "Unknown");
+      byUser.set(doc.user_id, {
+        user_id: doc.user_id,
+        uid: doc.users?.uid ?? doc.user_id,
+        email: doc.users?.email ?? "",
+        phone: doc.users?.phone ?? "",
+        name: name || "Unknown",
+        submitted_at: doc.submitted_at,
+        documents: [],
+      });
+    }
+    byUser.get(doc.user_id)!.documents.push({
+      id: doc.id,
+      document_type: doc.document_type,
+      storage_path: doc.storage_path,
+      submitted_at: doc.submitted_at,
+    });
+  }
+  return Array.from(byUser.values());
+}
+
+export async function getKycDocumentUrl(storagePath: string): Promise<string> {
+  const { data, error } = await supabase.storage.from("kyc-documents").createSignedUrl(storagePath, 300);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function requestKycMoreInfo({ user_id, message }: { user_id: string; message: string }) {
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+  const { error: notifErr } = await supabase.from("notifications").insert({
+    user_id,
+    type: "kyc_status",
+    title: "Additional information required",
+    message,
+  });
+  if (notifErr) throw notifErr;
+
+  await supabase.from("audit_logs").insert({
+    actor_id: currentUser?.id ?? null,
+    action: "KYC More Info Requested",
+    entity_type: "user",
+    entity_id: user_id,
+    metadata: { message },
+  });
 }
 
 export async function kycApprove({ user_id, note }: { user_id: string; note?: string }) {
@@ -249,6 +317,105 @@ export async function fetchKycTrend() {
   });
 }
 
+// ---------------------------------------------------------------------
+// Formations
+// ---------------------------------------------------------------------
+
+export async function fetchFormationCategories() {
+  const { data, error } = await supabase.from("formation_categories").select("*").order("created_at");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function saveFormationCategory(category: Record<string, unknown>) {
+  const { id, ...fields } = category as { id?: string; [key: string]: unknown };
+  if (id) {
+    const { data, error } = await supabase.from("formation_categories").update(fields).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await supabase.from("formation_categories").insert(fields).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFormationCategory(id: string) {
+  const { error } = await supabase.from("formation_categories").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Admins see every course regardless of status; members only see Published ones.
+export async function fetchFormationCourses(opts: { publishedOnly?: boolean } = {}) {
+  let query = supabase.from("formation_courses").select("*, formation_categories(name, name_en, color)");
+  if (opts.publishedOnly) query = query.eq("status", "Published");
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function saveFormationCourse(course: Record<string, unknown>) {
+  const { id, ...fields } = course as { id?: string; [key: string]: unknown };
+  if (id) {
+    const { data, error } = await supabase.from("formation_courses").update(fields).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await supabase.from("formation_courses").insert(fields).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFormationCourse(id: string) {
+  const { error } = await supabase.from("formation_courses").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function fetchFormationContent(courseId?: string) {
+  let query = supabase.from("formation_content").select("*");
+  if (courseId) query = query.eq("course_id", courseId);
+  const { data, error } = await query.order("created_at");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function saveFormationContent(item: Record<string, unknown>) {
+  const { id, ...fields } = item as { id?: string; [key: string]: unknown };
+  if (id) {
+    const { data, error } = await supabase.from("formation_content").update(fields).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await supabase.from("formation_content").insert(fields).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFormationContent(id: string) {
+  const { error } = await supabase.from("formation_content").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function uploadFormationAsset(file: File, prefix: string): Promise<string> {
+  const ext = file.name.split(".").pop();
+  const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("formation-assets").upload(path, file);
+  if (error) throw error;
+  return supabase.storage.from("formation-assets").getPublicUrl(path).data.publicUrl;
+}
+
+export async function fetchSystemSettings(): Promise<Record<string, any>> {
+  const { data, error } = await supabase.from("system_settings").select("key, value");
+  if (error) throw error;
+  const settings: Record<string, any> = {};
+  for (const row of data ?? []) settings[row.key] = row.value;
+  return settings;
+}
+
+export async function saveSystemSetting(key: string, value: unknown) {
+  const { error } = await supabase.from("system_settings").upsert({ key, value });
+  if (error) throw error;
+}
+
 export async function fetchTontineStatusCounts() {
   const { data, error } = await supabase.from("tontines").select("status");
   if (error) throw error;
@@ -362,6 +529,15 @@ export async function fetchTontineContributionCounts(tontineId: string) {
     paidByMember.set(c.member_id, (paidByMember.get(c.member_id) ?? 0) + 1);
   }
   return { totalRounds, paidByMember };
+}
+
+export async function contributeToGoal({ goal_id, amount }: { goal_id: string; amount: number }) {
+  const { data, error } = await supabase.functions.invoke("goal-contribute", {
+    body: { goal_id, amount },
+  });
+  if (error) throw error;
+  if (!data?.success) throw new Error(data?.error || "Failed to record contribution");
+  return data;
 }
 
 export async function fetchMyTontines(userId: string) {

@@ -272,7 +272,7 @@ export default function AccountManagement() {
                     )}
                   </div>
                   {submitError && (
-                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{submitError}</div>
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{submitError}</div>
                   )}
                   <div className="flex gap-2">
                     <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl text-sm font-medium border border-border hover:bg-muted transition-all">

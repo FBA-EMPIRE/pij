@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Download, UserPlus, Activity, AlertTriangle, Shield,
-  Clock, Edit, XCircle, RefreshCw, Landmark, UserMinus,
+  RefreshCw, Landmark,
   ChevronRight
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
-import { fetchAdmins, fetchDashboardStats } from "../lib/supabase/queries";
+import { fetchAdmins, fetchDashboardStats, fetchSystemSettings, saveSystemSetting } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
-
-const roleDisplay = (role: string, fr: boolean) => {
-  if (role === "super_admin") return fr ? "Super Admin" : "Super Admin";
-  return fr ? "Administrateur" : "Admin";
-};
 
 interface AuditEntry {
   icon: React.ElementType;
@@ -29,16 +25,53 @@ interface AuditEntry {
 
 export default function SystemMonitoring() {
   const { lang } = useAppContext();
+  const navigate = useNavigate();
   const fr = lang === "fr";
   const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [autoKYC, setAutoKYC] = useState(true);
-  const [withdrawalLimit, setWithdrawalLimit] = useState("500,000");
+  const [withdrawalLimit, setWithdrawalLimit] = useState("500000");
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
+  const [rawAuditLogs, setRawAuditLogs] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
   const [platformLiquidity, setPlatformLiquidity] = useState(0);
   const [staleKycCount, setStaleKycCount] = useState(0);
 
+  const handleApplySettings = async () => {
+    setSavingSettings(true);
+    setSettingsSaved(false);
+    try {
+      await Promise.all([
+        saveSystemSetting("maintenance_mode", maintenanceMode),
+        saveSystemSetting("withdrawal_limit", Number(withdrawalLimit) || 0),
+      ]);
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 3000);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleExportAudit = () => {
+    const rows = [["Actor", "Action", "Entity Type", "Entity ID", "Timestamp"]];
+    rawAuditLogs.forEach((log) => rows.push([log.actor_id ?? "", log.action, log.entity_type ?? "", log.entity_id ?? "", log.created_at]));
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `system-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
+    fetchSystemSettings().then((settings) => {
+      if (typeof settings.maintenance_mode === "boolean") setMaintenanceMode(settings.maintenance_mode);
+      if (typeof settings.withdrawal_limit === "number") setWithdrawalLimit(String(settings.withdrawal_limit));
+    });
     supabase
       .from("audit_logs")
       .select("*")
@@ -46,6 +79,7 @@ export default function SystemMonitoring() {
       .limit(10)
       .then(({ data }) => {
         if (data) {
+          setRawAuditLogs(data);
           setAuditLogs(
             data.map((log: any) => ({
               icon: Shield,
@@ -86,11 +120,11 @@ export default function SystemMonitoring() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-all">
+          <button onClick={handleExportAudit} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-all">
             <Download size={16} />
             {fr ? "Exporter Audit" : "Export Audit"}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #4CAF68, #1F9D55)" }}>
+          <button onClick={() => navigate("/admin/admins")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #4CAF68, #1F9D55)" }}>
             <UserPlus size={16} />
             {fr ? "Nouvel Admin" : "New Admin"}
           </button>
@@ -152,87 +186,32 @@ export default function SystemMonitoring() {
         </div>
       </div>
 
-      {/* Admin Management Table */}
+      {/* Admin Management Summary */}
       <div className="bg-card rounded-2xl border border-border p-6 mb-8">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
-            {fr ? "Gestion des Administrateurs" : "Admin Management"}
-          </h2>
-          <span className="px-3 py-1 rounded-full border border-border text-xs font-medium text-muted-foreground">
-            {admins.length} {fr ? "Admins au total" : "Total Admins"}
-          </span>
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          <div>
+            <h2 className="text-lg font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
+              {fr ? "Gestion des Administrateurs" : "Admin Management"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {admins.filter((a: any) => a.is_active).length} {fr ? "actifs" : "active"} · {admins.length} {fr ? "au total" : "total"}
+            </p>
+          </div>
+          <button onClick={() => navigate("/admin/admins")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+            {fr ? "Gérer les administrateurs" : "Manage administrators"}
+            <ChevronRight size={14} />
+          </button>
         </div>
-
-        {/* Table Header */}
-        <div className="hidden md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
-          <span>{fr ? "ADMINISTRATEUR" : "ADMINISTRATOR"}</span>
-          <span>{fr ? "RÔLE" : "ROLE"}</span>
-          <span>{fr ? "DERNIÈRE ACTIVITÉ" : "LAST ACTIVITY"}</span>
-          <span>STATUS</span>
-          <span>ACTIONS</span>
-        </div>
-
-        {/* Table Rows */}
-        <div className="divide-y divide-border">
-          {admins.map((admin: any) => (
-            <div key={admin.email} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-4 items-center">
-              {/* Admin Info */}
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                  style={{ background: admin.initialsColor }}
-                >
-                  {admin.initials}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">{admin.name}</p>
-                  <p className="text-xs text-muted-foreground">{admin.email}</p>
-                </div>
+        <div className="flex flex-wrap gap-2">
+          {admins.slice(0, 8).map((admin: any) => (
+            <div key={admin.email} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: admin.initialsColor }}>
+                {admin.initials}
               </div>
-
-              {/* Role */}
-              <div>
-                <span
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium ${admin.role === "super_admin" ? "bg-[#F0E8FF] text-[#6E3A9A]" : "bg-[#E8F5EC] text-[#1F9D55]"}`}
-                >
-                  {roleDisplay(admin.role, fr)}
-                </span>
-              </div>
-
-              {/* Last Activity */}
-              <div className="text-sm text-muted-foreground">
-                {fr ? admin.lastLoginFr : admin.lastLogin}
-              </div>
-
-              {/* Status */}
-              <div>
-                <span className="flex items-center gap-1.5 text-sm">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: admin.status === "Active" ? "#4CAF68" : "#E8A317" }}
-                  />
-                  {admin.status === "Active" ? (fr ? "Actif" : "Active") : (fr ? "Suspendu" : "Suspended")}
-                </span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3 text-xs font-medium">
-                <button className="text-[#4CAF68] hover:underline">{fr ? "Modifier" : "Edit"}</button>
-                {admin.status === "Active" ? (
-                  <button className="text-[#E5484D] hover:underline">{fr ? "Révoquer" : "Revoke"}</button>
-                ) : (
-                  <button className="text-[#4CAF68] hover:underline">{fr ? "Restaurer" : "Restore"}</button>
-                )}
-              </div>
+              <span className="text-xs font-medium">{admin.name}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${admin.is_active ? "bg-[#4CAF68]" : "bg-[#E8A317]"}`} />
             </div>
           ))}
-        </div>
-
-        {/* View All */}
-        <div className="text-center pt-4">
-          <button className="text-sm text-[#4CAF68] font-medium hover:underline">
-            {fr ? `Voir tous les administrateurs (${admins.length})` : `View all administrators (${admins.length})`}
-          </button>
         </div>
       </div>
 
@@ -277,7 +256,7 @@ export default function SystemMonitoring() {
           </div>
 
           <div className="text-center pt-5">
-            <button className="text-sm text-muted-foreground font-medium hover:text-foreground transition-colors">
+            <button onClick={() => navigate("/admin/audit")} className="text-sm text-muted-foreground font-medium hover:text-foreground transition-colors">
               {fr ? "Voir l'historique immuable complet" : "View Full Immutable History"}
             </button>
           </div>
@@ -298,7 +277,7 @@ export default function SystemMonitoring() {
               <div>
                 <p className="text-sm font-medium">{fr ? "Mode Maintenance" : "Maintenance Mode"}</p>
                 <p className="text-xs text-muted-foreground">
-                  {fr ? "Désactiver toutes les transactions" : "Disable all user transactions"}
+                  {fr ? "Désactiver tous les dépôts et retraits" : "Disable all deposits and withdrawals"}
                 </p>
               </div>
               <button
@@ -306,22 +285,6 @@ export default function SystemMonitoring() {
                 className={`relative w-11 h-6 rounded-full transition-colors ${maintenanceMode ? "bg-[#4CAF68]" : "bg-muted"}`}
               >
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${maintenanceMode ? "left-6" : "left-1"}`} />
-              </button>
-            </div>
-
-            {/* Auto-KYC */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{fr ? "Vérification Auto-KYC" : "Auto-KYC Verification"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {fr ? "Approbation instantanée par IA" : "AI-powered instant approval"}
-                </p>
-              </div>
-              <button
-                onClick={() => setAutoKYC(!autoKYC)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${autoKYC ? "bg-[#4CAF68]" : "bg-muted"}`}
-              >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${autoKYC ? "left-6" : "left-1"}`} />
               </button>
             </div>
 
@@ -336,6 +299,7 @@ export default function SystemMonitoring() {
                 </div>
               </div>
               <input
+                type="number"
                 value={withdrawalLimit}
                 onChange={(e) => setWithdrawalLimit(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
@@ -343,9 +307,17 @@ export default function SystemMonitoring() {
             </div>
           </div>
 
-          <button className="w-full mt-6 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, #6E3A9A, #9B6FCA)" }}>
-            <RefreshCw size={16} />
-            {fr ? "Appliquer les changements" : "Apply Config Changes"}
+          {settingsSaved && (
+            <p className="text-xs text-[#4CAF68] mt-3 text-center">{fr ? "Paramètres enregistrés" : "Settings saved"}</p>
+          )}
+          <button
+            onClick={handleApplySettings}
+            disabled={savingSettings}
+            className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #6E3A9A, #9B6FCA)" }}
+          >
+            <RefreshCw size={16} className={savingSettings ? "animate-spin" : ""} />
+            {savingSettings ? (fr ? "Enregistrement..." : "Saving...") : (fr ? "Appliquer les changements" : "Apply Config Changes")}
           </button>
         </div>
       </div>

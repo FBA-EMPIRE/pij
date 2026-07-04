@@ -167,7 +167,7 @@ export default function AdminTontines() {
               <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Créer une tontine" : "Create tontine"}</h3>
 
               {createError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{createError}</div>
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{createError}</div>
               )}
 
               <div>

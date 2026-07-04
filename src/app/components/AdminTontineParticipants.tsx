@@ -160,7 +160,7 @@ export default function AdminTontineParticipants() {
           {fr ? "Enregistrer une cotisation" : "Record a contribution"}
         </h3>
         {contribError && (
-          <div className="mb-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{contribError}</div>
+          <div className="mb-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{contribError}</div>
         )}
         {contribSuccess && (
           <div className="mb-3 p-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/30 text-[#1F9D55] text-sm">{contribSuccess}</div>
