@@ -1,11 +1,10 @@
--- Create tontine_types independent of migration order (uses text instead of enum)
+-- Create tontine_types independent of migration order
 create table if not exists public.tontine_types (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
   contribution_amount numeric(14,2) not null check (contribution_amount > 0),
   frequency text not null check (frequency in ('weekly', 'monthly')),
-  created_by uuid references public.admins (id),
   created_at timestamptz not null default now()
 );
 
