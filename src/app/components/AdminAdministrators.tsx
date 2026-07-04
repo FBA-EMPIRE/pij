@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Shield, UserPlus, Copy, RefreshCw, XCircle, CheckCircle, X, ChevronDown, ArrowUpCircle, ArrowDownCircle, UserMinus, UserCheck, Link, Mail } from "lucide-react";
+import { Plus, Shield, UserPlus, Copy, RefreshCw, XCircle, CheckCircle, X, ChevronDown, ArrowUpCircle, ArrowDownCircle, UserMinus, UserCheck, Link, Mail, Loader2 } from "lucide-react";
 import type { AdminRole } from "../types";
 import { useAppContext } from "../context/AppContext";
 import { fetchAdmins, fetchAdminInvitations } from "../lib/supabase/queries";
@@ -93,6 +93,14 @@ export default function AdminAdministrators() {
   };
 
   const canDemoteLastSuperAdmin = () => superAdminCount <= 1;
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-8 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">

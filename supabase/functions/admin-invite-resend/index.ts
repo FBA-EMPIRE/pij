@@ -1,12 +1,14 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-import { validateKycAction } from "../_shared/validators.ts";
-import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { validateInvitationId } from "../_shared/validators.ts";
+import { getCallerAdmin, requireSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
+
+const INVITATION_TTL_DAYS = 7;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -25,43 +27,36 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
 
     const caller = await getCallerAdmin(authHeader, supabase);
+    requireSuperAdmin(caller);
 
     const body = await req.json();
-    const validated = validateKycAction(body);
+    const { invitation_id } = validateInvitationId(body);
 
-    const reviewedBy = caller.id;
+    const { data: existing, error: fetchErr } = await supabase
+      .from("admin_invitations")
+      .select("id, status")
+      .eq("id", invitation_id)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+    if (!existing) throw new Error("Invitation not found");
+    if ((existing as any).status === "Revoked" || (existing as any).status === "Accepted") {
+      throw new Error(`Cannot resend a ${(existing as any).status.toLowerCase()} invitation`);
+    }
 
-    const { error: userErr } = await supabase
-      .from("users")
-      .update({ kyc_status: "approved" })
-      .eq("id", validated.user_id);
+    const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+    const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-    if (userErr) throw userErr;
-
-    const { error: docErr } = await supabase
-      .from("kyc_documents")
-      .update({
-        status: "approved",
-        reviewed_by: reviewedBy,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("user_id", validated.user_id)
-      .eq("status", "pending");
-
-    if (docErr) throw docErr;
+    const { error: updateErr } = await supabase
+      .from("admin_invitations")
+      .update({ token, status: "Pending", sent_at: new Date().toISOString(), expires_at: expiresAt })
+      .eq("id", invitation_id);
+    if (updateErr) throw updateErr;
 
     await logAudit(supabase, {
       actorId: caller.id,
-      action: "KYC Approved",
-      entityType: "user",
-      entityId: validated.user_id,
-    });
-
-    await supabase.from("notifications").insert({
-      user_id: validated.user_id,
-      type: "kyc_status",
-      title: "KYC verification approved",
-      message: "Your identity verification has been approved. You now have full access to PIJ services.",
+      action: "Admin Invitation Resent",
+      entityType: "admin_invitation",
+      entityId: invitation_id,
     });
 
     return new Response(

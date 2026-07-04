@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Users, Calendar, Coins, ArrowRight, Inbox } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Coins, ArrowRight, Inbox, Loader2 } from "lucide-react";
 import { formatXAF } from "../lib/format";
 import { fetchTontines } from "../lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
@@ -20,6 +20,14 @@ export default function TontineMarketplace() {
   }, []);
 
   const openTontines = tontines.filter((t) => t.status === "open");
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-8 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8 max-w-5xl mx-auto">
@@ -44,7 +52,6 @@ export default function TontineMarketplace() {
         {openTontines.map((t) => {
           const contribution = t.tontine_types?.contribution_amount ?? 0;
           const poolAmount = contribution * t.capacity;
-          const fillPct = 0;
           const status = t.status as any;
           return (
             <div key={t.id} className="bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-[#4CAF68]/40 transition-all group">
@@ -80,7 +87,7 @@ export default function TontineMarketplace() {
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Users size={11} />
-                    ? / {t.capacity} {fr ? "membres" : "members"}
+                    {t.member_count} / {t.capacity} {fr ? "membres" : "members"}
                   </div>
                 </div>
               </div>

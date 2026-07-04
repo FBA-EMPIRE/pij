@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
-import { fetchAdmins } from "../lib/supabase/queries";
+import { fetchAdmins, fetchDashboardStats } from "../lib/supabase/queries";
+import { formatXAF } from "../lib/format";
 
 const roleDisplay = (role: string, fr: boolean) => {
   if (role === "super_admin") return fr ? "Super Admin" : "Super Admin";
@@ -34,12 +35,14 @@ export default function SystemMonitoring() {
   const [withdrawalLimit, setWithdrawalLimit] = useState("500,000");
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
+  const [platformLiquidity, setPlatformLiquidity] = useState(0);
+  const [staleKycCount, setStaleKycCount] = useState(0);
 
   useEffect(() => {
     supabase
       .from("audit_logs")
       .select("*")
-      .order("timestamp", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(10)
       .then(({ data }) => {
         if (data) {
@@ -50,15 +53,24 @@ export default function SystemMonitoring() {
               iconBg: "#F0E8FF",
               title: log.action,
               titleFr: log.action,
-              desc: `${log.actor} — ${log.entity}`,
-              descFr: `${log.actor} — ${log.entity}`,
+              desc: log.entity_id ? `${log.entity_type} / ${log.entity_id}` : log.entity_type,
+              descFr: log.entity_id ? `${log.entity_type} / ${log.entity_id}` : log.entity_type,
               id: log.id,
-              time: new Date(log.timestamp).toLocaleString("fr-FR"),
+              time: new Date(log.created_at).toLocaleString("fr-FR"),
             }))
           );
         }
       });
     fetchAdmins().then(setAdmins);
+    fetchDashboardStats().then((stats) => setPlatformLiquidity(stats.total_savings + stats.total_current));
+
+    const staleCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    supabase
+      .from("kyc_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .lt("submitted_at", staleCutoff)
+      .then(({ count }) => setStaleKycCount(count ?? 0));
   }, []);
 
   return (
@@ -96,10 +108,10 @@ export default function SystemMonitoring() {
             {fr ? "Liquidité Totale Plateforme" : "Total Platform Liquidity"}
           </p>
           <p className="text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
-            284.5M <span className="text-lg font-normal text-muted-foreground">XAF</span>
+            {formatXAF(platformLiquidity)}
           </p>
-          <p className="text-xs font-medium" style={{ color: "#4CAF68" }}>
-            📈 +12.4% {fr ? "depuis le mois dernier" : "from last month"}
+          <p className="text-xs text-muted-foreground">
+            {fr ? "Comptes épargne + courants" : "Savings + current accounts"}
           </p>
         </div>
 
@@ -109,27 +121,33 @@ export default function SystemMonitoring() {
             {fr ? "Santé du Système" : "System Health"}
           </p>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#E8F5EC" }}>
-              <Activity size={20} color="#4CAF68" />
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: staleKycCount === 0 ? "#E8F5EC" : "#FEF3C7" }}>
+              <Activity size={20} color={staleKycCount === 0 ? "#4CAF68" : "#E8A317"} />
             </div>
-            <span className="text-2xl font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>99.9%</span>
+            <span className="text-xl font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>
+              {staleKycCount === 0 ? (fr ? "Opérationnel" : "Operational") : (fr ? "Attention requise" : "Attention needed")}
+            </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            {fr ? "Tous les microservices opérationnels" : "All microservices operational"}
+            {staleKycCount === 0
+              ? (fr ? "Aucune révision KYC en retard" : "No overdue KYC reviews")
+              : (fr ? `${staleKycCount} révision(s) KYC en retard` : `${staleKycCount} KYC review(s) overdue`)}
           </p>
         </div>
 
         {/* Critical Alerts */}
-        <div className="rounded-2xl border p-6 relative overflow-hidden" style={{ background: "#FEE2E2", borderColor: "#FECACA" }}>
-          <p className="text-xs uppercase tracking-wider mb-2" style={{ color: "#991B1B" }}>
+        <div className="rounded-2xl border p-6 relative overflow-hidden" style={staleKycCount > 0 ? { background: "#FEE2E2", borderColor: "#FECACA" } : {}}>
+          <p className="text-xs uppercase tracking-wider mb-2" style={{ color: staleKycCount > 0 ? "#991B1B" : undefined }}>
             {fr ? "Alertes Critiques" : "Critical Alerts"}
           </p>
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={24} color="#E5484D" />
-            <span className="text-3xl font-bold" style={{ fontFamily: "Geist Mono, monospace", color: "#991B1B" }}>02</span>
+            <AlertTriangle size={24} color={staleKycCount > 0 ? "#E5484D" : "#9CA3AF"} />
+            <span className="text-3xl font-bold" style={{ fontFamily: "Geist Mono, monospace", color: staleKycCount > 0 ? "#991B1B" : undefined }}>
+              {String(staleKycCount).padStart(2, "0")}
+            </span>
           </div>
-          <p className="text-xs" style={{ color: "#991B1B" }}>
-            {fr ? "Nécessite une attention immédiate" : "Requires immediate attention"}
+          <p className="text-xs" style={{ color: staleKycCount > 0 ? "#991B1B" : undefined }}>
+            {fr ? "Dossiers KYC en attente depuis plus de 48h" : "KYC submissions pending over 48h"}
           </p>
         </div>
       </div>
@@ -141,7 +159,7 @@ export default function SystemMonitoring() {
             {fr ? "Gestion des Administrateurs" : "Admin Management"}
           </h2>
           <span className="px-3 py-1 rounded-full border border-border text-xs font-medium text-muted-foreground">
-            8 Total Admins
+            {admins.length} {fr ? "Admins au total" : "Total Admins"}
           </span>
         </div>
 
@@ -213,7 +231,7 @@ export default function SystemMonitoring() {
         {/* View All */}
         <div className="text-center pt-4">
           <button className="text-sm text-[#4CAF68] font-medium hover:underline">
-            {fr ? "Voir tous les administrateurs (8)" : "View all administrators (8)"}
+            {fr ? `Voir tous les administrateurs (${admins.length})` : `View all administrators (${admins.length})`}
           </button>
         </div>
       </div>

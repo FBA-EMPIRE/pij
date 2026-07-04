@@ -1,5 +1,6 @@
-import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
+import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateKycAction } from "../_shared/validators.ts";
+import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,10 +24,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
+    const caller = await getCallerAdmin(authHeader, supabase);
+
     const body = await req.json();
     const validated = validateKycAction(body);
 
-    const reviewedBy = authHeader ? extractUserId(authHeader) : null;
+    const reviewedBy = caller.id;
 
     const { error: userErr } = await supabase
       .from("users")
@@ -51,6 +54,23 @@ Deno.serve(async (req) => {
       .eq("status", "pending");
 
     if (docErr) throw docErr;
+
+    await logAudit(supabase, {
+      actorId: caller.id,
+      action: "KYC Rejected",
+      entityType: "user",
+      entityId: validated.user_id,
+      metadata: validated.reason ? { reason: validated.reason } : undefined,
+    });
+
+    await supabase.from("notifications").insert({
+      user_id: validated.user_id,
+      type: "kyc_status",
+      title: "KYC verification rejected",
+      message: validated.reason
+        ? `Your identity verification was rejected: ${validated.reason}`
+        : "Your identity verification was rejected. Please contact support for details.",
+    });
 
     return new Response(
       JSON.stringify({ success: true }),

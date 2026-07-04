@@ -5,7 +5,10 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
-import { fetchDashboardStats, fetchUsers, fetchKycQueue } from "../lib/supabase/queries";
+import {
+  fetchDashboardStats, fetchUsers, fetchKycQueue,
+  fetchMemberGrowthTrend, fetchContributionTrend, fetchTontineStatusCounts,
+} from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
@@ -20,18 +23,27 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [kycQueue, setKycQueue] = useState<any[]>([]);
   const [error, setError] = useState(false);
+  const [memberGrowth, setMemberGrowth] = useState<{ month: string; members: number }[]>([]);
+  const [contributionTrend, setContributionTrend] = useState<{ month: string; amount: number }[]>([]);
+  const [tontineStatus, setTontineStatus] = useState({ open: 0, active: 0, closed: 0 });
 
   useEffect(() => {
     (async () => {
       try {
-        const [s, u, k] = await Promise.all([
+        const [s, u, k, mg, ct, ts] = await Promise.all([
           fetchDashboardStats().catch(() => null),
           fetchUsers().catch(() => []),
           fetchKycQueue().catch(() => []),
+          fetchMemberGrowthTrend().catch(() => []),
+          fetchContributionTrend().catch(() => []),
+          fetchTontineStatusCounts().catch(() => ({ open: 0, active: 0, closed: 0 })),
         ]);
         setStats(s);
         setUsers(u ?? []);
         setKycQueue(k ?? []);
+        setMemberGrowth(mg);
+        setContributionTrend(ct);
+        setTontineStatus(ts);
       } catch {
         setError(true);
       } finally {
@@ -39,6 +51,12 @@ export default function AdminDashboard() {
       }
     })();
   }, []);
+
+  const tontineStatusData = [
+    { name: fr ? "Ouvertes" : "Open", value: tontineStatus.open, color: "#4CAF68" },
+    { name: fr ? "Actives" : "Active", value: tontineStatus.active, color: "#6E3A9A" },
+    { name: fr ? "Clôturées" : "Closed", value: tontineStatus.closed, color: "#9CA3AF" },
+  ].filter((d) => d.value > 0);
 
   const pendingKyc = kycQueue.length;
   const activeUsers = users.filter((u: any) => u.status === "active").length;
@@ -95,7 +113,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={[]}>
+            <AreaChart data={memberGrowth}>
               <defs>
                 <linearGradient id="greenGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#4CAF68" stopOpacity={0.2} />
@@ -120,7 +138,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={[]}>
+            <BarChart data={contributionTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} />
@@ -137,13 +155,23 @@ export default function AdminDashboard() {
           <h3 className="mb-5" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Statut des Tontines" : "Tontine Status"}</h3>
           <ResponsiveContainer width="100%" height={150}>
             <PieChart>
-              <Pie data={[]} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value">
+              <Pie data={tontineStatusData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value">
+                {tontineStatusData.map((d) => <Cell key={d.name} fill={d.color} />)}
               </Pie>
               <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
           <div className="space-y-2 mt-2">
-            <p className="text-xs text-muted-foreground">{fr ? "Aucune donnée" : "No data"}</p>
+            {tontineStatusData.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{fr ? "Aucune donnée" : "No data"}</p>
+            ) : (
+              tontineStatusData.map((d) => (
+                <div key={d.name} className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-muted-foreground"><span className="w-2 h-2 rounded-full" style={{ background: d.color }} />{d.name}</span>
+                  <span className="font-medium">{d.value}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

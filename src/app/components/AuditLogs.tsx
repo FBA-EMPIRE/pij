@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Filter, Shield, Download } from "lucide-react";
+import { Search, Filter, Shield, Download, Loader2 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 
@@ -17,16 +17,27 @@ export default function AuditLogs() {
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("audit_logs")
-      .select("*")
-      .order("timestamp", { ascending: false })
-      .then(({ data }) => {
-        if (data) setLogs(data as AuditLog[]);
-      });
-  }, []);
+    Promise.all([
+      supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("admins").select("id, first_name, last_name"),
+    ]).then(([{ data }, { data: admins }]) => {
+      if (!data) return;
+      const adminNames = new Map((admins ?? []).map((a: any) => [a.id, `${a.first_name} ${a.last_name}`.trim()]));
+      setLogs(
+        data.map((log: any) => ({
+          id: log.id,
+          actor: (log.actor_id && adminNames.get(log.actor_id)) || log.actor_id || (fr ? "Système" : "System"),
+          action: log.action,
+          entity: log.entity_id ? `${log.entity_type} / ${log.entity_id}` : log.entity_type,
+          timestamp: log.created_at,
+          ip: log.ip_address ?? "-",
+        }))
+      );
+    }).finally(() => setLoading(false));
+  }, [fr]);
 
   const filtered = logs.filter((log) =>
     log.actor.toLowerCase().includes(search.toLowerCase()) ||
@@ -40,6 +51,14 @@ export default function AuditLogs() {
     if (action.includes("Created") || action.includes("Assigned")) return "#6E3A9A";
     return "#6B7280";
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6">

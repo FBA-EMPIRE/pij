@@ -66,6 +66,18 @@ export default function KYCOnboarding() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          date_of_birth: dob,
+          city,
+          profession,
+        })
+        .eq("user_id", user.id);
+      if (profileErr) throw profileErr;
+
       const upload = async (file: File, prefix: string) => {
         const path = `${user.id}/${prefix}_${Date.now()}`;
         const { error: upErr } = await supabase.storage.from("kyc-documents").upload(path, file);

@@ -27,6 +27,8 @@ export default function AccountManagement() {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const reset = () => {
     setStep(1);
@@ -36,23 +38,41 @@ export default function AccountManagement() {
     setAmount("");
     setDesc("");
     setDone(false);
+    setSubmitError("");
   };
 
   const handleSubmit = async () => {
     if (!currentUserId) return;
+    setSubmitError("");
+    setSubmitting(true);
     const payload = {
       user_id: selectedMember,
       amount: Number(amount),
       account_type: accountType || undefined,
       description: desc || undefined,
     };
-    if (tab === "deposit") {
-      await recordDeposit(payload);
-    } else {
-      await recordWithdrawal(payload);
+    try {
+      if (tab === "deposit") {
+        await recordDeposit(payload);
+      } else {
+        await recordWithdrawal(payload);
+      }
+      setDone(true);
+      fetchAccountsWithUsers().then(setMembers).catch(() => {});
+    } catch (err: any) {
+      setSubmitError(err?.message || (fr ? "Erreur lors de l'enregistrement." : "Error recording transaction."));
+    } finally {
+      setSubmitting(false);
     }
-    setDone(true);
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6">
@@ -251,12 +271,15 @@ export default function AccountManagement() {
                       </div>
                     )}
                   </div>
+                  {submitError && (
+                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{submitError}</div>
+                  )}
                   <div className="flex gap-2">
                     <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl text-sm font-medium border border-border hover:bg-muted transition-all">
                       {fr ? "Retour" : "Back"}
                     </button>
-                    <button onClick={handleSubmit} className="flex-1 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all" style={{ background: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>
-                      {fr ? "Confirmer" : "Confirm"}
+                    <button onClick={handleSubmit} disabled={submitting} className="flex-1 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>
+                      {submitting ? (fr ? "Enregistrement..." : "Recording...") : (fr ? "Confirmer" : "Confirm")}
                     </button>
                   </div>
                 </>

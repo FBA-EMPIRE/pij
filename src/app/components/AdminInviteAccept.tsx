@@ -41,20 +41,13 @@ export default function AdminInviteAccept() {
   const [error, setError] = useState("");
   const [invitation, setInvitation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
-    supabase
-      .from("admin_invitations")
-      .select("*")
-      .eq("token", token)
-      .single()
-      .then(({ data, error: err }) => {
-        if (err || !data || data.status !== "Pending") {
-          setInvitation(null);
-        } else {
-          setInvitation(data);
-        }
+    if (!token) { setLoading(false); return; }
+    supabase.functions.invoke("admin-invite-validate", { body: { token } })
+      .then(({ data }) => {
+        setInvitation(data?.success ? data.invitation : null);
         setLoading(false);
       });
   }, [token]);
@@ -85,8 +78,8 @@ export default function AdminInviteAccept() {
   }
 
   const handleActivate = async () => {
-    if (password.length < 6) {
-      setError(fr ? "Le mot de passe doit contenir au moins 6 caractères." : "Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError(fr ? "Le mot de passe doit contenir au moins 8 caractères." : "Password must be at least 8 characters.");
       return;
     }
     if (password !== confirm) {
@@ -94,18 +87,16 @@ export default function AdminInviteAccept() {
       return;
     }
     setError("");
-
-    await supabase.from("admins").insert({
-      email: invitation.email,
-      role: invitation.role,
-      name: invitation.email.split("@")[0],
-      status: "Active",
+    setSubmitting(true);
+    const { data, error: err } = await supabase.functions.invoke("admin-invite-accept", {
+      body: { token, password },
     });
+    setSubmitting(false);
 
-    await supabase
-      .from("admin_invitations")
-      .update({ status: "Accepted" })
-      .eq("id", invitation.id);
+    if (err || !data?.success) {
+      setError(data?.error || err?.message || (fr ? "Erreur lors de l'activation." : "Error activating account."));
+      return;
+    }
 
     setAccepted(true);
     setTimeout(() => navigate("/login"), 2000);
@@ -171,10 +162,10 @@ export default function AdminInviteAccept() {
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <button onClick={handleActivate} disabled={!password || !confirm}
+          <button onClick={handleActivate} disabled={!password || !confirm || submitting}
             className="w-full py-3 rounded-xl text-white font-medium text-sm disabled:opacity-40 hover:opacity-90 transition-all"
             style={{ background: "#4CAF68" }}>
-            {fr ? "Activer le compte" : "Activate Account"}
+            {submitting ? (fr ? "Activation..." : "Activating...") : (fr ? "Activer le compte" : "Activate Account")}
           </button>
         </div>
       </div>

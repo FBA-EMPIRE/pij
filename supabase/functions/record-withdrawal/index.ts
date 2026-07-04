@@ -1,5 +1,6 @@
-import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
+import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateWithdrawal } from "../_shared/validators.ts";
+import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,10 +24,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
+    const caller = await getCallerAdmin(authHeader, supabase);
+
     const body = await req.json();
     const validated = validateWithdrawal(body);
 
-    const recordedBy = authHeader ? extractUserId(authHeader) : null;
+    const recordedBy = caller.id;
 
     const { data: account, error: acctErr } = await supabase
       .from("accounts")
@@ -68,6 +71,21 @@ Deno.serve(async (req) => {
       .single();
 
     if (txnErr) throw txnErr;
+
+    await logAudit(supabase, {
+      actorId: caller.id,
+      action: "Withdrawal Recorded",
+      entityType: "transaction",
+      entityId: txn.id,
+      metadata: { user_id: validated.user_id, account_type: validated.account_type, amount: validated.amount },
+    });
+
+    await supabase.from("notifications").insert({
+      user_id: validated.user_id,
+      type: "general",
+      title: "Withdrawal recorded",
+      message: `A withdrawal of ${validated.amount} XAF was recorded from your ${validated.account_type} account.`,
+    });
 
     return new Response(
       JSON.stringify({ success: true, transaction: txn }),

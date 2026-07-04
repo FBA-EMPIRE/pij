@@ -1,6 +1,6 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-import { validateKycAction } from "../_shared/validators.ts";
-import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { validateAdminId } from "../_shared/validators.ts";
+import { getCallerAdmin, requireSuperAdmin, countActiveSuperAdmins, logAudit } from "../_shared/admin-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,43 +25,46 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
 
     const caller = await getCallerAdmin(authHeader, supabase);
+    requireSuperAdmin(caller);
 
     const body = await req.json();
-    const validated = validateKycAction(body);
+    const { admin_id } = validateAdminId(body);
 
-    const reviewedBy = caller.id;
+    const { data: target, error: targetErr } = await supabase
+      .from("admins")
+      .select("id, is_active, roles(name)")
+      .eq("id", admin_id)
+      .maybeSingle();
+    if (targetErr) throw targetErr;
+    if (!target) throw new Error("Admin not found");
 
-    const { error: userErr } = await supabase
-      .from("users")
-      .update({ kyc_status: "approved" })
-      .eq("id", validated.user_id);
+    const targetRole = (target as any).roles?.name;
+    if (targetRole === "super_admin" && (target as any).is_active) {
+      const activeSuperAdmins = await countActiveSuperAdmins(supabase);
+      if (activeSuperAdmins <= 1) {
+        throw new Error("Cannot demote the last active super admin");
+      }
+    }
 
-    if (userErr) throw userErr;
+    const { data: adminRole, error: roleErr } = await supabase
+      .from("roles")
+      .select("id")
+      .eq("name", "admin")
+      .single();
+    if (roleErr) throw roleErr;
 
-    const { error: docErr } = await supabase
-      .from("kyc_documents")
-      .update({
-        status: "approved",
-        reviewed_by: reviewedBy,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("user_id", validated.user_id)
-      .eq("status", "pending");
-
-    if (docErr) throw docErr;
+    const { error: updateErr } = await supabase
+      .from("admins")
+      .update({ role_id: (adminRole as any).id })
+      .eq("id", admin_id);
+    if (updateErr) throw updateErr;
 
     await logAudit(supabase, {
       actorId: caller.id,
-      action: "KYC Approved",
-      entityType: "user",
-      entityId: validated.user_id,
-    });
-
-    await supabase.from("notifications").insert({
-      user_id: validated.user_id,
-      type: "kyc_status",
-      title: "KYC verification approved",
-      message: "Your identity verification has been approved. You now have full access to PIJ services.",
+      action: "Admin Demoted",
+      entityType: "admin",
+      entityId: admin_id,
+      metadata: { new_role: "admin" },
     });
 
     return new Response(

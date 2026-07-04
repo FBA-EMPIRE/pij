@@ -98,3 +98,42 @@ export function validateTontineContribution(body: Record<string, unknown>) {
   }
   return body as { round_id: string; member_id: string; amount: number };
 }
+
+export function validateAdminId(body: Record<string, unknown>) {
+  if (!body.admin_id || typeof body.admin_id !== "string") {
+    throw new Error("admin_id is required and must be a string");
+  }
+  return body as { admin_id: string };
+}
+
+export function validateInvitationId(body: Record<string, unknown>) {
+  if (!body.invitation_id || typeof body.invitation_id !== "string") {
+    throw new Error("invitation_id is required and must be a string");
+  }
+  return body as { invitation_id: string };
+}
+
+export function validateAdminInvite(body: Record<string, unknown>) {
+  if (!body.firstName || typeof body.firstName !== "string") {
+    throw new Error("firstName is required and must be a string");
+  }
+  if (!body.lastName || typeof body.lastName !== "string") {
+    throw new Error("lastName is required and must be a string");
+  }
+  if (!body.email || typeof body.email !== "string") {
+    throw new Error("email is required and must be a string");
+  }
+  if (body.role !== "admin" && body.role !== "super_admin") {
+    throw new Error("role must be 'admin' or 'super_admin'");
+  }
+  if (body.phone !== undefined && typeof body.phone !== "string") {
+    throw new Error("phone must be a string if provided");
+  }
+  return body as {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    role: "admin" | "super_admin";
+  };
+}

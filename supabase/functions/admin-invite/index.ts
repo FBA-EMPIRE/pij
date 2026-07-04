@@ -1,12 +1,14 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-import { validateTontineGroup } from "../_shared/validators.ts";
-import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { validateAdminInvite } from "../_shared/validators.ts";
+import { getCallerAdmin, requireSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
+
+const INVITATION_TTL_DAYS = 7;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -25,43 +27,48 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
 
     const caller = await getCallerAdmin(authHeader, supabase);
+    requireSuperAdmin(caller);
 
     const body = await req.json();
-    const validated = validateTontineGroup(body);
+    const invite = validateAdminInvite(body);
 
-    const { data, error } = await supabase
-      .from("tontines")
+    const { data: role, error: roleErr } = await supabase
+      .from("roles")
+      .select("id")
+      .eq("name", invite.role)
+      .single();
+    if (roleErr) throw roleErr;
+
+    const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+    const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: invitation, error: insertErr } = await supabase
+      .from("admin_invitations")
       .insert({
-        type_id: validated.type_id,
-        name: validated.name,
-        capacity: validated.capacity,
-        frequency: validated.frequency,
-        entry_fee: validated.entry_fee,
-        start_date: validated.start_date,
-        status: "open",
+        email: invite.email,
+        role_id: (role as any).id,
+        token,
+        status: "Pending",
         created_by: caller.id,
-        created_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        first_name: invite.firstName,
+        last_name: invite.lastName,
+        phone: invite.phone ?? null,
       })
       .select()
       .single();
-
-    if (error) {
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (insertErr) throw insertErr;
 
     await logAudit(supabase, {
       actorId: caller.id,
-      action: "Tontine Created",
-      entityType: "tontine",
-      entityId: data.id,
-      metadata: { name: validated.name, capacity: validated.capacity },
+      action: "Admin Invitation Sent",
+      entityType: "admin_invitation",
+      entityId: (invitation as any).id,
+      metadata: { email: invite.email, role: invite.role },
     });
 
     return new Response(
-      JSON.stringify({ success: true, group: data }),
+      JSON.stringify({ success: true, invitation }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

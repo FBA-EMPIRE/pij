@@ -27,21 +27,23 @@ export default function AdminTontines() {
   const [created, setCreated] = useState(false);
   const [createError, setCreateError] = useState("");
 
+  const loadTontines = async () => {
+    try {
+      const [data, types] = await Promise.all([
+        fetchTontines(),
+        fetchTontineTypes(),
+      ]);
+      setTontines(data);
+      setTontineTypes(types);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const [data, types] = await Promise.all([
-          fetchTontines(),
-          fetchTontineTypes(),
-        ]);
-        setTontines(data);
-        setTontineTypes(types);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadTontines();
   }, []);
 
   if (loading) {
@@ -121,7 +123,7 @@ export default function AdminTontines() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Membres" : "Members"}</p>
-                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>?/{t.capacity}</p>
+                    <p className="text-sm font-bold mt-0.5" style={{ fontFamily: "Geist Mono, monospace" }}>{t.member_count}/{t.capacity}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{fr ? "Frais d'entrée" : "Entry fee"}</p>
@@ -147,7 +149,16 @@ export default function AdminTontines() {
               </div>
               <h3 className="mb-2" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Tontine créée" : "Tontine created"}</h3>
               <p className="text-sm text-muted-foreground mb-5">{fr ? "La tontine a été créée avec succès." : "The tontine has been created successfully."}</p>
-              <button onClick={() => { setTab("list"); setCreated(false); }} className="px-5 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>
+              <button
+                onClick={() => {
+                  setTab("list");
+                  setCreated(false);
+                  setLoading(true);
+                  loadTontines();
+                }}
+                className="px-5 py-2.5 rounded-xl text-white text-sm font-medium"
+                style={{ background: "#4CAF68" }}
+              >
                 {fr ? "Voir la liste" : "View list"}
               </button>
             </div>
@@ -207,17 +218,19 @@ export default function AdminTontines() {
                     return;
                   }
                   setCreating(true);
-                  const { error: err } = await supabase.from("tontines").insert({
-                    type_id: typeId,
-                    name,
-                    capacity: Number(capacity),
-                    frequency,
-                    entry_fee: Number(entryFee || 0),
-                    start_date: startDate,
+                  const { data: result, error: err } = await supabase.functions.invoke("tontine-create-group", {
+                    body: {
+                      type_id: typeId,
+                      name,
+                      capacity: Number(capacity),
+                      frequency,
+                      entry_fee: Number(entryFee || 0),
+                      start_date: startDate,
+                    },
                   });
                   setCreating(false);
-                  if (err) {
-                    setCreateError(err.message);
+                  if (err || !result?.success) {
+                    setCreateError(result?.error || err?.message || (fr ? "Erreur lors de la création." : "Error creating tontine."));
                   } else {
                     setCreated(true);
                   }

@@ -69,24 +69,6 @@ function AdminSettingsPlaceholder() {
             </button>
           </div>
         </div>
-        <div className="bg-card rounded-2xl border border-border p-5">
-          <h3 className="mb-4" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Plateforme" : "Platform"}</h3>
-          <div className="space-y-3">
-            {[
-              { label: fr ? "Nom de la plateforme" : "Platform name", value: "PIJ Digital" },
-              { label: fr ? "Email de contact" : "Contact email", value: "contact@pij.cm" },
-              { label: fr ? "Devise par défaut" : "Default currency", value: "XAF (Franc CFA)" },
-            ].map((f) => (
-              <div key={f.label}>
-                <label className="text-xs text-muted-foreground">{f.label}</label>
-                <input defaultValue={f.value} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
-              </div>
-            ))}
-          </div>
-          <button className="mt-4 px-5 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90" style={{ background: "#4CAF68" }}>
-            {fr ? "Sauvegarder" : "Save settings"}
-          </button>
-        </div>
       </div>
     </div>
   );

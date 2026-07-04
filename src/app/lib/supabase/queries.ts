@@ -103,7 +103,7 @@ export async function fetchKycQueue() {
 
 export async function kycApprove({ user_id, note }: { user_id: string; note?: string }) {
   const { data, error } = await supabase.functions.invoke("kyc-approve", {
-    body: { user_id, note },
+    body: { user_id, reason: note },
   });
   if (error) throw error;
   return data;
@@ -111,26 +111,184 @@ export async function kycApprove({ user_id, note }: { user_id: string; note?: st
 
 export async function kycReject({ user_id, note }: { user_id: string; note?: string }) {
   const { data, error } = await supabase.functions.invoke("kyc-reject", {
-    body: { user_id, note },
+    body: { user_id, reason: note },
   });
   if (error) throw error;
   return data;
 }
 
 export async function fetchDashboardStats() {
-  const { data: memberCount, error: mErr } = await supabase
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+
+  const [
+    { count: totalMembers, error: mErr },
+    { count: activeMembers },
+    { count: tontineCount, error: tErr },
+    { count: activeTontines },
+    { count: totalParticipants },
+    { data: kycRows },
+    { data: savingsAccounts, error: sErr },
+    { data: currentAccounts },
+    { data: contributionsThisMonth },
+    { count: thisMonthMembers },
+    { count: lastMonthMembers },
+    { data: activeTontinePools },
+  ] = await Promise.all([
+    supabase.from("users").select("id", { count: "exact", head: true }),
+    supabase.from("users").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("tontines").select("id", { count: "exact", head: true }),
+    supabase.from("tontines").select("id", { count: "exact", head: true }).in("status", ["open", "active"]),
+    supabase.from("tontine_members").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("users").select("kyc_status"),
+    supabase.from("accounts").select("balance").eq("account_type", "savings"),
+    supabase.from("accounts").select("balance").eq("account_type", "current"),
+    supabase.from("tontine_contributions").select("amount").eq("status", "paid").gte("paid_at", startOfThisMonth),
+    supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", startOfThisMonth),
+    supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", startOfLastMonth).lt("created_at", startOfThisMonth),
+    supabase.from("tontines").select("capacity, tontine_types(contribution_amount)").in("status", ["open", "active"]),
+  ]);
+  if (mErr || tErr || sErr) throw mErr || tErr || sErr;
+
+  const tontinePoolTotal = (activeTontinePools ?? []).reduce(
+    (sum: number, t: any) => sum + Number(t.capacity ?? 0) * Number(t.tontine_types?.contribution_amount ?? 0),
+    0,
+  );
+
+  const totalSavings = (savingsAccounts ?? []).reduce((sum: number, a: any) => sum + Number(a.balance ?? 0), 0);
+  const totalCurrent = (currentAccounts ?? []).reduce((sum: number, a: any) => sum + Number(a.balance ?? 0), 0);
+  const tontineContributions = (contributionsThisMonth ?? []).reduce((sum: number, c: any) => sum + Number(c.amount ?? 0), 0);
+
+  const submittedKyc = (kycRows ?? []).filter((u: any) => u.kyc_status !== "not_submitted");
+  const approvedKyc = submittedKyc.filter((u: any) => u.kyc_status === "approved");
+  const kycApprovalRate = submittedKyc.length ? Math.round((approvedKyc.length / submittedKyc.length) * 100) : 0;
+
+  const monthlyGrowth = (lastMonthMembers ?? 0) > 0
+    ? Math.round((((thisMonthMembers ?? 0) - (lastMonthMembers ?? 0)) / (lastMonthMembers as number)) * 1000) / 10
+    : (thisMonthMembers ?? 0) > 0 ? 100 : 0;
+
+  return {
+    // legacy camelCase fields (LandingPage, AdminDashboard, SuperAdminDashboard)
+    memberCount: totalMembers ?? 0,
+    tontineCount: tontineCount ?? 0,
+    totalSavings,
+    // snake_case fields (AdminReports)
+    total_members: totalMembers ?? 0,
+    active_members: activeMembers ?? 0,
+    kyc_approval_rate: kycApprovalRate,
+    total_savings: totalSavings,
+    total_current: totalCurrent,
+    tontine_contributions: tontineContributions,
+    monthly_growth: monthlyGrowth,
+    active_tontines: activeTontines ?? 0,
+    total_participants: totalParticipants ?? 0,
+    tontine_pool_total: tontinePoolTotal,
+  };
+}
+
+function lastNMonths(n: number) {
+  const now = new Date();
+  const months: { start: Date; end: Date; label: string }[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+    months.push({ start, end, label: start.toLocaleString("en", { month: "short" }) });
+  }
+  return months;
+}
+
+export async function fetchMemberGrowthTrend() {
+  const months = lastNMonths(6);
+  const { data, error } = await supabase
     .from("users")
-    .select("id", { count: "exact", head: true });
-  const { data: tontineCount, error: tErr } = await supabase
+    .select("created_at")
+    .gte("created_at", months[0].start.toISOString());
+  if (error) throw error;
+  const rows = data ?? [];
+  return months.map((m) => ({
+    month: m.label,
+    members: rows.filter((r: any) => {
+      const d = new Date(r.created_at);
+      return d >= m.start && d < m.end;
+    }).length,
+  }));
+}
+
+export async function fetchContributionTrend() {
+  const months = lastNMonths(6);
+  const { data, error } = await supabase
+    .from("tontine_contributions")
+    .select("amount, paid_at")
+    .eq("status", "paid")
+    .gte("paid_at", months[0].start.toISOString());
+  if (error) throw error;
+  const rows = data ?? [];
+  return months.map((m) => ({
+    month: m.label,
+    amount: rows
+      .filter((r: any) => r.paid_at && new Date(r.paid_at) >= m.start && new Date(r.paid_at) < m.end)
+      .reduce((sum: number, r: any) => sum + Number(r.amount ?? 0), 0),
+  }));
+}
+
+export async function fetchKycTrend() {
+  const months = lastNMonths(6);
+  const { data, error } = await supabase
+    .from("kyc_documents")
+    .select("user_id, status, reviewed_at")
+    .in("status", ["approved", "rejected"])
+    .gte("reviewed_at", months[0].start.toISOString());
+  if (error) throw error;
+  const rows = data ?? [];
+  return months.map((m) => {
+    const inMonth = rows.filter((r: any) => r.reviewed_at && new Date(r.reviewed_at) >= m.start && new Date(r.reviewed_at) < m.end);
+    const approvedUsers = new Set(inMonth.filter((r: any) => r.status === "approved").map((r: any) => r.user_id));
+    const rejectedUsers = new Set(inMonth.filter((r: any) => r.status === "rejected").map((r: any) => r.user_id));
+    return { month: m.label, approved: approvedUsers.size, rejected: rejectedUsers.size };
+  });
+}
+
+export async function fetchTontineStatusCounts() {
+  const { data, error } = await supabase.from("tontines").select("status");
+  if (error) throw error;
+  const counts: Record<string, number> = { open: 0, active: 0, closed: 0 };
+  for (const t of (data ?? []) as any[]) {
+    if (t.status in counts) counts[t.status]++;
+  }
+  return counts;
+}
+
+export async function fetchTontineContributionRates() {
+  const { data: tontines, error } = await supabase
     .from("tontines")
-    .select("id", { count: "exact", head: true });
-  const { data: savingsData, error: sErr } = await supabase
-    .from("accounts")
-    .select("balance")
-    .eq("account_type", "savings");
-  if (mErr || tErr) throw mErr || tErr;
-  const totalSavings = (savingsData as any[] ?? []).reduce((sum: number, a: any) => sum + Number(a.balance ?? 0), 0);
-  return { memberCount: memberCount?.length ?? 0, tontineCount: tontineCount?.length ?? 0, totalSavings };
+    .select("id, name, capacity")
+    .in("status", ["open", "active"]);
+  if (error) throw error;
+
+  const results = [];
+  for (const t of (tontines ?? []) as any[]) {
+    const { data: latestRound } = await supabase
+      .from("tontine_rounds")
+      .select("id")
+      .eq("tontine_id", t.id)
+      .order("round_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let paid = 0;
+    if (latestRound) {
+      const { count } = await supabase
+        .from("tontine_contributions")
+        .select("id", { count: "exact", head: true })
+        .eq("round_id", (latestRound as any).id)
+        .eq("status", "paid");
+      paid = count ?? 0;
+    }
+    const rate = t.capacity ? Math.round((paid / t.capacity) * 100) : 0;
+    results.push({ id: t.id, name: t.name, rate, paid, total: t.capacity });
+  }
+  return results;
 }
 
 export async function fetchAdminInvitations() {
@@ -140,12 +298,16 @@ export async function fetchAdminInvitations() {
 }
 
 export async function fetchTontines() {
-  const { data, error } = await supabase
-    .from("tontines")
-    .select("*, tontine_types(name, contribution_amount)")
-    .order("created_at", { ascending: false });
+  const [{ data, error }, { data: counts }] = await Promise.all([
+    supabase
+      .from("tontines")
+      .select("*, tontine_types(name, contribution_amount)")
+      .order("created_at", { ascending: false }),
+    supabase.rpc("get_tontine_member_counts"),
+  ]);
   if (error) throw error;
-  return data ?? [];
+  const countByTontine = new Map((counts ?? []).map((c: any) => [c.tontine_id, c.member_count]));
+  return (data ?? []).map((t: any) => ({ ...t, member_count: countByTontine.get(t.id) ?? 0 }));
 }
 
 export async function fetchTontineById(id: string) {
@@ -175,6 +337,31 @@ export async function fetchTontineMembers(tontineId: string) {
       users: { id: m.users?.id, email: m.users?.email, name, full_name: name },
     };
   });
+}
+
+export async function fetchTontineContributionCounts(tontineId: string) {
+  const { data: rounds, error: roundsErr } = await supabase
+    .from("tontine_rounds")
+    .select("id")
+    .eq("tontine_id", tontineId);
+  if (roundsErr) throw roundsErr;
+  const roundIds = (rounds ?? []).map((r: any) => r.id);
+  const totalRounds = roundIds.length;
+
+  if (roundIds.length === 0) return { totalRounds: 0, paidByMember: new Map<string, number>() };
+
+  const { data: contributions, error: contribErr } = await supabase
+    .from("tontine_contributions")
+    .select("member_id, round_id")
+    .in("round_id", roundIds)
+    .eq("status", "paid");
+  if (contribErr) throw contribErr;
+
+  const paidByMember = new Map<string, number>();
+  for (const c of (contributions ?? []) as any[]) {
+    paidByMember.set(c.member_id, (paidByMember.get(c.member_id) ?? 0) + 1);
+  }
+  return { totalRounds, paidByMember };
 }
 
 export async function fetchMyTontines(userId: string) {

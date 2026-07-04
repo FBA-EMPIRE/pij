@@ -17,6 +17,7 @@ export default function TontineDetail() {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState("");
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -48,11 +49,12 @@ export default function TontineDetail() {
 
   const handleRequestJoin = async () => {
     if (!currentUserId || !id) return;
+    setJoinError("");
     try {
       await applyToTontine({ user_id: currentUserId, tontine_id: id });
       setRequestSent(true);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setJoinError(err?.message || (fr ? "Erreur lors de la demande." : "Error sending request."));
     }
   };
 
@@ -151,9 +153,14 @@ export default function TontineDetail() {
 
       {/* Join Button */}
       {showJoinButton && (
-        <button onClick={handleRequestJoin} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all mb-6" style={{ background: "#4CAF68" }}>
-          <UserPlus size={18} /> {fr ? "Demander à rejoindre" : "Request To Join"}
-        </button>
+        <>
+          {joinError && (
+            <div className="mb-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{joinError}</div>
+          )}
+          <button onClick={handleRequestJoin} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all mb-6" style={{ background: "#4CAF68" }}>
+            <UserPlus size={18} /> {fr ? "Demander à rejoindre" : "Request To Join"}
+          </button>
+        </>
       )}
 
       {/* Participant Preview (for non-members viewing an Open tontine) */}

@@ -1,6 +1,4 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-import { validateTontineGroup } from "../_shared/validators.ts";
-import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,47 +19,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
-
-    const caller = await getCallerAdmin(authHeader, supabase);
-
     const body = await req.json();
-    const validated = validateTontineGroup(body);
 
-    const { data, error } = await supabase
-      .from("tontines")
-      .insert({
-        type_id: validated.type_id,
-        name: validated.name,
-        capacity: validated.capacity,
-        frequency: validated.frequency,
-        entry_fee: validated.entry_fee,
-        start_date: validated.start_date,
-        status: "open",
-        created_by: caller.id,
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    if (!body.token || typeof body.token !== "string") {
+      throw new Error("token is required and must be a string");
+    }
 
-    if (error) {
+    const { data: invitation, error } = await supabase
+      .from("admin_invitations")
+      .select("email, status, expires_at, first_name, last_name, roles(name)")
+      .eq("token", body.token)
+      .maybeSingle();
+    if (error) throw error;
+
+    if (!invitation || invitation.status !== "Pending" || new Date(invitation.expires_at) < new Date()) {
       return new Response(
-        JSON.stringify({ success: false, error: error.message }),
+        JSON.stringify({ success: false, error: "This invitation is invalid or has expired" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    await logAudit(supabase, {
-      actorId: caller.id,
-      action: "Tontine Created",
-      entityType: "tontine",
-      entityId: data.id,
-      metadata: { name: validated.name, capacity: validated.capacity },
-    });
-
     return new Response(
-      JSON.stringify({ success: true, group: data }),
+      JSON.stringify({
+        success: true,
+        invitation: {
+          email: invitation.email,
+          role: (invitation as any).roles?.name ?? "admin",
+          first_name: invitation.first_name,
+          last_name: invitation.last_name,
+        },
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
