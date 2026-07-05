@@ -1,5 +1,30 @@
 import { supabase } from "./client";
 
+// supabase-js only surfaces a generic "Edge Function returned a non-2xx
+// status code" message on invoke() failures; the real reason is in the
+// (unread) Response body on error.context. Extract it so callers/toasts
+// show something actionable.
+async function invokeEdgeFunction<T = any>(
+  name: string,
+  options?: { body?: unknown },
+): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, options);
+  if (error) {
+    let message = error.message;
+    const context = (error as any).context;
+    if (context && typeof context.json === "function") {
+      try {
+        const body = await context.json();
+        if (body?.error) message = body.error;
+      } catch {
+        // response body wasn't JSON; keep the default message
+      }
+    }
+    throw new Error(message);
+  }
+  return data as T;
+}
+
 export async function fetchTransactions(userId: string) {
   const { data, error } = await supabase
     .from("transactions")
@@ -30,11 +55,9 @@ export async function recordDeposit({
   account_type?: string;
   description?: string;
 }) {
-  const { data, error } = await supabase.functions.invoke("record-deposit", {
+  return invokeEdgeFunction("record-deposit", {
     body: { user_id, amount, account_type, description },
   });
-  if (error) throw error;
-  return data;
 }
 
 export async function recordWithdrawal({
@@ -48,11 +71,9 @@ export async function recordWithdrawal({
   account_type?: string;
   description?: string;
 }) {
-  const { data, error } = await supabase.functions.invoke("record-withdrawal", {
+  return invokeEdgeFunction("record-withdrawal", {
     body: { user_id, amount, account_type, description },
   });
-  if (error) throw error;
-  return data;
 }
 
 export async function getCurrentUserId(): Promise<string> {
@@ -170,19 +191,15 @@ export async function requestKycMoreInfo({ user_id, message }: { user_id: string
 }
 
 export async function kycApprove({ user_id, note }: { user_id: string; note?: string }) {
-  const { data, error } = await supabase.functions.invoke("kyc-approve", {
+  return invokeEdgeFunction("kyc-approve", {
     body: { user_id, reason: note },
   });
-  if (error) throw error;
-  return data;
 }
 
 export async function kycReject({ user_id, note }: { user_id: string; note?: string }) {
-  const { data, error } = await supabase.functions.invoke("kyc-reject", {
+  return invokeEdgeFunction("kyc-reject", {
     body: { user_id, reason: note },
   });
-  if (error) throw error;
-  return data;
 }
 
 export async function fetchDashboardStats() {
@@ -465,8 +482,7 @@ async function recomputeEnrollmentProgress(userId: string, courseId: string) {
 }
 
 export async function deleteMyAccount() {
-  const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
-  if (error) throw error;
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string }>("delete-account", { body: {} });
   if (!data?.success) throw new Error(data?.error || "Failed to delete account");
   return data;
 }
@@ -546,8 +562,7 @@ export async function fetchTontineContributionRates() {
 }
 
 export async function fetchAdminInvitations() {
-  const { data, error } = await supabase.functions.invoke("admin-invitations");
-  if (error) throw error;
+  const data = await invokeEdgeFunction("admin-invitations");
   return data ?? [];
 }
 
@@ -619,10 +634,9 @@ export async function fetchTontineContributionCounts(tontineId: string) {
 }
 
 export async function contributeToGoal({ goal_id, amount }: { goal_id: string; amount: number }) {
-  const { data, error } = await supabase.functions.invoke("goal-contribute", {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string }>("goal-contribute", {
     body: { goal_id, amount },
   });
-  if (error) throw error;
   if (!data?.success) throw new Error(data?.error || "Failed to record contribution");
   return data;
 }
@@ -644,11 +658,9 @@ export async function applyToTontine({
   user_id: string;
   tontine_id: string;
 }) {
-  const { data, error } = await supabase.functions.invoke("tontine-apply", {
+  return invokeEdgeFunction("tontine-apply", {
     body: { user_id, tontine_id },
   });
-  if (error) throw error;
-  return data;
 }
 
 export async function fetchTontineTypes() {
