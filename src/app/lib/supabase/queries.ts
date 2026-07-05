@@ -663,6 +663,19 @@ export async function applyToTontine({
   });
 }
 
+export async function approveTontineMember({ member_id }: { member_id: string }) {
+  return invokeEdgeFunction<{ success: boolean; member: any; tontineClosed: boolean }>(
+    "tontine-approve-member",
+    { body: { member_id } },
+  );
+}
+
+export async function rejectTontineMember({ member_id, reason }: { member_id: string; reason?: string }) {
+  return invokeEdgeFunction<{ success: boolean }>("tontine-reject-member", {
+    body: { member_id, reason },
+  });
+}
+
 export async function fetchTontineTypes() {
   const { data, error } = await supabase
     .from("tontine_types")

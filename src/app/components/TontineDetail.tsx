@@ -31,7 +31,8 @@ export default function TontineDetail() {
     }).finally(() => setLoading(false));
   }, [id]);
 
-  const mappedMembers = members.map(m => {
+  const activeMembers = members.filter((m) => m.status === "active");
+  const mappedMembers = activeMembers.map(m => {
     const name = m.users?.full_name ?? m.users?.email ?? "User";
     return {
       id: m.id,
@@ -42,9 +43,11 @@ export default function TontineDetail() {
     };
   });
 
-  const enrolledCount = members.length;
-  const userIsMember = currentUserId ? members.some((m) => m.user_id === currentUserId) : false;
-  const showJoinButton = tontine?.status === "open" && !userIsMember && !requestSent;
+  const enrolledCount = activeMembers.length;
+  const myMembership = currentUserId ? members.find((m) => m.user_id === currentUserId) : undefined;
+  const isActiveMember = myMembership?.status === "active";
+  const isPendingApplicant = myMembership?.status === "pending";
+  const showJoinButton = tontine?.status === "open" && !myMembership && !requestSent;
   const fillPct = tontine?.capacity > 0 ? Math.round((enrolledCount / tontine.capacity) * 100) : 0;
 
   const handleRequestJoin = async () => {
@@ -151,6 +154,18 @@ export default function TontineDetail() {
         </div>
       )}
 
+      {/* Pending approval notice */}
+      {isPendingApplicant && !requestSent && (
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
+          <Clock size={16} className="text-amber-600 dark:text-amber-400" />
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            {fr
+              ? "Votre demande est en attente d'approbation par un administrateur. Vous pourrez suivre l'évolution de la tontine une fois approuvé(e)."
+              : "Your request is pending admin approval. You'll be able to follow the tontine's evolution once approved."}
+          </p>
+        </div>
+      )}
+
       {/* Join Button */}
       {showJoinButton && (
         <>
@@ -163,8 +178,8 @@ export default function TontineDetail() {
         </>
       )}
 
-      {/* Participant Preview (for non-members viewing an Open tontine) */}
-      {mappedMembers.length > 0 && !userIsMember && (
+      {/* Participant Preview (for non-active-members viewing an Open tontine) */}
+      {mappedMembers.length > 0 && !isActiveMember && (
         <div className="bg-card rounded-2xl border border-border mb-6 p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Users size={16} className="text-muted-foreground" />
@@ -190,8 +205,8 @@ export default function TontineDetail() {
         </div>
       )}
 
-      {/* Tabs - only for members */}
-      {userIsMember && (
+      {/* Tabs - only for approved (active) members */}
+      {isActiveMember && (
         <>
           <div className="overflow-x-auto -mx-4 sm:mx-0 mb-6">
             <div className="flex gap-1 p-1 bg-muted rounded-xl w-max sm:w-full mx-4 sm:mx-0">

@@ -22,7 +22,9 @@ export default function MyTontines() {
   }, []);
 
   const myActiveTontines = myTontines.filter(
-    (item) => item.tontines?.status === "open" || item.tontines?.status === "active"
+    (item) =>
+      item.status !== "removed" &&
+      (item.tontines?.status === "open" || item.tontines?.status === "active")
   );
   const myCompletedTontines = myTontines.filter(
     (item) => item.tontines?.status === "closed"
@@ -63,6 +65,7 @@ export default function MyTontines() {
             <div className="space-y-3">
               {myActiveTontines.map((item) => {
                 const t = item.tontines;
+                const isPending = item.status === "pending";
                 return (
                   <div
                     key={t.id}
@@ -75,30 +78,40 @@ export default function MyTontines() {
                         <p className="text-xs text-muted-foreground mt-0.5">{t?.tontine_types?.name ?? t?.frequency ?? ""} · {fr ? "Début:" : "Started:"} {t?.start_date}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <StatusBadge status={t.status as any} size="sm" />
+                        <StatusBadge status={isPending ? "pending" : (t.status as any)} size="sm" />
                         <ChevronRight size={16} className="text-muted-foreground" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
-                      <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Votre position" : "Your position"}</p>
-                        <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.payout_order ?? 1}</p>
-                      </div>
-                      <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Membres" : "Members"}</p>
-                        <p className="text-xs sm:text-sm font-bold flex items-center gap-1" style={{ fontFamily: "Geist Mono, monospace" }}>
-                          <Users size={12} /> ?/{t.capacity}
-                        </p>
-                      </div>
-                      <div className="bg-muted/30 rounded-xl p-2 sm:p-3 col-span-2 sm:col-span-1">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Pot du tour" : "Round pool"}</p>
-                        <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF((t.tontine_types?.contribution_amount ?? 0) * t.capacity)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-3">
-                      <Trophy size={14} color="#F2994A" />
-                      <p className="text-xs text-[#F2994A] font-medium">{fr ? "Vous avez reçu votre paiement (Tour 1)" : "You received your payout (Round 1)"}</p>
-                    </div>
+                    {isPending ? (
+                      <p className="text-xs text-muted-foreground">
+                        {fr ? "Votre demande est en attente d'approbation par un administrateur." : "Your request is pending admin approval."}
+                      </p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+                          <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Votre position" : "Your position"}</p>
+                            <p className="text-xs sm:text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>#{item.payout_order ?? 1}</p>
+                          </div>
+                          <div className="bg-muted/30 rounded-xl p-2 sm:p-3">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Membres" : "Members"}</p>
+                            <p className="text-xs sm:text-sm font-bold flex items-center gap-1" style={{ fontFamily: "Geist Mono, monospace" }}>
+                              <Users size={12} /> ?/{t.capacity}
+                            </p>
+                          </div>
+                          <div className="bg-muted/30 rounded-xl p-2 sm:p-3 col-span-2 sm:col-span-1">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{fr ? "Pot du tour" : "Round pool"}</p>
+                            <p className="text-xs sm:text-sm font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF((t.tontine_types?.contribution_amount ?? 0) * t.capacity)}</p>
+                          </div>
+                        </div>
+                        {item.has_received_payout && (
+                          <div className="flex items-center gap-2 mt-3">
+                            <Trophy size={14} color="#F2994A" />
+                            <p className="text-xs text-[#F2994A] font-medium">{fr ? "Vous avez reçu votre paiement" : "You received your payout"}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 );
               })}

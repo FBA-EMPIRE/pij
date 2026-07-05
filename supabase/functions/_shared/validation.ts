@@ -99,6 +99,16 @@ export function validateTontineContribution(body: Record<string, unknown>) {
   return body as { round_id: string; member_id: string; amount: number };
 }
 
+export function validateTontineMemberAction(body: Record<string, unknown>) {
+  if (!body.member_id || typeof body.member_id !== "string") {
+    throw new Error("member_id is required and must be a string");
+  }
+  if (body.reason !== undefined && typeof body.reason !== "string") {
+    throw new Error("reason must be a string if provided");
+  }
+  return body as { member_id: string; reason?: string };
+}
+
 export function validateAdminId(body: Record<string, unknown>) {
   if (!body.admin_id || typeof body.admin_id !== "string") {
     throw new Error("admin_id is required and must be a string");

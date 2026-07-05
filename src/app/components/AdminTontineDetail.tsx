@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Users, CheckCircle, TrendingUp, Eye, Loader2 } from "lucide-react";
-import { fetchTontineById, fetchTontineMembers } from "../lib/supabase/queries";
+import { ArrowLeft, Users, CheckCircle, TrendingUp, Eye, Loader2, X } from "lucide-react";
+import { fetchTontineById, fetchTontineMembers, approveTontineMember, rejectTontineMember } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
@@ -16,17 +16,24 @@ export default function AdminTontineDetail() {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [decisionError, setDecisionError] = useState("");
+
+  const reload = async () => {
+    if (!id) return;
+    const [t, m] = await Promise.all([
+      fetchTontineById(id),
+      fetchTontineMembers(id),
+    ]);
+    setTontine(t);
+    setMembers(m);
+  };
 
   useEffect(() => {
     if (!id) return;
     (async () => {
       try {
-        const [t, m] = await Promise.all([
-          fetchTontineById(id),
-          fetchTontineMembers(id),
-        ]);
-        setTontine(t);
-        setMembers(m);
+        await reload();
       } catch {
         setError(true);
       } finally {
@@ -34,6 +41,32 @@ export default function AdminTontineDetail() {
       }
     })();
   }, [id]);
+
+  const handleApprove = async (memberId: string) => {
+    setDecisionError("");
+    setDecidingId(memberId);
+    try {
+      await approveTontineMember({ member_id: memberId });
+      await reload();
+    } catch (err: any) {
+      setDecisionError(err?.message || (fr ? "Erreur lors de l'approbation." : "Error approving member."));
+    } finally {
+      setDecidingId(null);
+    }
+  };
+
+  const handleReject = async (memberId: string) => {
+    setDecisionError("");
+    setDecidingId(memberId);
+    try {
+      await rejectTontineMember({ member_id: memberId });
+      await reload();
+    } catch (err: any) {
+      setDecisionError(err?.message || (fr ? "Erreur lors du rejet." : "Error rejecting member."));
+    } finally {
+      setDecidingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -55,6 +88,7 @@ export default function AdminTontineDetail() {
   }
 
   const contribution = tontine.tontine_types?.contribution_amount ?? 0;
+  const activeMemberCount = members.filter((m: any) => m.status === "active").length;
 
   return (
     <div className="p-4 lg:p-6 max-w-5xl mx-auto">
@@ -87,7 +121,7 @@ export default function AdminTontineDetail() {
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Membres" : "Members"}</p>
-          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{members.length}/{tontine.capacity}</p>
+          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{activeMemberCount}/{tontine.capacity}</p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Frais d'entrée" : "Entry fee"}</p>
@@ -107,6 +141,9 @@ export default function AdminTontineDetail() {
             {fr ? "Participants" : "Participants"} ({members.length})
           </h3>
         </div>
+        {decisionError && (
+          <div className="mx-5 mb-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{decisionError}</div>
+        )}
         {members.length === 0 ? (
           <p className="px-5 pb-5 text-sm text-muted-foreground">{fr ? "Aucun participant" : "No participants"}</p>
         ) : (
@@ -117,6 +154,7 @@ export default function AdminTontineDetail() {
                   <th className="px-5 py-3 text-left">{fr ? "Utilisateur" : "User"}</th>
                   <th className="px-5 py-3 text-left">{fr ? "Email" : "Email"}</th>
                   <th className="px-5 py-3 text-center">{fr ? "Statut" : "Status"}</th>
+                  <th className="px-5 py-3 text-right">{fr ? "Actions" : "Actions"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,6 +171,31 @@ export default function AdminTontineDetail() {
                     <td className="px-5 py-4 text-sm text-muted-foreground">{m.users?.email || "—"}</td>
                     <td className="px-5 py-4 text-center">
                       <StatusBadge status={m.status || "active"} size="sm" />
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      {m.status === "pending" ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleApprove(m.id)}
+                            disabled={decidingId === m.id}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            style={{ background: "#4CAF68" }}
+                          >
+                            {decidingId === m.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                            {fr ? "Approuver" : "Approve"}
+                          </button>
+                          <button
+                            onClick={() => handleReject(m.id)}
+                            disabled={decidingId === m.id}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                          >
+                            {decidingId === m.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                            {fr ? "Rejeter" : "Reject"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

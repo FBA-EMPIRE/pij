@@ -51,7 +51,8 @@ export default function AdminTontineParticipants() {
     );
   }
 
-  const unassignedMembers = members.filter((m: any) => !m.has_received_payout);
+  const activeMembers = members.filter((m: any) => m.status === "active");
+  const unassignedMembers = activeMembers.filter((m: any) => !m.has_received_payout);
   const contribution = tontine.tontine_types?.contribution_amount ?? 0;
 
   const handleAssignPayout = async () => {
@@ -172,7 +173,7 @@ export default function AdminTontineParticipants() {
             className="px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
           >
             <option value="">{fr ? "Sélectionner un membre" : "Select a member"}</option>
-            {members.map((m: any) => (
+            {activeMembers.map((m: any) => (
               <option key={m.user_id} value={m.user_id}>{m.name}</option>
             ))}
           </select>
@@ -239,7 +240,7 @@ export default function AdminTontineParticipants() {
         <div className="p-5 border-b border-border">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Users size={16} className="text-muted-foreground" />
-            {fr ? "Participants" : "Participants"} ({members.length})
+            {fr ? "Participants" : "Participants"} ({activeMembers.length})
           </h3>
         </div>
         <div className="overflow-x-auto">
@@ -252,7 +253,7 @@ export default function AdminTontineParticipants() {
               </tr>
             </thead>
             <tbody>
-              {members.map((m: any) => (
+              {activeMembers.map((m: any) => (
                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-5 py-4 text-sm text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{m.payout_order}</td>
                   <td className="px-5 py-4">
