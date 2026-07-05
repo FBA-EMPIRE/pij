@@ -140,7 +140,7 @@ export default function TontineArchiveDetail() {
         {mappedMembers.filter((m) => m.payout_received).length > 0 ? (
           <div className="space-y-2">
             {mappedMembers.filter((m) => m.payout_received).map((m) => (
-              <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/20">
+              <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] border border-[#4CAF68]/20">
                 <div className="w-8 h-8 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-xs font-bold">
                   {m.avatar}
                 </div>
