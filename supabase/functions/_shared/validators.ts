@@ -4,4 +4,8 @@ export {
   validatePagination,
   validateKycAction,
   validateTontineGroup,
+  validateTontineMemberAction,
+  validateAdminId,
+  validateInvitationId,
+  validateAdminInvite,
 } from "./validation.ts";

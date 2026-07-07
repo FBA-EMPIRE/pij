@@ -1,11 +1,7 @@
-import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
+import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateKycAction } from "../_shared/validators.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,10 +19,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
+    const caller = await getCallerAdmin(authHeader, supabase);
+
     const body = await req.json();
     const validated = validateKycAction(body);
 
-    const reviewedBy = authHeader ? extractUserId(authHeader) : null;
+    const reviewedBy = caller.id;
 
     const { error: userErr } = await supabase
       .from("users")
@@ -46,6 +44,20 @@ Deno.serve(async (req) => {
       .eq("status", "pending");
 
     if (docErr) throw docErr;
+
+    await logAudit(supabase, {
+      actorId: caller.id,
+      action: "KYC Approved",
+      entityType: "user",
+      entityId: validated.user_id,
+    });
+
+    await supabase.from("notifications").insert({
+      user_id: validated.user_id,
+      type: "kyc_status",
+      title: "KYC verification approved",
+      message: "Your identity verification has been approved. You now have full access to PIJ services.",
+    });
 
     return new Response(
       JSON.stringify({ success: true }),

@@ -1,11 +1,7 @@
-import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
+import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateTontineGroup } from "../_shared/validators.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,10 +19,10 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
+    const caller = await getCallerAdmin(authHeader, supabase);
+
     const body = await req.json();
     const validated = validateTontineGroup(body);
-
-    const createdBy = authHeader ? extractUserId(authHeader) : null;
 
     const { data, error } = await supabase
       .from("tontines")
@@ -38,7 +34,7 @@ Deno.serve(async (req) => {
         entry_fee: validated.entry_fee,
         start_date: validated.start_date,
         status: "open",
-        created_by: createdBy,
+        created_by: caller.id,
         created_at: new Date().toISOString(),
       })
       .select()
@@ -50,6 +46,14 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    await logAudit(supabase, {
+      actorId: caller.id,
+      action: "Tontine Created",
+      entityType: "tontine",
+      entityId: data.id,
+      metadata: { name: validated.name, capacity: validated.capacity },
+    });
 
     return new Response(
       JSON.stringify({ success: true, group: data }),

@@ -60,6 +60,12 @@
 }
 
 .dark {
+  /* Since .dark is applied on a nested wrapper div rather than <html>/<body>,
+     `color` must be re-declared here - otherwise descendants that don't set
+     their own text-color class inherit body's already-resolved light-mode
+     color instead of re-evaluating var(--foreground) in this scope. */
+  color: var(--foreground);
+
   --background: #0F1117;
   --foreground: #F4F5F7;
   --card: #1A1D26;

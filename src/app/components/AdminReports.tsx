@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Download, FileText, TrendingUp, Users, Layers } from "lucide-react";
+import { Download, FileText, TrendingUp, Users, Layers, Loader2 } from "lucide-react";
 import {
   BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -7,24 +7,34 @@ import {
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import { useAppContext } from "../context/AppContext";
-import { fetchDashboardStats } from "../lib/supabase/queries";
+import {
+  fetchDashboardStats,
+  fetchMemberGrowthTrend,
+  fetchContributionTrend,
+  fetchKycTrend,
+  fetchTontineContributionRates,
+} from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
-
-const MEMBER_GROWTH_DATA: { month: string; members: number }[] = [];
-
-const CONTRIBUTION_DATA: { month: string; amount: number }[] = [];
-
-const KYC_TREND_DATA: { month: string; approved: number; rejected: number }[] = [];
 
 export default function AdminReports() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [kpi, setKpi] = useState<any>(null);
+  const [memberGrowth, setMemberGrowth] = useState<{ month: string; members: number }[]>([]);
+  const [contributionTrend, setContributionTrend] = useState<{ month: string; amount: number }[]>([]);
+  const [kycTrend, setKycTrend] = useState<{ month: string; approved: number; rejected: number }[]>([]);
+  const [tontineRates, setTontineRates] = useState<{ id: string; name: string; rate: number; paid: number; total: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeReport, setActiveReport] = useState<"financial" | "members" | "tontines">("financial");
 
   useEffect(() => {
-    fetchDashboardStats().then(setKpi).finally(() => setLoading(false));
+    Promise.all([
+      fetchDashboardStats().then(setKpi),
+      fetchMemberGrowthTrend().then(setMemberGrowth),
+      fetchContributionTrend().then(setContributionTrend),
+      fetchKycTrend().then(setKycTrend),
+      fetchTontineContributionRates().then(setTontineRates),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const reportTypes = [
@@ -47,7 +57,7 @@ export default function AdminReports() {
       doc.text(`${fr ? "Épargne totale" : "Total savings"}: ${(kpi?.total_savings ?? 0).toLocaleString()} XAF`, 14, 40);
       doc.text(`${fr ? "Comptes courants" : "Current accounts"}: ${(kpi?.total_current ?? 0).toLocaleString()} XAF`, 14, 48);
       doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${kpi?.monthly_growth ?? 0}%`, 14, 56);
-      CONTRIBUTION_DATA.forEach((d, i) => {
+      contributionTrend.forEach((d, i) => {
         doc.text(`${d.month}: ${(d.amount / 1000000).toFixed(1)}M XAF`, 14, 68 + i * 7);
       });
     } else if (activeReport === "members") {
@@ -55,7 +65,7 @@ export default function AdminReports() {
       doc.text(`${fr ? "Total membres" : "Total members"}: ${kpi?.total_members ?? 0}`, 14, 40);
       doc.text(`${fr ? "Membres actifs" : "Active members"}: ${kpi?.active_members ?? 0}`, 14, 48);
       doc.text(`${fr ? "Taux KYC" : "KYC rate"}: ${kpi?.kyc_approval_rate ?? 0}%`, 14, 56);
-      MEMBER_GROWTH_DATA.forEach((d, i) => {
+      memberGrowth.forEach((d, i) => {
         doc.text(`${d.month}: ${d.members}`, 14, 68 + i * 7);
       });
     } else {
@@ -64,7 +74,7 @@ export default function AdminReports() {
       doc.text(`${fr ? "Taux de croissance" : "Growth rate"}: ${kpi?.monthly_growth ?? 0}%`, 14, 48);
     }
     doc.save(`PIJ_${reportName.replace(/\s+/g, "_")}_${dateStr}.pdf`);
-  }, [activeReport, fr]);
+  }, [activeReport, fr, kpi, contributionTrend, memberGrowth]);
 
   const exportExcel = useCallback(() => {
     const wb = XLSX.utils.book_new();
@@ -75,7 +85,7 @@ export default function AdminReports() {
         { [fr ? "Métrique" : "Metric"]: fr ? "Épargne totale" : "Total savings", [fr ? "Valeur" : "Value"]: `${(kpi?.total_savings ?? 0).toLocaleString()} XAF` },
         { [fr ? "Métrique" : "Metric"]: fr ? "Comptes courants" : "Current accounts", [fr ? "Valeur" : "Value"]: `${(kpi?.total_current ?? 0).toLocaleString()} XAF` },
         { [fr ? "Métrique" : "Metric"]: fr ? "Croissance mensuelle" : "Monthly growth", [fr ? "Valeur" : "Value"]: `${kpi?.monthly_growth ?? 0}%` },
-        ...CONTRIBUTION_DATA.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, [fr ? "Montant" : "Amount"]: d.amount })),
+        ...contributionTrend.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, [fr ? "Montant" : "Amount"]: d.amount })),
       ];
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, fr ? "Financier" : "Financial");
@@ -84,7 +94,7 @@ export default function AdminReports() {
         { [fr ? "Métrique" : "Metric"]: fr ? "Total membres" : "Total members", [fr ? "Valeur" : "Value"]: kpi?.total_members ?? 0 },
         { [fr ? "Métrique" : "Metric"]: fr ? "Membres actifs" : "Active members", [fr ? "Valeur" : "Value"]: kpi?.active_members ?? 0 },
         { [fr ? "Métrique" : "Metric"]: fr ? "Taux KYC" : "KYC rate", [fr ? "Valeur" : "Value"]: `${kpi?.kyc_approval_rate ?? 0}%` },
-        ...MEMBER_GROWTH_DATA.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, Membres: d.members })),
+        ...memberGrowth.map((d) => ({ [fr ? "Mois" : "Month"]: d.month, Membres: d.members })),
       ];
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, fr ? "Membres" : "Members");
@@ -97,7 +107,15 @@ export default function AdminReports() {
       XLSX.utils.book_append_sheet(wb, ws, fr ? "Tontines" : "Tontines");
     }
     XLSX.writeFile(wb, `PIJ_${activeReport}_${dateStr}.xlsx`);
-  }, [activeReport, fr]);
+  }, [activeReport, fr, kpi, contributionTrend, memberGrowth]);
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6">
@@ -153,7 +171,7 @@ export default function AdminReports() {
           <div className="bg-card rounded-2xl border border-border p-5">
             <h3 className="mb-4" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Contributions mensuelles" : "Monthly contributions"}</h3>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={CONTRIBUTION_DATA}>
+              <BarChart data={contributionTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} />
@@ -183,7 +201,7 @@ export default function AdminReports() {
             <div className="bg-card rounded-2xl border border-border p-5">
               <h3 className="mb-4" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Croissance des membres" : "Member growth"}</h3>
               <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={MEMBER_GROWTH_DATA}>
+                <AreaChart data={memberGrowth}>
                   <defs><linearGradient id="grad2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6E3A9A" stopOpacity={0.2} /><stop offset="95%" stopColor="#6E3A9A" stopOpacity={0} /></linearGradient></defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
@@ -196,7 +214,7 @@ export default function AdminReports() {
             <div className="bg-card rounded-2xl border border-border p-5">
               <h3 className="mb-4" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Tendances KYC" : "KYC trends"}</h3>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={KYC_TREND_DATA}>
+                <BarChart data={kycTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
@@ -217,7 +235,7 @@ export default function AdminReports() {
             {[
               { label: fr ? "Tontines actives" : "Active tontines", value: String(kpi?.active_tontines ?? 0) },
               { label: fr ? "Participants totaux" : "Total participants", value: String(kpi?.total_participants ?? 0) },
-              { label: fr ? "Fonds sous gestion" : "Funds under management", value: kpi?.total_savings ? formatXAF(Math.round(kpi.total_savings * 0.18)) : "0 XAF" },
+              { label: fr ? "Fonds sous gestion" : "Funds under management", value: formatXAF(kpi?.tontine_pool_total ?? 0) },
             ].map((s) => (
               <div key={s.label} className="bg-card rounded-2xl border border-border p-5">
                 <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -228,12 +246,12 @@ export default function AdminReports() {
           <div className="bg-card rounded-2xl border border-border p-5">
             <h3 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Taux de contribution par tontine" : "Contribution rate by tontine"}</h3>
             <p className="text-xs text-muted-foreground mb-4">{fr ? "Pourcentage des contributions payées vs attendues" : "Percentage of contributions paid vs expected"}</p>
+            {tontineRates.length === 0 && (
+              <p className="text-sm text-muted-foreground">{fr ? "Aucune tontine active" : "No active tontines"}</p>
+            )}
             <div className="space-y-3">
-              {[
-                { name: fr ? "Tontine A" : "Tontine A", rate: 0, paid: 0, total: 0 },
-                { name: fr ? "Tontine B" : "Tontine B", rate: 0, paid: 0, total: 0 },
-              ].map((t) => (
-                <div key={t.name}>
+              {tontineRates.map((t) => (
+                <div key={t.id}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-medium">{t.name}</span>
                     <span className="font-bold" style={{ fontFamily: "Geist Mono, monospace", color: t.rate >= 90 ? "#4CAF68" : "#F2994A" }}>{t.rate}%</span>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Filter, Shield, Download } from "lucide-react";
+import { Search, Filter, Shield, Download, Loader2 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 
@@ -17,16 +17,27 @@ export default function AuditLogs() {
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("audit_logs")
-      .select("*")
-      .order("timestamp", { ascending: false })
-      .then(({ data }) => {
-        if (data) setLogs(data as AuditLog[]);
-      });
-  }, []);
+    Promise.all([
+      supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("admins").select("id, first_name, last_name"),
+    ]).then(([{ data }, { data: admins }]) => {
+      if (!data) return;
+      const adminNames = new Map((admins ?? []).map((a: any) => [a.id, `${a.first_name} ${a.last_name}`.trim()]));
+      setLogs(
+        data.map((log: any) => ({
+          id: log.id,
+          actor: (log.actor_id && adminNames.get(log.actor_id)) || log.actor_id || (fr ? "Système" : "System"),
+          action: log.action,
+          entity: log.entity_id ? `${log.entity_type} / ${log.entity_id}` : log.entity_type,
+          timestamp: log.created_at,
+          ip: log.ip_address ?? "-",
+        }))
+      );
+    }).finally(() => setLoading(false));
+  }, [fr]);
 
   const filtered = logs.filter((log) =>
     log.actor.toLowerCase().includes(search.toLowerCase()) ||
@@ -41,6 +52,29 @@ export default function AuditLogs() {
     return "#6B7280";
   };
 
+  const handleExport = () => {
+    const rows = [["Actor", "Action", "Entity", "Timestamp", "IP"]];
+    filtered.forEach((log) => rows.push([log.actor, log.action, log.entity, log.timestamp, log.ip]));
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 lg:p-6">
       <div className="flex items-center justify-between mb-6">
@@ -48,7 +82,7 @@ export default function AuditLogs() {
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Logs d'audit" : "Audit Logs"}</h2>
           <p className="text-sm text-muted-foreground mt-1">{fr ? "Journal immuable de toutes les actions système." : "Immutable log of all system actions."}</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
           <Download size={15} /> {fr ? "Exporter" : "Export"}
         </button>
       </div>

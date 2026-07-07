@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Trophy, CheckCircle, Users, Calendar, Archive } from "lucide-react";
 import { formatXAF } from "../lib/format";
-import { fetchTontineById, fetchTontineMembers, getCurrentUserId } from "../lib/supabase/queries";
+import { fetchTontineById, fetchTontineMembers, fetchTontineContributionCounts, getCurrentUserId } from "../lib/supabase/queries";
 import { useAppContext } from "../context/AppContext";
 
 export default function TontineArchiveDetail() {
@@ -14,6 +14,8 @@ export default function TontineArchiveDetail() {
   const [members, setMembers] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [totalRounds, setTotalRounds] = useState(0);
+  const [paidByMember, setPaidByMember] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -21,9 +23,12 @@ export default function TontineArchiveDetail() {
     Promise.all([
       fetchTontineById(id),
       fetchTontineMembers(id),
-    ]).then(([t, m]) => {
+      fetchTontineContributionCounts(id),
+    ]).then(([t, m, c]) => {
       setArchive(t);
       setMembers(m);
+      setTotalRounds(c.totalRounds);
+      setPaidByMember(c.paidByMember);
     }).catch(() => {})
     .finally(() => setLoading(false));
   }, [id]);
@@ -47,6 +52,7 @@ export default function TontineArchiveDetail() {
     );
   }
 
+  const contributionAmount = archive.tontine_types?.contribution_amount ?? 0;
   const myEntry = members.find((m) => m.user_id === currentUserId);
   const mappedMembers = members.map(m => {
     const name = m.users?.full_name ?? m.users?.email ?? "User";
@@ -55,7 +61,7 @@ export default function TontineArchiveDetail() {
       name,
       avatar: name.charAt(0).toUpperCase(),
       position: m.position,
-      contributions: m.contributions ?? [],
+      paidRounds: paidByMember.get(m.id) ?? 0,
       payout_received: m.payout_received ?? false,
     };
   });
@@ -73,13 +79,9 @@ export default function TontineArchiveDetail() {
         </div>
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{archive.name}</h2>
-          <p className="text-sm text-muted-foreground">{freqLabel} · {archive.total_weeks} {fr ? "semaines" : "weeks"} · {archive.start_date} → {archive.end_date}</p>
+          <p className="text-sm text-muted-foreground">{freqLabel} · {totalRounds} {fr ? "tours" : "rounds"} · {fr ? "Début" : "Start"} {archive.start_date}</p>
         </div>
       </div>
-
-      {archive.description && (
-        <p className="text-sm text-muted-foreground mb-6">{archive.description}</p>
-      )}
 
       {myEntry && (
         <div className="bg-card rounded-2xl border border-border p-5 mb-6">
@@ -91,7 +93,7 @@ export default function TontineArchiveDetail() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{fr ? "Contributions" : "Contributions"}</p>
-              <p className="text-lg font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{myEntry.contributions.filter(Boolean).length}/{myEntry.contributions.length}</p>
+              <p className="text-lg font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{myEntry.paidRounds}/{totalRounds}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{fr ? "Paiement reçu" : "Payout received"}</p>
@@ -102,8 +104,8 @@ export default function TontineArchiveDetail() {
               )}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">{fr ? "Montant total" : "Total amount"}</p>
-              <p className="text-lg font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF((archive.contribution ?? 0) * members.length)}</p>
+              <p className="text-xs text-muted-foreground">{fr ? "Montant versé" : "Amount paid"}</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(myEntry.paidRounds * contributionAmount)}</p>
             </div>
           </div>
         </div>
@@ -117,7 +119,7 @@ export default function TontineArchiveDetail() {
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Cotisation" : "Contribution"}</p>
-          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(archive.contribution)}</p>
+          <p className="text-lg font-bold mt-1" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contributionAmount)}</p>
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Frais d'entrée" : "Entry fee"}</p>
@@ -125,7 +127,7 @@ export default function TontineArchiveDetail() {
         </div>
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground">{fr ? "Total collecté" : "Total collected"}</p>
-          <p className="text-lg font-bold mt-1 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF((archive.contribution ?? 0) * members.length)}</p>
+          <p className="text-lg font-bold mt-1 text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(mappedMembers.reduce((sum, m) => sum + m.paidRounds, 0) * contributionAmount)}</p>
         </div>
       </div>
 
@@ -138,7 +140,7 @@ export default function TontineArchiveDetail() {
         {mappedMembers.filter((m) => m.payout_received).length > 0 ? (
           <div className="space-y-2">
             {mappedMembers.filter((m) => m.payout_received).map((m) => (
-              <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/20">
+              <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] border border-[#4CAF68]/20">
                 <div className="w-8 h-8 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-xs font-bold">
                   {m.avatar}
                 </div>
@@ -146,7 +148,7 @@ export default function TontineArchiveDetail() {
                   <p className="text-sm font-medium">{m.name}</p>
                   <p className="text-xs text-muted-foreground">{fr ? "Position" : "Position"} #{m.position}</p>
                 </div>
-                <span className="text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(archive.contribution ?? 0)}</span>
+                <span className="text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(contributionAmount * mappedMembers.length)}</span>
                 <Trophy size={14} color="#F2994A" />
               </div>
             ))}
@@ -163,18 +165,15 @@ export default function TontineArchiveDetail() {
           {fr ? "Tous les participants" : "All participants"}
         </h3>
         <div className="space-y-2">
-          {mappedMembers.map((m) => {
-            const paidCount = m.contributions.filter(Boolean).length;
-            return (
-              <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl border border-border">
-                <span className="text-sm text-muted-foreground w-8" style={{ fontFamily: "Geist Mono, monospace" }}>#{m.position}</span>
-                <div className="w-8 h-8 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">{m.avatar}</div>
-                <span className="text-sm font-medium flex-1">{m.name}</span>
-                <span className="text-xs text-muted-foreground">{paidCount}/{m.contributions.length} {fr ? "payées" : "paid"}</span>
-                {m.payout_received && <Trophy size={14} color="#F2994A" />}
-              </div>
-            );
-          })}
+          {mappedMembers.map((m) => (
+            <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl border border-border">
+              <span className="text-sm text-muted-foreground w-8" style={{ fontFamily: "Geist Mono, monospace" }}>#{m.position}</span>
+              <div className="w-8 h-8 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold">{m.avatar}</div>
+              <span className="text-sm font-medium flex-1">{m.name}</span>
+              <span className="text-xs text-muted-foreground">{m.paidRounds}/{totalRounds} {fr ? "payées" : "paid"}</span>
+              {m.payout_received && <Trophy size={14} color="#F2994A" />}
+            </div>
+          ))}
         </div>
       </div>
     </div>

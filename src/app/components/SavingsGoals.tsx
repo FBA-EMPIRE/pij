@@ -189,7 +189,7 @@ export default function SavingsGoals() {
       )}
 
       {selectedGoal && (
-        <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} />
+        <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} onUpdated={loadGoals} />
       )}
     </div>
   );

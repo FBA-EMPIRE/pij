@@ -3,14 +3,16 @@ import { X, Calendar, Plus, TrendingUp, History, Edit3, ArrowDownRight } from "l
 import type { SavingsGoal } from "../types";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { contributeToGoal } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 
 interface GoalDetailModalProps {
   goal: SavingsGoal;
   onClose: () => void;
+  onUpdated: () => void;
 }
 
-export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
+export default function GoalDetailModal({ goal, onClose, onUpdated }: GoalDetailModalProps) {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<"overview" | "history" | "edit">("overview");
@@ -19,8 +21,11 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
   const [editDeadline, setEditDeadline] = useState(goal.deadline);
   const [contributionAmount, setContributionAmount] = useState("");
   const [goalTxns, setGoalTxns] = useState<any[]>([]);
+  const [goalCurrent, setGoalCurrent] = useState(goal.current_amount ?? 0);
+  const [contributing, setContributing] = useState(false);
+  const [contribError, setContribError] = useState("");
 
-  useEffect(() => {
+  const loadTxns = () =>
     supabase
       .from("transactions")
       .select("*")
@@ -29,9 +34,11 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
       .then(({ data }) => {
         if (data) setGoalTxns(data);
       });
+
+  useEffect(() => {
+    loadTxns();
   }, [goal.id]);
 
-  const goalCurrent = goal.current_amount ?? 0;
   const goalTarget = goal.target_amount ?? 1;
   const pct = Math.min(Math.round((goalCurrent / goalTarget) * 100), 100);
   const totalSaved = goalTxns.reduce((sum: number, t: any) => sum + t.amount, 0);
@@ -103,6 +110,9 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
 
               <div className="p-4 rounded-xl border border-border">
                 <p className="text-xs text-muted-foreground mb-2">{fr ? "Ajouter une contribution" : "Add contribution"}</p>
+                {contribError && (
+                  <div className="mb-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-xs">{contribError}</div>
+                )}
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -114,24 +124,22 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                   <button
                     onClick={async () => {
                       const amt = parseInt(contributionAmount);
-                      if (amt > 0) {
-                        await supabase.from("transactions").insert({
-                          goal_id: goal.id,
-                          amount: amt,
-                          type: "deposit",
-                          notes: fr ? `Dépôt objectif: ${goal.name}` : `Deposit for: ${goal.name}`,
-                        });
-                        goal.current_amount += amt;
+                      if (!(amt > 0)) return;
+                      setContribError("");
+                      setContributing(true);
+                      try {
+                        const result = await contributeToGoal({ goal_id: goal.id, amount: amt });
+                        setGoalCurrent(Number(result.goal.current_amount));
                         setContributionAmount("");
-                        const { data } = await supabase
-                          .from("transactions")
-                          .select("*")
-                          .eq("goal_id", goal.id)
-                          .gt("amount", 0);
-                        if (data) setGoalTxns(data);
+                        await loadTxns();
+                        onUpdated();
+                      } catch (err: any) {
+                        setContribError(err?.message || (fr ? "Erreur lors de la contribution." : "Error recording contribution."));
+                      } finally {
+                        setContributing(false);
                       }
                     }}
-                    disabled={!contributionAmount || parseInt(contributionAmount) <= 0}
+                    disabled={!contributionAmount || parseInt(contributionAmount) <= 0 || contributing}
                     className="px-4 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40 hover:opacity-90 transition-all"
                     style={{ background: "#4CAF68" }}
                   >
@@ -153,7 +161,7 @@ export default function GoalDetailModal({ goal, onClose }: GoalDetailModalProps)
                       <ArrowDownRight size={14} color="#4CAF68" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm truncate">{txn.description}</p>
+                      <p className="text-sm truncate">{txn.notes}</p>
                       <p className="text-xs text-muted-foreground">{txn.created_at?.slice(0, 10)}</p>
                     </div>
                     <span className="text-sm font-bold text-[#1F9D55] shrink-0" style={{ fontFamily: "Geist Mono, monospace" }}>

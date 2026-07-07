@@ -1,10 +1,26 @@
 import { useState, useEffect } from "react";
-import { Plus, ArrowDownLeft, ArrowUpRight, Check, Loader2 } from "lucide-react";
+import { Plus, ArrowDownLeft, ArrowUpRight, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { fetchAccountsWithUsers, getCurrentUserId, recordDeposit, recordWithdrawal } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_MAP } from "../constants";
 import { useAppContext } from "../context/AppContext";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
+
+function highlightMatch(text: string, query: string) {
+  const trimmed = query.trim();
+  if (!trimmed) return text;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  return parts.map((part, i) =>
+    part.toLowerCase() === trimmed.toLowerCase() ? (
+      <mark key={i} className="bg-[#4CAF68]/30 text-inherit rounded-sm px-0.5">{part}</mark>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 export default function AccountManagement() {
   const { lang } = useAppContext();
@@ -27,6 +43,10 @@ export default function AccountManagement() {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberPopoverOpen, setMemberPopoverOpen] = useState(false);
 
   const reset = () => {
     setStep(1);
@@ -36,23 +56,44 @@ export default function AccountManagement() {
     setAmount("");
     setDesc("");
     setDone(false);
+    setSubmitError("");
+    setMemberSearch("");
   };
+
+  const selectedMemberData = members.find((m) => m.id === selectedMember);
 
   const handleSubmit = async () => {
     if (!currentUserId) return;
+    setSubmitError("");
+    setSubmitting(true);
     const payload = {
       user_id: selectedMember,
       amount: Number(amount),
       account_type: accountType || undefined,
       description: desc || undefined,
     };
-    if (tab === "deposit") {
-      await recordDeposit(payload);
-    } else {
-      await recordWithdrawal(payload);
+    try {
+      if (tab === "deposit") {
+        await recordDeposit(payload);
+      } else {
+        await recordWithdrawal(payload);
+      }
+      setDone(true);
+      fetchAccountsWithUsers().then(setMembers).catch(() => {});
+    } catch (err: any) {
+      setSubmitError(err?.message || (fr ? "Erreur lors de l'enregistrement." : "Error recording transaction."));
+    } finally {
+      setSubmitting(false);
     }
-    setDone(true);
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 flex items-center justify-center">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6">
@@ -157,11 +198,52 @@ export default function AccountManagement() {
                 <>
                   <div>
                     <label className="text-sm font-medium">{fr ? "Membre" : "Member"}</label>
-                    <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                {members.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
-                      ))}
-                    </select>
+                    <Popover open={memberPopoverOpen} onOpenChange={setMemberPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 flex items-center justify-between gap-2 text-left"
+                        >
+                          <span className={`truncate ${selectedMemberData ? "" : "text-muted-foreground"}`}>
+                            {selectedMemberData ? `${selectedMemberData.name} (${selectedMemberData.id})` : (fr ? "Sélectionner un membre" : "Select a member")}
+                          </span>
+                          <ChevronsUpDown size={14} className="shrink-0 text-muted-foreground" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput
+                            value={memberSearch}
+                            onValueChange={setMemberSearch}
+                            placeholder={fr ? "Rechercher par nom, email ou ID..." : "Search by name, email, or ID..."}
+                          />
+                          <CommandList>
+                            <CommandEmpty>{fr ? "Aucun membre trouvé." : "No members found."}</CommandEmpty>
+                            <CommandGroup>
+                              {members.map((m) => (
+                                <CommandItem
+                                  key={m.id}
+                                  value={`${m.name} ${m.email ?? ""} ${m.id}`}
+                                  onSelect={() => {
+                                    setSelectedMember(m.id);
+                                    setMemberPopoverOpen(false);
+                                    setMemberSearch("");
+                                  }}
+                                  className="flex items-start gap-2"
+                                >
+                                  <Check size={14} className={`mt-0.5 shrink-0 ${selectedMember === m.id ? "opacity-100 text-[#4CAF68]" : "opacity-0"}`} />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-medium truncate">{highlightMatch(m.name, memberSearch)}</span>
+                                    {m.email && <span className="text-xs text-muted-foreground truncate">{highlightMatch(m.email, memberSearch)}</span>}
+                                    <span className="text-xs text-muted-foreground truncate" style={{ fontFamily: "Geist Mono, monospace" }}>{highlightMatch(m.id, memberSearch)}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <label className="text-sm font-medium">{fr ? "Type de compte" : "Account type"}</label>
@@ -251,12 +333,15 @@ export default function AccountManagement() {
                       </div>
                     )}
                   </div>
+                  {submitError && (
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{submitError}</div>
+                  )}
                   <div className="flex gap-2">
                     <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl text-sm font-medium border border-border hover:bg-muted transition-all">
                       {fr ? "Retour" : "Back"}
                     </button>
-                    <button onClick={handleSubmit} className="flex-1 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all" style={{ background: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>
-                      {fr ? "Confirmer" : "Confirm"}
+                    <button onClick={handleSubmit} disabled={submitting} className="flex-1 py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>
+                      {submitting ? (fr ? "Enregistrement..." : "Recording...") : (fr ? "Confirmer" : "Confirm")}
                     </button>
                   </div>
                 </>

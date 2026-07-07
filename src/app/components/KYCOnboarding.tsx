@@ -66,6 +66,18 @@ export default function KYCOnboarding() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          date_of_birth: dob,
+          city,
+          profession,
+        })
+        .eq("user_id", user.id);
+      if (profileErr) throw profileErr;
+
       const upload = async (file: File, prefix: string) => {
         const path = `${user.id}/${prefix}_${Date.now()}`;
         const { error: upErr } = await supabase.storage.from("kyc-documents").upload(path, file);
@@ -170,7 +182,7 @@ export default function KYCOnboarding() {
 
         {/* Error banner */}
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
+          <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
         )}
 
         {/* Step content */}

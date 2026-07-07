@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Users, Trophy, Award } from "lucide-react";
+import { ArrowLeft, Users, Trophy, Award, Coins } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { fetchTontineById, fetchTontineMembers } from "../lib/supabase/queries";
@@ -16,6 +16,13 @@ export default function AdminTontineParticipants() {
   const [tontine, setTontine] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [contribMemberId, setContribMemberId] = useState("");
+  const [contribRound, setContribRound] = useState("1");
+  const [contribAmount, setContribAmount] = useState("");
+  const [recordingContrib, setRecordingContrib] = useState(false);
+  const [contribError, setContribError] = useState("");
+  const [contribSuccess, setContribSuccess] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -44,7 +51,8 @@ export default function AdminTontineParticipants() {
     );
   }
 
-  const unassignedMembers = members.filter((m: any) => !m.has_received_payout);
+  const activeMembers = members.filter((m: any) => m.status === "active");
+  const unassignedMembers = activeMembers.filter((m: any) => !m.has_received_payout);
   const contribution = tontine.tontine_types?.contribution_amount ?? 0;
 
   const handleAssignPayout = async () => {
@@ -52,21 +60,82 @@ export default function AdminTontineParticipants() {
     const member = members.find((m: any) => m.user_id === selectedMemberId);
     if (!member) return;
 
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    const { data: lastRound } = await supabase
+      .from("tontine_rounds")
+      .select("round_number")
+      .eq("tontine_id", tontine.id)
+      .order("round_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextRoundNumber = (lastRound?.round_number ?? 0) + 1;
+
+    const { data: round, error: roundErr } = await supabase
+      .from("tontine_rounds")
+      .insert({
+        tontine_id: tontine.id,
+        round_number: nextRoundNumber,
+        recipient_member_id: member.id,
+        status: "paid",
+        payout_date: new Date().toISOString().slice(0, 10),
+        recorded_by: currentUser?.id ?? null,
+      })
+      .select()
+      .single();
+    if (roundErr) return;
+
     await supabase.from("tontine_members").update({
       has_received_payout: true,
     }).eq("id", member.id);
 
     await supabase.from("audit_logs").insert({
-      actor: "Admin",
+      actor_id: currentUser?.id ?? null,
       action: "Round Payout Recorded",
-      entity: `${tontine.id} / Member ${selectedMemberId}`,
-      ip: "admin",
+      entity_type: "tontine_round",
+      entity_id: round.id,
+      metadata: { tontine_id: tontine.id, round_number: nextRoundNumber, recipient_member_id: member.id },
     });
 
     setMembers(members.map((m: any) =>
       m.user_id === selectedMemberId ? { ...m, has_received_payout: true } : m
     ));
     setSelectedMemberId(null);
+  };
+
+  const handleRecordContribution = async () => {
+    setContribError("");
+    setContribSuccess("");
+    const member = members.find((m: any) => m.user_id === contribMemberId);
+    const round = Number(contribRound);
+    const amount = Number(contribAmount);
+    if (!member) {
+      setContribError(fr ? "Veuillez sélectionner un membre." : "Please select a member.");
+      return;
+    }
+    if (!Number.isInteger(round) || round <= 0) {
+      setContribError(fr ? "Le numéro de tour doit être un entier positif." : "Round must be a positive integer.");
+      return;
+    }
+    if (!amount || amount <= 0) {
+      setContribError(fr ? "Le montant doit être positif." : "Amount must be positive.");
+      return;
+    }
+
+    setRecordingContrib(true);
+    const { data: result, error: err } = await supabase.functions.invoke("tontine-record-contribution", {
+      body: { tontine_id: tontine.id, member_id: member.id, amount, round },
+    });
+    setRecordingContrib(false);
+
+    if (err || !result?.success) {
+      setContribError(result?.error || err?.message || (fr ? "Erreur lors de l'enregistrement." : "Error recording contribution."));
+      return;
+    }
+
+    setContribSuccess(fr ? "Cotisation enregistrée." : "Contribution recorded.");
+    setContribMemberId("");
+    setContribAmount("");
   };
 
   return (
@@ -82,6 +151,56 @@ export default function AdminTontineParticipants() {
             <StatusBadge status={tontine.status as any} size="sm" />
           </div>
           <p className="text-sm text-muted-foreground">{fr ? "Gestion des participants" : "Participant management"}</p>
+        </div>
+      </div>
+
+      {/* Contribution recording */}
+      <div className="bg-card rounded-2xl border border-border p-5 mb-6">
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+          <Coins size={16} className="text-[#4CAF68]" />
+          {fr ? "Enregistrer une cotisation" : "Record a contribution"}
+        </h3>
+        {contribError && (
+          <div className="mb-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{contribError}</div>
+        )}
+        {contribSuccess && (
+          <div className="mb-3 p-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/30 text-[#1F9D55] text-sm">{contribSuccess}</div>
+        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={contribMemberId}
+            onChange={(e) => setContribMemberId(e.target.value)}
+            className="px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+          >
+            <option value="">{fr ? "Sélectionner un membre" : "Select a member"}</option>
+            {activeMembers.map((m: any) => (
+              <option key={m.user_id} value={m.user_id}>{m.name}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min={1}
+            value={contribRound}
+            onChange={(e) => setContribRound(e.target.value)}
+            placeholder={fr ? "Tour n°" : "Round #"}
+            className="w-28 px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+          />
+          <input
+            type="number"
+            min={1}
+            value={contribAmount}
+            onChange={(e) => setContribAmount(e.target.value)}
+            placeholder={contribution ? formatXAF(contribution) : (fr ? "Montant" : "Amount")}
+            className="w-40 px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+          />
+          <button
+            onClick={handleRecordContribution}
+            disabled={!contribMemberId || recordingContrib}
+            className="px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            style={{ background: "#4CAF68" }}
+          >
+            {recordingContrib ? (fr ? "Enregistrement..." : "Recording...") : (fr ? "Enregistrer" : "Record")}
+          </button>
         </div>
       </div>
 
@@ -121,7 +240,7 @@ export default function AdminTontineParticipants() {
         <div className="p-5 border-b border-border">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Users size={16} className="text-muted-foreground" />
-            {fr ? "Participants" : "Participants"} ({members.length})
+            {fr ? "Participants" : "Participants"} ({activeMembers.length})
           </h3>
         </div>
         <div className="overflow-x-auto">
@@ -134,7 +253,7 @@ export default function AdminTontineParticipants() {
               </tr>
             </thead>
             <tbody>
-              {members.map((m: any) => (
+              {activeMembers.map((m: any) => (
                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-5 py-4 text-sm text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{m.payout_order}</td>
                   <td className="px-5 py-4">

@@ -1,10 +1,6 @@
 import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { logAudit } from "../_shared/admin-auth.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -22,20 +18,23 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
+    const callerId = authHeader ? extractUserId(authHeader) : null;
+    if (!callerId) throw new Error("Missing or invalid Authorization token");
+
     const body = await req.json();
 
-    if (!body.user_id || typeof body.user_id !== "string") {
-      throw new Error("user_id is required and must be a string");
-    }
     if (!body.tontine_id || typeof body.tontine_id !== "string") {
       throw new Error("tontine_id is required and must be a string");
     }
+    // A member may only apply on their own behalf, regardless of what
+    // (if anything) the client sends as user_id.
+    const userId = callerId;
 
     const { data, error } = await supabase
       .from("tontine_members")
       .insert({
         tontine_id: body.tontine_id,
-        user_id: body.user_id,
+        user_id: userId,
         status: "pending",
         joined_at: new Date().toISOString(),
       })
@@ -48,6 +47,21 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    await logAudit(supabase, {
+      actorId: userId,
+      action: "Tontine Application Submitted",
+      entityType: "tontine_member",
+      entityId: data.id,
+      metadata: { tontine_id: body.tontine_id },
+    });
+
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      type: "general",
+      title: "Tontine application received",
+      message: "Your application to join the tontine has been submitted and is pending approval.",
+    });
 
     return new Response(
       JSON.stringify({ success: true, request: data }),

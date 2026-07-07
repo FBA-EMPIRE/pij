@@ -1,10 +1,6 @@
-import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { getServiceClient } from "../_shared/supabase-client.ts";
+import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -22,6 +18,8 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
+    const caller = await getCallerAdmin(authHeader, supabase);
+
     const body = await req.json();
 
     if (!body.tontine_id || typeof body.tontine_id !== "string") {
@@ -37,7 +35,7 @@ Deno.serve(async (req) => {
       throw new Error("round is required and must be a positive integer");
     }
 
-    const adminId = authHeader ? extractUserId(authHeader) : null;
+    const adminId = caller.id;
 
     const { data: existingRound, error: roundErr } = await supabase
       .from("tontine_rounds")
@@ -86,6 +84,28 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: false, error: error.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    await logAudit(supabase, {
+      actorId: adminId,
+      action: "Contribution Recorded",
+      entityType: "tontine_contribution",
+      entityId: data.id,
+      metadata: { tontine_id: body.tontine_id, round: body.round, amount: body.amount },
+    });
+
+    const { data: member } = await supabase
+      .from("tontine_members")
+      .select("user_id")
+      .eq("id", body.member_id)
+      .maybeSingle();
+    if (member?.user_id) {
+      await supabase.from("notifications").insert({
+        user_id: member.user_id,
+        type: "contribution_reminder",
+        title: "Contribution recorded",
+        message: `Your contribution of ${body.amount} XAF for round ${body.round} has been recorded.`,
+      });
     }
 
     return new Response(
