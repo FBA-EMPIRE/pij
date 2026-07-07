@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check, Loader2 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
+import { supabase } from "../lib/supabase/client";
 
 const DISPOSABLE_DOMAINS = new Set([
   "mailinator.com", "guerrillamail.com", "tempmail.com", "10minutemail.com",
@@ -125,8 +126,13 @@ export function RegisterPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [signingUp, setSigningUp] = useState(false);
+  const [error, setError] = useState("");
   const fr = lang === "fr";
 
   const emailCheck = useMemo(() => {
@@ -142,6 +148,46 @@ export function RegisterPage() {
   const allMet = criteria.every((c) => c.met);
   const emailValid = emailCheck?.valid === true;
 
+  const handleSignUp = async () => {
+    if (!allMet || !emailValid) return;
+    setError("");
+    setSigningUp(true);
+
+    const { error: signUpErr } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+        },
+      },
+    });
+
+    if (signUpErr) {
+      setSigningUp(false);
+      setError(signUpErr.message);
+      return;
+    }
+
+    const { data: sendData, error: sendErr } = await supabase.functions.invoke(
+      "send-verification-code",
+      { body: { email } },
+    );
+
+    setSigningUp(false);
+
+    if (sendErr || !sendData?.success) {
+      setError(sendData?.error || sendErr?.message || "Échec de l'envoi du code");
+      return;
+    }
+
+    sessionStorage.setItem("pij_pending_email", email);
+    sessionStorage.setItem("pij_pending_password", password);
+    navigate("/verify-email", { state: { email } });
+  };
+
   return (
     <AuthCard darkMode={darkMode}>
       <div className="w-full max-w-sm">
@@ -156,11 +202,21 @@ export function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">{fr ? "Prénom" : "First name"}</label>
-              <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
+              <input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                placeholder="Amara"
+              />
             </div>
             <div>
               <label className="text-sm font-medium">{fr ? "Nom" : "Last name"}</label>
-              <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
+              <input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                placeholder="Diallo"
+              />
             </div>
           </div>
           <div>
@@ -192,7 +248,12 @@ export function RegisterPage() {
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Téléphone" : "Phone"}</label>
-            <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="+237 6 XX XX XX XX" />
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+              placeholder="+237 6 XX XX XX XX"
+            />
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Mot de passe" : "Password"}</label>
@@ -232,17 +293,25 @@ export function RegisterPage() {
               </button>
             </div>
           </div>
+
+          {error && (
+            <p className="text-sm text-red-500 text-center">{error}</p>
+          )}
+
           <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
             <input type="checkbox" className="mt-0.5 rounded border-border accent-[#4CAF68]" />
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
           <button
-            onClick={() => navigate("/verify-email")}
-            disabled={!allMet || !emailValid}
-            className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "#4CAF68" }}
+            onClick={handleSignUp}
+            disabled={!allMet || !emailValid || signingUp}
+            className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{ background: signingUp ? "#6B7280" : "#4CAF68" }}
           >
-            {fr ? "Créer mon compte" : "Create my account"}
+            {signingUp && <Loader2 size={16} className="animate-spin" />}
+            {signingUp
+              ? (fr ? "Création en cours..." : "Creating account...")
+              : (fr ? "Créer mon compte" : "Create my account")}
           </button>
         </div>
 

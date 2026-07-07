@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, CheckCircle, Mail, RefreshCw } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
@@ -37,6 +37,7 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
 export default function VerifyEmail() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const fr = lang === "fr";
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
@@ -45,11 +46,16 @@ export default function VerifyEmail() {
   const [resending, setResending] = useState(false);
   const [email, setEmail] = useState("");
 
-  useState(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email) setEmail(data.user.email);
-    });
-  });
+  useEffect(() => {
+    const stateEmail = (location.state as { email?: string } | null)?.email;
+    if (stateEmail) {
+      setEmail(stateEmail);
+    } else {
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user?.email) setEmail(data.user.email);
+      });
+    }
+  }, [location.state]);
 
   const handleCodeChange = (i: number, value: string) => {
     if (value.length > 1) return;
@@ -75,16 +81,26 @@ export default function VerifyEmail() {
     if (entered.length !== 6 || !email) return;
     setError("");
     setVerifying(true);
-    const { error: verifyErr } = await supabase.auth.verifyOtp({
-      email,
-      token: entered,
-      type: "signup",
-    });
+
+    const { data: verifyData, error: verifyErr } = await supabase.functions.invoke(
+      "verify-email-code",
+      { body: { email, code: entered } },
+    );
+
     setVerifying(false);
-    if (verifyErr) {
-      setError(verifyErr.message);
+    if (verifyErr || !verifyData?.success) {
+      setError(verifyData?.error || verifyErr?.message || "Échec de la vérification");
       return;
     }
+
+    // Auto-login with stored password
+    const savedPassword = sessionStorage.getItem("pij_pending_password");
+    if (savedPassword) {
+      await supabase.auth.signInWithPassword({ email, password: savedPassword });
+      sessionStorage.removeItem("pij_pending_password");
+    }
+    sessionStorage.removeItem("pij_pending_email");
+
     setVerified(true);
     setTimeout(() => navigate("/kyc"), 1500);
   };
@@ -93,13 +109,13 @@ export default function VerifyEmail() {
     if (!email) return;
     setResending(true);
     setError("");
-    const { error: resendErr } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
+    const { data: resendData, error: resendErr } = await supabase.functions.invoke(
+      "send-verification-code",
+      { body: { email } },
+    );
     setResending(false);
-    if (resendErr) {
-      setError(resendErr.message);
+    if (resendErr || !resendData?.success) {
+      setError(resendData?.error || resendErr?.message || "Échec de l'envoi");
       return;
     }
   };
