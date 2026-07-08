@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, CheckCircle, Mail, RefreshCw } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { sendVerificationEmail } from "../lib/emailjs";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
   return (
@@ -37,6 +38,7 @@ function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?
 export default function VerifyEmail() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const fr = lang === "fr";
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
@@ -45,11 +47,16 @@ export default function VerifyEmail() {
   const [resending, setResending] = useState(false);
   const [email, setEmail] = useState("");
 
-  useState(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email) setEmail(data.user.email);
-    });
-  });
+  useEffect(() => {
+    const stateEmail = (location.state as { email?: string } | null)?.email;
+    if (stateEmail) {
+      setEmail(stateEmail);
+    } else {
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user?.email) setEmail(data.user.email);
+      });
+    }
+  }, [location.state]);
 
   const handleCodeChange = (i: number, value: string) => {
     if (value.length > 1) return;
@@ -75,16 +82,41 @@ export default function VerifyEmail() {
     if (entered.length !== 6 || !email) return;
     setError("");
     setVerifying(true);
-    const { error: verifyErr } = await supabase.auth.verifyOtp({
-      email,
-      token: entered,
-      type: "signup",
-    });
+
+    // Pass registration details so the account is created server-side on first verification
+    const registration = {
+      password: sessionStorage.getItem("pij_pending_password"),
+      firstName: sessionStorage.getItem("pij_pending_first_name"),
+      lastName: sessionStorage.getItem("pij_pending_last_name"),
+      phone: sessionStorage.getItem("pij_pending_phone"),
+    };
+
+    const { data: verifyData, error: verifyErr } = await supabase.functions.invoke(
+      "verify-email-code",
+      {
+        body: {
+          email,
+          code: entered,
+          registration: registration.password ? registration : undefined,
+        },
+      },
+    );
+
     setVerifying(false);
-    if (verifyErr) {
-      setError(verifyErr.message);
+    if (verifyErr || !verifyData?.success) {
+      setError(verifyData?.error || verifyErr?.message || "Échec de la vérification");
       return;
     }
+
+    // Sign in now that the account exists and email is confirmed
+    if (registration.password) {
+      await supabase.auth.signInWithPassword({ email, password: registration.password });
+    }
+
+    // Clear all pending registration data
+    ["pij_pending_email", "pij_pending_password", "pij_pending_first_name",
+      "pij_pending_last_name", "pij_pending_phone"].forEach((k) => sessionStorage.removeItem(k));
+
     setVerified(true);
     setTimeout(() => navigate("/kyc"), 1500);
   };
@@ -93,14 +125,27 @@ export default function VerifyEmail() {
     if (!email) return;
     setResending(true);
     setError("");
-    const { error: resendErr } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
-    setResending(false);
-    if (resendErr) {
-      setError(resendErr.message);
+
+    const { data: codeData, error: codeErr } = await supabase.functions.invoke(
+      "send-verification-code",
+      { body: { email } },
+    );
+
+    if (codeErr || !codeData?.success) {
+      setError(codeData?.error || codeErr?.message || "Échec de l'envoi");
+      setResending(false);
       return;
+    }
+
+    const { sent, error: emailError } = await sendVerificationEmail(
+      email,
+      codeData.code,
+      new Date(codeData.expires_at),
+    );
+
+    setResending(false);
+    if (!sent) {
+      setError(emailError ?? "Impossible d'envoyer le code");
     }
   };
 
