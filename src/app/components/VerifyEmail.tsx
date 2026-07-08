@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle, Mail, RefreshCw } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { sendVerificationEmail } from "../lib/emailjs";
 
 function AuthCard({ children, darkMode }: { children: React.ReactNode; darkMode?: boolean }) {
   return (
@@ -82,9 +83,23 @@ export default function VerifyEmail() {
     setError("");
     setVerifying(true);
 
+    // Pass registration details so the account is created server-side on first verification
+    const registration = {
+      password: sessionStorage.getItem("pij_pending_password"),
+      firstName: sessionStorage.getItem("pij_pending_first_name"),
+      lastName: sessionStorage.getItem("pij_pending_last_name"),
+      phone: sessionStorage.getItem("pij_pending_phone"),
+    };
+
     const { data: verifyData, error: verifyErr } = await supabase.functions.invoke(
       "verify-email-code",
-      { body: { email, code: entered } },
+      {
+        body: {
+          email,
+          code: entered,
+          registration: registration.password ? registration : undefined,
+        },
+      },
     );
 
     setVerifying(false);
@@ -93,13 +108,14 @@ export default function VerifyEmail() {
       return;
     }
 
-    // Auto-login with stored password
-    const savedPassword = sessionStorage.getItem("pij_pending_password");
-    if (savedPassword) {
-      await supabase.auth.signInWithPassword({ email, password: savedPassword });
-      sessionStorage.removeItem("pij_pending_password");
+    // Sign in now that the account exists and email is confirmed
+    if (registration.password) {
+      await supabase.auth.signInWithPassword({ email, password: registration.password });
     }
-    sessionStorage.removeItem("pij_pending_email");
+
+    // Clear all pending registration data
+    ["pij_pending_email", "pij_pending_password", "pij_pending_first_name",
+      "pij_pending_last_name", "pij_pending_phone"].forEach((k) => sessionStorage.removeItem(k));
 
     setVerified(true);
     setTimeout(() => navigate("/kyc"), 1500);
@@ -109,14 +125,27 @@ export default function VerifyEmail() {
     if (!email) return;
     setResending(true);
     setError("");
-    const { data: resendData, error: resendErr } = await supabase.functions.invoke(
+
+    const { data: codeData, error: codeErr } = await supabase.functions.invoke(
       "send-verification-code",
       { body: { email } },
     );
-    setResending(false);
-    if (resendErr || !resendData?.success) {
-      setError(resendData?.error || resendErr?.message || "Échec de l'envoi");
+
+    if (codeErr || !codeData?.success) {
+      setError(codeData?.error || codeErr?.message || "Échec de l'envoi");
+      setResending(false);
       return;
+    }
+
+    const { sent, error: emailError } = await sendVerificationEmail(
+      email,
+      codeData.code,
+      new Date(codeData.expires_at),
+    );
+
+    setResending(false);
+    if (!sent) {
+      setError(emailError ?? "Impossible d'envoyer le code");
     }
   };
 

@@ -4,6 +4,7 @@ import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check, Loader2 } from "lu
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { sendVerificationEmail } from "../lib/emailjs";
 
 const DISPOSABLE_DOMAINS = new Set([
   "mailinator.com", "guerrillamail.com", "tempmail.com", "10minutemail.com",
@@ -169,21 +170,12 @@ export function RegisterPage() {
   const [showPw, setShowPw] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-<<<<<<< HEAD
-=======
-  const [phone, setPhone] = useState("");
->>>>>>> 401df312daf4c93c24b109bfad0ea84ac4588cee
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-<<<<<<< HEAD
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
   const [error, setError] = useState("");
-=======
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
->>>>>>> 401df312daf4c93c24b109bfad0ea84ac4588cee
   const fr = lang === "fr";
 
   const emailCheck = useMemo(() => {
@@ -198,68 +190,60 @@ export function RegisterPage() {
 
   const allMet = criteria.every((c) => c.met);
   const emailValid = emailCheck?.valid === true;
-  const canSubmit = allMet && emailValid && !!firstName && !!lastName && acceptedTerms && !loading;
-
-  const handleRegister = async () => {
-    setError("");
-    if (!canSubmit) return;
-    setLoading(true);
-    const { error: signUpErr } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          phone: phone || undefined,
-        },
-      },
-    });
-    setLoading(false);
-    if (signUpErr) {
-      setError(signUpErr.message);
-      return;
-    }
-    navigate("/verify-email");
-  };
+  const canSubmit = allMet && emailValid && !!firstName && !!lastName && acceptedTerms && !signingUp;
 
   const handleSignUp = async () => {
-    if (!allMet || !emailValid) return;
+    if (!canSubmit) return;
     setError("");
     setSigningUp(true);
 
-    const { error: signUpErr } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          phone,
-        },
-      },
-    });
-
-    if (signUpErr) {
-      setSigningUp(false);
-      setError(signUpErr.message);
-      return;
-    }
-
-    const { data: sendData, error: sendErr } = await supabase.functions.invoke(
+    // 1. Generate and store the code server-side
+    const { data: codeData, error: codeErr } = await supabase.functions.invoke(
       "send-verification-code",
       { body: { email } },
     );
 
-    setSigningUp(false);
-
-    if (sendErr || !sendData?.success) {
-      setError(sendData?.error || sendErr?.message || "Échec de l'envoi du code");
+    if (codeErr || !codeData?.success) {
+      setSigningUp(false);
+      setError(codeData?.error || codeErr?.message || "Échec de la génération du code");
       return;
     }
 
+    if (!codeData?.code || !codeData?.expires_at) {
+      setSigningUp(false);
+      setError(
+        fr
+          ? "Erreur serveur: redéployez la fonction send-verification-code"
+          : "Server error: redeploy the send-verification-code function",
+      );
+      return;
+    }
+
+    // 2. Send the email directly from the browser via EmailJS
+    const { sent, error: emailError } = await sendVerificationEmail(
+      email,
+      codeData.code,
+      new Date(codeData.expires_at),
+    );
+
+    if (!sent) {
+      setSigningUp(false);
+      setError(
+        fr
+          ? `Impossible d'envoyer le code: ${emailError}`
+          : `Failed to send code: ${emailError}`,
+      );
+      return;
+    }
+
+    // 3. Store registration details — account is created only after verification
     sessionStorage.setItem("pij_pending_email", email);
     sessionStorage.setItem("pij_pending_password", password);
+    sessionStorage.setItem("pij_pending_first_name", firstName);
+    sessionStorage.setItem("pij_pending_last_name", lastName);
+    if (phone) sessionStorage.setItem("pij_pending_phone", phone);
+
+    setSigningUp(false);
     navigate("/verify-email", { state: { email } });
   };
 
@@ -281,7 +265,6 @@ export function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">{fr ? "Prénom" : "First name"}</label>
-<<<<<<< HEAD
               <input
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
@@ -297,13 +280,6 @@ export function RegisterPage() {
                 className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
                 placeholder="Diallo"
               />
-=======
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
-            </div>
-            <div>
-              <label className="text-sm font-medium">{fr ? "Nom" : "Last name"}</label>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
->>>>>>> 401df312daf4c93c24b109bfad0ea84ac4588cee
             </div>
           </div>
           <div>
@@ -335,16 +311,12 @@ export function RegisterPage() {
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Téléphone" : "Phone"}</label>
-<<<<<<< HEAD
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
               placeholder="+237 6 XX XX XX XX"
             />
-=======
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="+237 6 XX XX XX XX" />
->>>>>>> 401df312daf4c93c24b109bfad0ea84ac4588cee
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Mot de passe" : "Password"}</label>
@@ -394,9 +366,8 @@ export function RegisterPage() {
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
           <button
-<<<<<<< HEAD
             onClick={handleSignUp}
-            disabled={!allMet || !emailValid || signingUp}
+            disabled={!canSubmit}
             className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             style={{ background: signingUp ? "#6B7280" : "#4CAF68" }}
           >
@@ -404,14 +375,6 @@ export function RegisterPage() {
             {signingUp
               ? (fr ? "Création en cours..." : "Creating account...")
               : (fr ? "Créer mon compte" : "Create my account")}
-=======
-            onClick={handleRegister}
-            disabled={!canSubmit}
-            className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "#4CAF68" }}
-          >
-            {loading ? (fr ? "Création..." : "Creating...") : (fr ? "Créer mon compte" : "Create my account")}
->>>>>>> 401df312daf4c93c24b109bfad0ea84ac4588cee
           </button>
         </div>
 

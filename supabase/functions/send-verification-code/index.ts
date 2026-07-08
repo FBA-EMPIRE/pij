@@ -1,13 +1,4 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-
-/*
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
-*/
-
 import { corsHeaders } from "../_shared/cors.ts";
 
 function json(body: unknown, status = 200) {
@@ -34,30 +25,31 @@ Deno.serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+    const normalizedEmail = email.toLowerCase();
 
+    // Invalidate any existing unused codes for this email
     await supabase
       .from("verification_codes")
       .update({ used_at: new Date(0).toISOString() })
-      .eq("email", email.toLowerCase())
+      .eq("email", normalizedEmail)
       .is("used_at", null);
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
     const { error: insertError } = await supabase
       .from("verification_codes")
-      .insert({ email: email.toLowerCase(), code, expires_at: expiresAt });
+      .insert({ email: normalizedEmail, code, expires_at: expiresAt.toISOString() });
 
     if (insertError) {
       return json({ success: false, error: insertError.message });
     }
 
-    console.log(`[DEV] Verification code for ${email}: ${code}`);
-
+    // Return code and expiry to the frontend — the browser sends the email via EmailJS
     return json({
       success: true,
-      message: "Verification code sent",
-      dev_code: code,
+      code,
+      expires_at: expiresAt.toISOString(),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";

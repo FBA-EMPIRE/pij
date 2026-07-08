@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, code } = await req.json();
+    const { email, code, registration } = await req.json();
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
       return json({ success: false, error: "Valid email is required" });
@@ -50,26 +50,54 @@ Deno.serve(async (req) => {
       return json({ success: false, error: "Code invalide ou expiré" });
     }
 
+    // Mark code as used
     await supabase
       .from("verification_codes")
       .update({ used_at: new Date().toISOString() })
       .eq("id", data.id);
 
-    const { data: user } = await supabase
+    // New registration: create the user account now that email is verified
+    if (registration?.password) {
+      const { error: createErr } = await supabase.auth.admin.createUser({
+        email: normalizedEmail,
+        password: registration.password,
+        email_confirm: true,
+        user_metadata: {
+          first_name: registration.firstName ?? "",
+          last_name: registration.lastName ?? "",
+          phone: registration.phone ?? "",
+        },
+      });
+
+      if (createErr && !createErr.message.toLowerCase().includes("already registered")) {
+        return json({ success: false, error: createErr.message });
+      }
+
+      // If user already existed, still confirm their email
+      if (createErr) {
+        const { data: existingUser } = await supabase
+          .from("users")
+          .select("id")
+          .eq("email", normalizedEmail)
+          .maybeSingle();
+
+        if (existingUser?.id) {
+          await supabase.auth.admin.updateUserById(existingUser.id, { email_confirm: true });
+        }
+      }
+
+      return json({ success: true, message: "Email verified and account created" });
+    }
+
+    // Re-verification for an existing user: just confirm their email
+    const { data: existingUser } = await supabase
       .from("users")
       .select("id")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
-    if (user?.id) {
-      const { error: adminError } = await supabase.auth.admin.updateUserById(
-        user.id,
-        { email_confirm: true },
-      );
-
-      if (adminError) {
-        console.error("Failed to confirm user email:", adminError.message);
-      }
+    if (existingUser?.id) {
+      await supabase.auth.admin.updateUserById(existingUser.id, { email_confirm: true });
     }
 
     return json({ success: true, message: "Email verified successfully" });
