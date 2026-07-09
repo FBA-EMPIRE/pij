@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit3, Trash2, X, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Plus, Edit3, Trash2, X, Loader2, ArrowLeft } from "lucide-react";
 import { fetchTontineTypes } from "../lib/supabase/queries";
 import { useAppContext } from "../context/AppContext";
 
 export default function AdminTontineTypes() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [types, setTypes] = useState<any[]>([]);
@@ -41,6 +43,10 @@ export default function AdminTontineTypes() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <button onClick={() => navigate("/admin/tontines")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+        <ArrowLeft size={16} /> {fr ? "Retour aux tontines" : "Back to tontines"}
+      </button>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
