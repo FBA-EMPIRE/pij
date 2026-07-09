@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Save, Shield, CalendarDays, Clock } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Eye, EyeOff, Save, Shield, CalendarDays, Clock, ArrowLeft } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { getCurrentUserId, fetchAdmins } from "../lib/supabase/queries";
 import { supabase } from "../lib/supabase/client";
 
 export default function AdminProfile() {
+  const navigate = useNavigate();
   const { darkMode, toggleDark, toggleLang, lang } = useAppContext();
   const fr = lang === "fr";
   const [admin, setAdmin] = useState<any>(null);
@@ -52,6 +54,10 @@ export default function AdminProfile() {
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+      <button onClick={() => navigate("/admin/dashboard")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+        <ArrowLeft size={16} /> {fr ? "Retour au tableau de bord" : "Back to dashboard"}
+      </button>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
