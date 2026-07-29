@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router";
+import { ArrowLeft } from "lucide-react";
 import { AppProvider } from "./context/AppContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./components/LandingPage";
@@ -43,10 +44,14 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useAppContext } from "./context/AppContext";
 
 function AdminSettingsPlaceholder() {
+  const navigate = useNavigate();
   const { darkMode, toggleDark, toggleLang, lang } = useAppContext();
   const fr = lang === "fr";
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <h2 className="mb-6" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Paramètres système" : "System settings"}</h2>
       <div className="space-y-4">
         <div className="bg-card rounded-2xl border border-border p-5">

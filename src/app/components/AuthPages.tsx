@@ -95,6 +95,9 @@ export function LoginPage() {
     <AuthCard darkMode={darkMode}>
       <div className="w-full max-w-sm">
         <div className="lg:hidden mb-8"><PIJLogo variant="full" size="md" /></div>
+        <button onClick={() => navigate("/")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+          <ArrowLeft size={14} /> {fr ? "Retour" : "Back"}
+        </button>
         <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Se connecter" : "Log in"}</h2>
         <p className="text-sm text-muted-foreground mb-8">{fr ? "Accédez à votre espace membre PIJ." : "Access your PIJ member space."}</p>
 

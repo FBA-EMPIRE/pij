@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Archive, BookOpen, FileText, Plus, Video, Link as LinkIcon, Upload, Loader2, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Archive, BookOpen, FileText, Plus, Video, Link as LinkIcon, Upload, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
@@ -23,6 +24,7 @@ type TabKey = "categories" | "courses" | "content" | "consultations";
 type FormMode = "create" | "edit" | null;
 
 export default function AdminFormations() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [tab, setTab] = useState<TabKey>("courses");
@@ -80,6 +82,9 @@ export default function AdminFormations() {
 
   return (
     <div className="p-4 lg:p-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6 gap-4">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des Formations" : "Formation Management"}</h2>

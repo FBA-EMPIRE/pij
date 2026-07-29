@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import {
   Download, UserPlus, Activity, AlertTriangle, Shield,
   RefreshCw, Landmark,
-  ChevronRight
+  ChevronRight, ArrowLeft
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
@@ -109,6 +109,9 @@ export default function SystemMonitoring() {
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
         <div>

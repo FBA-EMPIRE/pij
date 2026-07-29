@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Users, ShieldCheck, TrendingUp, Wallet, ArrowUpRight, ChevronRight, Loader2 } from "lucide-react";
+import { Users, ShieldCheck, TrendingUp, Wallet, ArrowUpRight, ChevronRight, Loader2, ArrowLeft } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -71,6 +71,9 @@ export default function AdminDashboard() {
   if (error) {
     return (
       <div className="p-4 lg:p-6">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+          <ArrowLeft size={20} className="text-muted-foreground" />
+        </button>
         <p className="text-red-500">{fr ? "Erreur de chargement des données" : "Error loading dashboard data"}</p>
       </div>
     );
@@ -86,6 +89,9 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {kpis.map((kpi) => (

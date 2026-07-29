@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Users, Wallet, TrendingUp, BarChart3, UserCog, Mail, Activity, FileSearch,
-  ChevronRight, Loader2
+  ChevronRight, Loader2, ArrowLeft
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -150,6 +150,9 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       {/* Row 1 - 4 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {kpiRow1.map((kpi) => (

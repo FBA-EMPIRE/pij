@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
+<<<<<<< Updated upstream
 import { Plus, ArrowDownLeft, ArrowUpRight, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+=======
+import { useNavigate } from "react-router";
+import { Plus, ArrowDownLeft, ArrowUpRight, Check, Loader2, ArrowLeft } from "lucide-react";
+>>>>>>> Stashed changes
 import { fetchAccountsWithUsers, getCurrentUserId, recordDeposit, recordWithdrawal } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
@@ -23,6 +28,7 @@ function highlightMatch(text: string, query: string) {
 }
 
 export default function AccountManagement() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [members, setMembers] = useState<any[]>([]);
@@ -97,6 +103,9 @@ export default function AccountManagement() {
 
   return (
     <div className="p-4 lg:p-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="mb-6">
         <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des comptes" : "Account management"}</h2>
       </div>

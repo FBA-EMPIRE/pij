@@ -54,10 +54,16 @@ export default function AdminProfile() {
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+<<<<<<< Updated upstream
       <button onClick={() => navigate("/admin/dashboard")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft size={16} /> {fr ? "Retour au tableau de bord" : "Back to dashboard"}
       </button>
 
+=======
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
+>>>>>>> Stashed changes
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>

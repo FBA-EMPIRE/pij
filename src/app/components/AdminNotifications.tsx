@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, Send, Info, AlertTriangle, CheckCircle, Users, Mail, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Bell, CheckCheck, Send, Info, AlertTriangle, CheckCircle, Users, Mail, ArrowRight, ArrowLeft } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 import { getCurrentUserId, fetchUsers } from "../lib/supabase/queries";
@@ -27,6 +28,7 @@ const memberName = (m: any) =>
   [m?.profiles?.first_name, m?.profiles?.last_name].filter(Boolean).join(" ") || m?.email || m?.id;
 
 export default function AdminNotifications() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [filter, setFilter] = useState<"all" | "unread">("all");
@@ -101,6 +103,9 @@ export default function AdminNotifications() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
