@@ -109,6 +109,39 @@ export function validateTontineMemberAction(body: Record<string, unknown>) {
   return body as { member_id: string; reason?: string };
 }
 
+export function validateInvestmentRequestId(body: Record<string, unknown>) {
+  if (!body.request_id || typeof body.request_id !== "string") {
+    throw new Error("request_id is required and must be a string");
+  }
+  return body as { request_id: string };
+}
+
+export function validateInvestmentAdjustment(body: Record<string, unknown>) {
+  if (!body.user_id || typeof body.user_id !== "string") {
+    throw new Error("user_id is required and must be a string");
+  }
+  if (typeof body.amount !== "number" || body.amount <= 0) {
+    throw new Error("amount is required and must be a positive number");
+  }
+  if (body.action !== "credit" && body.action !== "debit") {
+    throw new Error("action must be 'credit' or 'debit'");
+  }
+  return body as { user_id: string; amount: number; action: "credit" | "debit" };
+}
+
+export function validateInvestmentDistribution(body: Record<string, unknown>) {
+  if (!body.portfolio_id || typeof body.portfolio_id !== "string") {
+    throw new Error("portfolio_id is required and must be a string");
+  }
+  if (typeof body.amount !== "number" || body.amount <= 0) {
+    throw new Error("amount is required and must be a positive number");
+  }
+  if (body.kind !== "profit" && body.kind !== "loss") {
+    throw new Error("kind must be 'profit' or 'loss'");
+  }
+  return body as { portfolio_id: string; amount: number; kind: "profit" | "loss" };
+}
+
 export function validateAdminId(body: Record<string, unknown>) {
   if (!body.admin_id || typeof body.admin_id !== "string") {
     throw new Error("admin_id is required and must be a string");

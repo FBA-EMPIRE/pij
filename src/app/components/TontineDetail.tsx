@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Trophy, CheckCircle, XCircle, Users, Calendar, Coins, Info, Send, Clock, UserPlus } from "lucide-react";
 import { formatXAF } from "../lib/format";
-import { fetchTontineById, fetchTontineMembers, getCurrentUserId, applyToTontine } from "../lib/supabase/queries";
+import { fetchTontineById, fetchTontineMembers, fetchTontineRounds, getCurrentUserId, applyToTontine } from "../lib/supabase/queries";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 
@@ -15,6 +15,7 @@ export default function TontineDetail() {
   const [requestSent, setRequestSent] = useState(false);
   const [tontine, setTontine] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
+  const [rounds, setRounds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [joinError, setJoinError] = useState("");
@@ -25,9 +26,11 @@ export default function TontineDetail() {
     Promise.all([
       fetchTontineById(id),
       fetchTontineMembers(id),
-    ]).then(([t, m]) => {
+      fetchTontineRounds(id),
+    ]).then(([t, m, r]) => {
       setTontine(t);
       setMembers(m);
+      setRounds(r);
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -228,6 +231,50 @@ export default function TontineDetail() {
             </div>
           </div>
 
+          {/* === GRID === */}
+          {activeTab === "grid" && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {mappedMembers.map((member) => (
+                <div key={member.id} className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center text-center gap-2">
+                  <span className="text-xs text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>#{member.position}</span>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ background: "#6E3A9A" }}>
+                    {member.avatar}
+                  </div>
+                  <span className="text-sm font-medium truncate w-full">{member.name}</span>
+                  <StatusBadge status={member.payout_received ? "Paid" : "Active"} size="sm" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* === HISTORY / ROUNDS === */}
+          {activeTab === "rounds" && (
+            <div className="bg-card rounded-2xl border border-border overflow-hidden">
+              <div className="p-5 border-b border-border">
+                <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Historique des tours" : "Round history"}</h3>
+              </div>
+              {rounds.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">{fr ? "Aucun tour enregistré" : "No rounds recorded yet"}</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {rounds.map((round) => {
+                    const recipient = mappedMembers.find((m) => m.id === round.recipient_member_id);
+                    return (
+                      <div key={round.id} className="flex items-center gap-3 px-5 py-4">
+                        <span className="text-sm font-medium text-muted-foreground w-16" style={{ fontFamily: "Geist Mono, monospace" }}>
+                          #{round.round_number}
+                        </span>
+                        <span className="flex-1 text-sm font-medium truncate">{recipient?.name ?? (fr ? "Non attribué" : "Unassigned")}</span>
+                        <span className="text-xs text-muted-foreground">{round.payout_date ?? "—"}</span>
+                        <StatusBadge status={round.status === "paid" ? "Paid" : "Pending"} size="sm" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* === PARTICIPANTS === */}
           {activeTab === "members" && (
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -265,7 +312,7 @@ export default function TontineDetail() {
                       {member.payout_received ? (
                         <StatusBadge status="Paid" size="sm" />
                       ) : (
-                        <StatusBadge status={fr ? "En attente" : "Pending"} size="sm" />
+                        <StatusBadge status="Pending" size="sm" />
                       )}
                     </div>
                   </div>

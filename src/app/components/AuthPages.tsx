@@ -395,8 +395,29 @@ export function RegisterPage() {
 export function ForgotPasswordPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const fr = lang === "fr";
+
+  const handleSend = async () => {
+    setError("");
+    if (!email) {
+      setError(fr ? "Veuillez renseigner votre email." : "Please enter your email.");
+      return;
+    }
+    setLoading(true);
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (resetErr) {
+      setError(resetErr.message);
+      return;
+    }
+    setSent(true);
+  };
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -408,12 +429,16 @@ export function ForgotPasswordPage() {
           <>
             <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mot de passe oublié" : "Forgot password"}</h2>
             <p className="text-sm text-muted-foreground mb-8">{fr ? "Entrez votre email. Nous vous enverrons un lien de réinitialisation." : "Enter your email. We'll send you a reset link."}</p>
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Email</label>
-                <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
               </div>
-              <button onClick={() => setSent(true)} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+              <button onClick={handleSend} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2" style={{ background: "#4CAF68" }}>
+                {loading && <Loader2 size={16} className="animate-spin" />}
                 {fr ? "Envoyer le lien" : "Send reset link"}
               </button>
             </div>
@@ -425,6 +450,104 @@ export function ForgotPasswordPage() {
             </div>
             <h2 className="mb-2" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Email envoyé !" : "Email sent!"}</h2>
             <p className="text-sm text-muted-foreground mb-6">{fr ? "Vérifiez votre boîte mail et cliquez sur le lien de réinitialisation." : "Check your inbox and click the reset link."}</p>
+            <button onClick={() => navigate("/login")} className="text-sm text-[#4CAF68] font-medium hover:underline">
+              {fr ? "Retour à la connexion" : "Back to login"}
+            </button>
+          </div>
+        )}
+      </div>
+    </AuthCard>
+  );
+}
+
+export function ResetPasswordPage() {
+  const { darkMode, lang } = useAppContext();
+  const navigate = useNavigate();
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const fr = lang === "fr";
+
+  const criteriaMet = useMemo(() => PASSWORD_CRITERIA.every((c) => c.test(password)), [password]);
+
+  const handleReset = async () => {
+    setError("");
+    if (!criteriaMet) {
+      setError(fr ? "Le mot de passe ne respecte pas les critères requis." : "Password does not meet the required criteria.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError(fr ? "Les mots de passe ne correspondent pas." : "Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    const { error: updateErr } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (updateErr) {
+      setError(updateErr.message);
+      return;
+    }
+    setDone(true);
+  };
+
+  return (
+    <AuthCard darkMode={darkMode}>
+      <div className="w-full max-w-sm">
+        {!done ? (
+          <>
+            <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Réinitialiser le mot de passe" : "Reset password"}</h2>
+            <p className="text-sm text-muted-foreground mb-8">{fr ? "Choisissez un nouveau mot de passe pour votre compte." : "Choose a new password for your account."}</p>
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">{fr ? "Nouveau mot de passe" : "New password"}</label>
+                <div className="relative mt-1.5">
+                  <input
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    type={showPw ? "text" : "password"}
+                    className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                  />
+                  <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <div className="mt-2 space-y-1">
+                  {PASSWORD_CRITERIA.map((c) => (
+                    <div key={c.key} className="flex items-center gap-1.5 text-xs">
+                      {c.test(password) ? <Check size={12} color="#4CAF68" /> : <X size={12} className="text-muted-foreground" />}
+                      <span className={c.test(password) ? "text-[#4CAF68]" : "text-muted-foreground"}>{fr ? c.label.fr : c.label.en}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{fr ? "Confirmer le mot de passe" : "Confirm password"}</label>
+                <input
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  type={showPw ? "text" : "password"}
+                  className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                />
+              </div>
+              <button onClick={handleReset} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2" style={{ background: "#4CAF68" }}>
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {fr ? "Réinitialiser" : "Reset password"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center">
+            <div className="w-14 h-14 rounded-full bg-[#E8F5EC] flex items-center justify-center mx-auto mb-5">
+              <CheckCircle size={24} color="#4CAF68" />
+            </div>
+            <h2 className="mb-2" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mot de passe mis à jour !" : "Password updated!"}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{fr ? "Vous pouvez maintenant vous connecter avec votre nouveau mot de passe." : "You can now sign in with your new password."}</p>
             <button onClick={() => navigate("/login")} className="text-sm text-[#4CAF68] font-medium hover:underline">
               {fr ? "Retour à la connexion" : "Back to login"}
             </button>

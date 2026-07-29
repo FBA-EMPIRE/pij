@@ -39,6 +39,8 @@ export default function AdminNotifications() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sendSuccess, setSendSuccess] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotif[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [adminId, setAdminId] = useState<string | null>(null);
@@ -69,6 +71,8 @@ export default function AdminNotifications() {
   const handleSend = async () => {
     if (!title || !message) return;
     setSending(true);
+    setSendError("");
+    setSendSuccess(false);
 
     const targets: string[] = [];
     if (targetMode === "all") {
@@ -86,13 +90,19 @@ export default function AdminNotifications() {
       message: message,
       is_read: false,
     }));
-    await supabase.from("notifications").insert(rows);
+    const { error } = await supabase.from("notifications").insert(rows);
+    setSending(false);
+    if (error) {
+      setSendError(error.message);
+      return;
+    }
 
     setTitle("");
     setMessage("");
     setSelectedMember("");
     setSelectedMembers([]);
-    setSending(false);
+    setSendSuccess(true);
+    setTimeout(() => setSendSuccess(false), 3000);
   };
 
   const toggleMember = (id: string) => {
@@ -264,6 +274,14 @@ export default function AdminNotifications() {
                 placeholder={fr ? "Contenu du message..." : "Message content..."} />
             </div>
 
+            {sendError && (
+              <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-xs">{sendError}</div>
+            )}
+            {sendSuccess && (
+              <div className="p-2.5 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] border border-[#4CAF68]/30 text-[#1F9D55] dark:text-[#4CAF68] text-xs">
+                {fr ? "Notification envoyée avec succès." : "Notification sent successfully."}
+              </div>
+            )}
             <button
               onClick={handleSend}
               disabled={!title || !message || (targetMode === "single" && !selectedMember) || sending}

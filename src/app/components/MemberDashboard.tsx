@@ -85,7 +85,6 @@ export default function MemberDashboard() {
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
             {formatXAF(currentAccount)}
           </p>
-          <p className="text-xs text-white/50">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">
             <StatusBadge status="Active" size="sm" />
           </div>
@@ -97,7 +96,6 @@ export default function MemberDashboard() {
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
             {formatXAF(savingsAccount)}
           </p>
-          <p className="text-xs text-white/60">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">
             <StatusBadge status="Active" size="sm" />
           </div>
@@ -119,15 +117,15 @@ export default function MemberDashboard() {
             </div>
             <div className="space-y-1">
               {recentTxns.map((txn) => {
-                const isCredit = txn.amount > 0;
+                const isCredit = txn.type === "deposit";
                 return (
                   <div key={txn.id} className="flex items-center gap-2 sm:gap-3 py-2 sm:py-3 border-b border-border last:border-0">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isCredit ? "bg-[#E8F5EC]" : "bg-red-50"}`}>
                       {isCredit ? <ArrowDownRight size={16} color="#4CAF68" /> : <ArrowUpRight size={16} color="#E5484D" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{txn.description}</p>
-                      <p className="text-xs text-muted-foreground">{txn.date} · {txn.account}</p>
+                      <p className="text-sm font-medium truncate">{txn.notes}</p>
+                      <p className="text-xs text-muted-foreground">{txn.created_at} · {txn.account_type}</p>
                     </div>
                     <span className={`text-sm font-bold shrink-0 ${isCredit ? "text-[#1F9D55]" : "text-[#E5484D]"}`} style={{ fontFamily: "Geist Mono, monospace" }}>
                       {isCredit ? "+" : "−"}{formatXAF(txn.amount)}

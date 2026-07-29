@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
         amount: validated.amount,
         balance_after: newBalance,
         recorded_by: recordedBy,
-        notes: body.description ?? null,
+        notes: typeof body.description === "string" ? body.description : null,
         created_at: new Date().toISOString(),
       })
       .select()

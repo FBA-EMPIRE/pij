@@ -6,7 +6,7 @@ import { supabase } from "./client";
 // show something actionable.
 async function invokeEdgeFunction<T = any>(
   name: string,
-  options?: { body?: unknown },
+  options?: { body?: Record<string, unknown> },
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, options);
   if (error) {
@@ -522,9 +522,9 @@ export async function saveSystemSetting(key: string, value: unknown) {
 export async function fetchTontineStatusCounts() {
   const { data, error } = await supabase.from("tontines").select("status");
   if (error) throw error;
-  const counts: Record<string, number> = { open: 0, active: 0, closed: 0 };
+  const counts = { open: 0, active: 0, closed: 0 };
   for (const t of (data ?? []) as any[]) {
-    if (t.status in counts) counts[t.status]++;
+    if (t.status in counts) counts[t.status as keyof typeof counts]++;
   }
   return counts;
 }
@@ -608,6 +608,16 @@ export async function fetchTontineMembers(tontineId: string) {
   });
 }
 
+export async function fetchTontineRounds(tontineId: string) {
+  const { data, error } = await supabase
+    .from("tontine_rounds")
+    .select("*")
+    .eq("tontine_id", tontineId)
+    .order("round_number", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function fetchTontineContributionCounts(tontineId: string) {
   const { data: rounds, error: roundsErr } = await supabase
     .from("tontine_rounds")
@@ -634,7 +644,7 @@ export async function fetchTontineContributionCounts(tontineId: string) {
 }
 
 export async function contributeToGoal({ goal_id, amount }: { goal_id: string; amount: number }) {
-  const data = await invokeEdgeFunction<{ success: boolean; error?: string }>("goal-contribute", {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string; goal?: { current_amount: number; [key: string]: unknown }; transaction?: Record<string, unknown> }>("goal-contribute", {
     body: { goal_id, amount },
   });
   if (!data?.success) throw new Error(data?.error || "Failed to record contribution");
@@ -707,5 +717,50 @@ export async function fetchAccountsWithUsers() {
     const name = [u.profiles?.first_name, u.profiles?.last_name].filter(Boolean).join(" ") || u.email || "Unknown";
     const b = balanceMap[u.id] || { current: 0, savings: 0 };
     return { ...u, ...b, name, kyc: u.kyc_status };
+  });
+}
+
+export async function adjustInvestmentWallet({ user_id, amount, action }: { user_id: string; amount: number; action: "credit" | "debit" }) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string; balance?: number }>("investment-adjust-wallet", {
+    body: { user_id, amount, action },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to adjust wallet");
+  return data;
+}
+
+export async function approveInvestmentRequest({ request_id }: { request_id: string }) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string }>("investment-approve-request", {
+    body: { request_id },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to approve investment request");
+  return data;
+}
+
+export async function rejectInvestmentRequest({ request_id }: { request_id: string }) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string }>("investment-reject-request", {
+    body: { request_id },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to reject investment request");
+  return data;
+}
+
+export async function distributeInvestmentReturn({ portfolio_id, amount, kind }: { portfolio_id: string; amount: number; kind: "profit" | "loss" }) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string; current_value?: number; returns?: number }>("investment-distribute-return", {
+    body: { portfolio_id, amount, kind },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to distribute investment return");
+  return data;
+}
+
+export async function fetchAdminInvestmentPortfolio() {
+  const { data, error } = await supabase
+    .from("investment_portfolio")
+    .select("*, opportunity:investment_opportunities(title, title_en), user:users(email, profiles(first_name, last_name))")
+    .order("started_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((p: any) => {
+    const profile = p.user?.profiles;
+    const memberName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : (p.user?.email ?? "");
+    return { ...p, memberName };
   });
 }

@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { AppProvider } from "./context/AppContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./components/LandingPage";
-import { LoginPage, RegisterPage, ForgotPasswordPage } from "./components/AuthPages";
+import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./components/AuthPages";
 import KYCOnboarding from "./components/KYCOnboarding";
 import VerifyEmail from "./components/VerifyEmail";
 import { MemberLayout } from "./components/MemberLayout";
@@ -97,6 +97,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/admin/invite/:token" element={<AdminInviteAccept />} />
           <Route path="/kyc" element={<KYCOnboarding />} />

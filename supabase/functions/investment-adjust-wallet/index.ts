@@ -1,7 +1,7 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-import { validateWithdrawal } from "../_shared/validators.ts";
+import { validateInvestmentAdjustment } from "../_shared/validators.ts";
 import { getCallerAdmin, logAudit } from "../_shared/admin-auth.ts";
-import { assertNotInMaintenance, getSystemSetting } from "../_shared/system-settings.ts";
+import { assertNotInMaintenance } from "../_shared/system-settings.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
@@ -24,73 +24,75 @@ Deno.serve(async (req) => {
     await assertNotInMaintenance(supabase);
 
     const body = await req.json();
-    const validated = validateWithdrawal(body);
+    const validated = validateInvestmentAdjustment(body);
 
-    const withdrawalLimit = await getSystemSetting<number>(supabase, "withdrawal_limit", Infinity);
-    if (validated.amount > withdrawalLimit) {
-      throw new Error(`Amount exceeds the platform withdrawal limit of ${withdrawalLimit}`);
-    }
-
-    const recordedBy = caller.id;
-
-    const { data: account, error: acctErr } = await supabase
+    let { data: account, error: acctErr } = await supabase
       .from("accounts")
       .select("id, balance")
       .eq("user_id", validated.user_id)
-      .eq("account_type", validated.account_type)
-      .single();
+      .eq("account_type", "investment")
+      .maybeSingle();
+    if (acctErr) throw acctErr;
 
-    if (acctErr || !account) {
-      throw new Error("Account not found for this user and account type");
+    if (!account) {
+      if (validated.action === "debit") {
+        throw new Error("This member has no investment account to debit from");
+      }
+      const { data: created, error: createErr } = await supabase
+        .from("accounts")
+        .insert({ user_id: validated.user_id, account_type: "investment", balance: 0 })
+        .select("id, balance")
+        .single();
+      if (createErr) throw createErr;
+      account = created;
     }
 
     const currentBalance = Number(account.balance);
-    if (currentBalance < validated.amount) {
-      throw new Error("Insufficient funds");
+    if (validated.action === "debit" && currentBalance < validated.amount) {
+      throw new Error("Insufficient investment balance");
     }
 
-    const newBalance = currentBalance - validated.amount;
+    const newBalance = validated.action === "credit"
+      ? currentBalance + validated.amount
+      : currentBalance - validated.amount;
 
     const { error: updateErr } = await supabase
       .from("accounts")
       .update({ balance: newBalance })
       .eq("id", account.id);
-
     if (updateErr) throw updateErr;
 
     const { data: txn, error: txnErr } = await supabase
       .from("transactions")
       .insert({
         account_id: account.id,
-        type: "withdrawal",
+        type: validated.action === "credit" ? "deposit" : "withdrawal",
         amount: validated.amount,
         balance_after: newBalance,
-        recorded_by: recordedBy,
-        notes: typeof body.description === "string" ? body.description : null,
-        created_at: new Date().toISOString(),
+        recorded_by: caller.id,
+        notes: `Admin wallet ${validated.action}`,
       })
       .select()
       .single();
-
     if (txnErr) throw txnErr;
 
     await logAudit(supabase, {
       actorId: caller.id,
-      action: "Withdrawal Recorded",
+      action: validated.action === "credit" ? "Investment Wallet Credited" : "Investment Wallet Debited",
       entityType: "transaction",
       entityId: txn.id,
-      metadata: { user_id: validated.user_id, account_type: validated.account_type, amount: validated.amount },
+      metadata: { user_id: validated.user_id, amount: validated.amount, action: validated.action },
     });
 
     await supabase.from("notifications").insert({
       user_id: validated.user_id,
       type: "general",
-      title: "Withdrawal recorded",
-      message: `A withdrawal of ${validated.amount} XAF was recorded from your ${validated.account_type} account.`,
+      title: validated.action === "credit" ? "Investment wallet credited" : "Investment wallet debited",
+      message: `Your investment wallet was ${validated.action === "credit" ? "credited" : "debited"} ${validated.amount} XAF by an administrator.`,
     });
 
     return new Response(
-      JSON.stringify({ success: true, transaction: txn }),
+      JSON.stringify({ success: true, transaction: txn, balance: newBalance }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

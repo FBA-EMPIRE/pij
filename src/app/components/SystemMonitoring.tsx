@@ -206,15 +206,19 @@ export default function SystemMonitoring() {
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {admins.slice(0, 8).map((admin: any) => (
-            <div key={admin.email} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: admin.initialsColor }}>
-                {admin.initials}
+          {admins.slice(0, 8).map((admin: any) => {
+            const initials = (admin.first_name?.[0] ?? "") + (admin.last_name?.[0] ?? "");
+            const name = [admin.first_name, admin.last_name].filter(Boolean).join(" ") || admin.email;
+            return (
+              <div key={admin.id ?? admin.email} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "#6E3A9A" }}>
+                  {initials}
+                </div>
+                <span className="text-xs font-medium">{name}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${admin.is_active ? "bg-[#4CAF68]" : "bg-[#E8A317]"}`} />
               </div>
-              <span className="text-xs font-medium">{admin.name}</span>
-              <span className={`w-1.5 h-1.5 rounded-full ${admin.is_active ? "bg-[#4CAF68]" : "bg-[#E8A317]"}`} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

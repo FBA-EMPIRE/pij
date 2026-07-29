@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Eye, EyeOff, Save, Shield, CalendarDays, Clock, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Save, Shield, CalendarDays, Clock, ArrowLeft, Loader2 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { getCurrentUserId, fetchAdmins } from "../lib/supabase/queries";
 import { supabase } from "../lib/supabase/client";
@@ -20,6 +20,9 @@ export default function AdminProfile() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSaved, setPwSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -52,18 +55,42 @@ export default function AdminProfile() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handlePasswordUpdate = async () => {
+    setPwError("");
+    if (newPw !== confirmPw) {
+      setPwError(fr ? "Les mots de passe ne correspondent pas." : "Passwords do not match.");
+      return;
+    }
+    if (newPw.length < 8) {
+      setPwError(fr ? "Le mot de passe doit contenir au moins 8 caractères." : "Password must be at least 8 characters.");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authEmail = sessionData.session?.user.email;
+      if (!authEmail) throw new Error(fr ? "Session invalide." : "Invalid session.");
+      const { error: verifyErr } = await supabase.auth.signInWithPassword({ email: authEmail, password: currentPw });
+      if (verifyErr) throw new Error(fr ? "Mot de passe actuel incorrect." : "Current password is incorrect.");
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPw });
+      if (updateErr) throw updateErr;
+      setPwSaved(true);
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
+      setTimeout(() => setPwSaved(false), 2000);
+    } catch (err: any) {
+      setPwError(err?.message || (fr ? "Erreur lors de la mise à jour." : "Error updating password."));
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-<<<<<<< Updated upstream
-      <button onClick={() => navigate("/admin/dashboard")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-        <ArrowLeft size={16} /> {fr ? "Retour au tableau de bord" : "Back to dashboard"}
-      </button>
-
-=======
       <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
         <ArrowLeft size={20} className="text-muted-foreground" />
       </button>
->>>>>>> Stashed changes
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
@@ -155,11 +182,21 @@ export default function AdminProfile() {
             <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)}
               className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
           </div>
+          {pwError && (
+            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{pwError}</div>
+          )}
+          {pwSaved && (
+            <div className="p-3 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] border border-[#4CAF68]/30 text-[#1F9D55] dark:text-[#4CAF68] text-sm">
+              {fr ? "Mot de passe mis à jour avec succès." : "Password updated successfully."}
+            </div>
+          )}
           <button
-            disabled={!currentPw || !newPw || !confirmPw || newPw !== confirmPw}
-            className="px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40 hover:opacity-90 transition-all"
+            onClick={handlePasswordUpdate}
+            disabled={!currentPw || !newPw || !confirmPw || newPw !== confirmPw || pwSaving}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40 hover:opacity-90 transition-all"
             style={{ background: "#6E3A9A" }}
           >
+            {pwSaving && <Loader2 size={15} className="animate-spin" />}
             {fr ? "Mettre à jour le mot de passe" : "Update password"}
           </button>
         </div>

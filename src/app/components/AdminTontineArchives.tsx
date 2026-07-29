@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Archive, Eye } from "lucide-react";
+import { ArrowLeft, Archive, Eye, Loader2 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 import { formatXAF } from "../lib/format";
@@ -10,15 +10,19 @@ export default function AdminTontineArchives() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [archives, setArchives] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    supabase
-      .from("tontines")
-      .select("*, tontine_types(name, contribution_amount)")
-      .eq("status", "closed")
-      .then(({ data }) => {
-        if (data) setArchives(data);
-      });
+    (async () => {
+      const { data, error: err } = await supabase
+        .from("tontines")
+        .select("*, tontine_types(name, contribution_amount)")
+        .eq("status", "closed");
+      if (err) { setError(true); setLoading(false); return; }
+      setArchives(data ?? []);
+      setLoading(false);
+    })();
   }, []);
 
   return (
@@ -32,7 +36,15 @@ export default function AdminTontineArchives() {
         <p className="text-sm text-muted-foreground mt-1">{archives.length} {fr ? "tontine(s) archivée(s)" : "archived tontine(s)"}</p>
       </div>
 
-      {archives.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="animate-spin" size={24} />
+        </div>
+      ) : error ? (
+        <div className="bg-card rounded-2xl border border-border p-8 text-center">
+          <p className="text-sm text-red-500">{fr ? "Erreur de chargement des archives" : "Error loading archives"}</p>
+        </div>
+      ) : archives.length === 0 ? (
         <div className="bg-card rounded-2xl border border-border p-8 text-center">
           <Archive size={32} className="mx-auto mb-3 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">{fr ? "Aucune tontine archivée" : "No archived tontines"}</p>
