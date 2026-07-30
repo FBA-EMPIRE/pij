@@ -89,10 +89,8 @@
       "optional": true
     }
   },
-  "pnpm": {
-    "overrides": {
-      "vite": "6.3.5"
-    }
+  "overrides": {
+    "vite": "6.3.5"
   },
   "description": "Plateforme digitale de microfinance — Frontend (Vite + React + TypeScript)",
   "main": "index.js",
