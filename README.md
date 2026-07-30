@@ -1,109 +1,103 @@
 # PIJ — Programme d'Investissement des Jeunes
 
-Plateforme digitale de microfinance — Frontend (Vite + React + TypeScript)
+Plateforme digitale de microfinance — Vite + React + TypeScript (frontend) et Supabase (backend).
 
 ---
 
-## Rapport d'Écart vs Cahier de Charge
+## Architecture
 
-### Écrans encore manquants du CDC
+| Couche | Technologie |
+|--------|-------------|
+| Frontend | Vite + React 18 (SPA), React Router 7 |
+| UI | Tailwind CSS 4 + Radix UI + composants shadcn (`src/app/components/ui`) |
+| State | React Context (`AppContext`) + `useState` (pas de TanStack Query / Zustand) |
+| Backend | Supabase — Auth, PostgreSQL, Storage, Edge Functions (Deno) |
+| Hosting | Vercel (SPA fallback via `vercel.json`) |
 
-#### Portail Membre (2 écrans sur 25)
-- [ ] **Vérification email** (UC-02) — flux de confirmation d'adresse email après inscription
-- [ ] **Détail transaction** (UC-12) — vue détaillée d'une transaction individuelle avec reçu
-- [ ] **Détail objectif épargne** (UC-14) — page de détail avec historique et suivi de progression
+### Variables d'environnement (`.env`)
 
-#### Portail Admin (4 écrans sur 24)
-- [ ] **Gestion des types de tontine** (UC-24) — interface CRUD pour les catégories de tontine (montant cotisation, fréquence, règles)
-- [ ] **Export de rapports** (UC-30) — téléchargement de rapports PDF et Excel pour toute période
-- [ ] **Centre de notifications** (UC-33) — vue et envoi de notifications aux membres
-- [ ] **Gestion des rôles et permissions** (UC-34) — définition des rôles staff et attribution de permissions granulaires
-- [ ] **Gestion des profils administrateurs** (UC-36) — création, modification et désactivation des comptes admin
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
 
----
-
-### Modules ajoutés (non spécifiés dans le CDC)
-
-Ces modules ont été développés mais ne figurent pas dans le cahier de charge original :
-
-| Module | Routes | Composants |
-|--------|--------|------------|
-| **Formations** | `/formations`, `/formations/courses/:id`, `/formations/learning`, `/formations/consultation`, `/admin/formations` | `Formations.tsx` (117 lignes), `AdminFormations.tsx` (170 lignes) |
-| **Investissements** | `/investissements`, `/investissements/portfolio`, `/investissements/wallet`, `/investissements/:id`, `/admin/investissements` | `Investments.tsx` (75 lignes), `AdminInvestments.tsx` (130 lignes) |
-| **System Monitoring** | `/admin/system-audit` | `SystemMonitoring.tsx` (367 lignes) |
+Les Edge Functions utilisent `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` (configurées côté Supabase, jamais commit).
 
 ---
 
-### Infrastructures et bonnes pratiques manquantes
+## Portails
 
-- [ ] **Tests** — Aucun framework de test installé (Vitest, Playwright, Cypress, etc.)
-- [ ] **State management** — TanStack Query et Zustand spécifiés mais non implémentés (utilisation de `useState` uniquement)
-- [ ] **Backend / API** — Aucune intégration Supabase (Auth, PostgreSQL, Storage, Edge Functions). Toutes les données sont mockées dans `mockData.ts`
-- [ ] **TypeScript config** — `tsconfig.json` absent (configuration par défaut de Vite)
-- [ ] **Composant orphelin** — `AuditLogs.tsx` existe mais n'est importé dans aucune route
+- **Public** : landing, login, register, mot de passe oublié, vérification email, acceptation d'invitation admin, KYC onboarding.
+- **Membre** : dashboard, transactions (+ détail), objectifs d'épargne (+ détail/contribution), formations, investissements, marketplace de tontines, mes tontines (+ détail/archives), notifications, profil, paramètres.
+- **Admin** : dashboard (admin / super-admin), gestion des membres, revue KYC, comptes (dépôts/retraits), tontines (types, groupes, participants, archives), formations, investissements, rapports, notifications, administrateurs, audit, monitoring système, paramètres.
+
+Le rôle est résolu via la fonction `current_admin_role()` ; les routes sensibles sont protégées par `ProtectedRoute` et `SuperAdminRoute`.
 
 ---
 
-### Base de données — Supabase PostgreSQL
+## Base de données — Supabase PostgreSQL
 
-Le schéma de la base de données a été conçu d'après le document `supabase/PIJ_Database_Design_PostgreSQL.pdf` et découpé en 12 migrations Supabase dans `supabase/migrations/`.
+Le schéma est découpé en migrations dans `supabase/migrations/` (appliquées dans l'ordre lexicographique du nom de fichier).
 
-#### Domaines couverts (16 tables)
+### Domaines couverts
 
-| Domaine | Tables | Description |
-|---------|--------|-------------|
-| **Identity & Access** | `users`, `profiles`, `admins`, `roles`, `permissions`, `role_permissions` | Authentification, profils membres, staff et contrôle d'accès RBAC |
-| **KYC & Verification** | `kyc_documents` | Documents d'identité soumis par les membres, workflow de vérification |
-| **Financial Accounts** | `accounts`, `transactions` | Comptes épargne/courant, grand livre immobilisable des dépôts/retraits |
-| **Savings** | `savings_goals` | Objectifs d'épargne définis par les membres avec suivi de progression |
-| **Tontines** | `tontine_types`, `tontines`, `tontine_members`, `tontine_rounds`, `tontine_contributions` | Groupes d'épargne tournante avec cycles de cotisation et paiements |
-| **System** | `notifications`, `audit_logs` | Boîte de réception notifications, journal d'audit immutable |
+| Domaine | Tables principales |
+|---------|--------------------|
+| **Identity & Access** | `users`, `profiles`, `admins`, `roles`, `permissions`, `role_permissions`, `admin_invitations` |
+| **KYC** | `kyc_documents` (+ bucket privé `kyc-documents`) |
+| **Financial** | `accounts`, `transactions` (grand livre append-only) |
+| **Savings** | `savings_goals` |
+| **Tontines** | `tontine_types`, `tontines`, `tontine_members`, `tontine_rounds`, `tontine_contributions` |
+| **Formations** | `formation_categories`, `formation_courses`, `formation_content`, `formation_enrollments`, `formation_content_completions` (+ bucket `formation-assets`) |
+| **Investissements** | `investment_opportunities`, `investment_portfolio`, `investment_requests` |
+| **Système** | `notifications`, `audit_logs`, `system_settings`, `verification_codes`, `consultation_requests`, `user_notification_preferences` |
 
-#### Ordre des migrations
+Les colonnes de solde dénormalisées (`users.balance_current / balance_savings / balance_investment`) sont maintenues automatiquement à partir de `accounts` par le trigger `sync_user_balances()`.
 
-| # | Fichier | Contenu |
-|---|--------|---------|
-| 01 | `20250621000001_extensions.sql` | Extensions `pgcrypto`, `pg_trgm` |
-| 02 | `20250621000002_enums.sql` | 11 types ENUM (`user_status`, `kyc_status`, `account_type`, etc.) |
-| 03 | `20250621000003_core_tables.sql` | Tables du domaine Identity & Access (6 tables) |
-| 04 | `20250621000004_kyc.sql` | Table `kyc_documents` |
-| 05 | `20250621000005_financial.sql` | Tables `accounts`, `transactions` |
-| 06 | `20250621000006_savings.sql` | Table `savings_goals` |
-| 07 | `20250621000007_tontine.sql` | Tables du domaine Tontine (5 tables) |
-| 08 | `20250621000008_system.sql` | Tables `notifications`, `audit_logs` |
-| 09 | `20250621000009_indexes.sql` | 15 indexes (dont trigram search sur `profiles`) |
-| 10 | `20250621000010_triggers.sql` | Fonction `set_updated_at()` + 4 triggers |
-| 11 | `20250621000011_rls.sql` | Fonctions `is_admin()`, `current_admin_role()` + 30+ politiques RLS |
-| 12 | `20250621000012_missing_policies.sql` | Trigger `handle_new_user()` sur `auth.users`, 5 politiques manquantes |
+### Sécurité
 
-#### Sécurité
+- **Row Level Security (RLS)** activé sur toutes les tables exposées ; membres limités à leurs propres données, staff par rôle (`super_admin`, `admin`, `kyc_officer`, `support_agent`).
+- `verification_codes` : RLS activé sans policy — accès réservé aux Edge Functions (service role).
+- `audit_logs` : insert-only, immutable par conception.
+- `transactions` : mouvements d'argent effectués uniquement par Edge Functions (service role) qui recalculent le solde et écrivent le grand livre.
+- Documents KYC : bucket privé, accès admin + propriétaire, lecture par URL signée uniquement.
 
-- **Row Level Security (RLS)** activé sur toutes les tables
-- Membres : accès en lecture/écriture limité à leurs propres données
-- Staff : accès limité par rôle (`super_admin`, `admin`, `kyc_officer`, etc.)
-- `audit_logs` : insert-only, immutable par conception
-- `transactions` : insert-only (Phase 1, saisie manuelle par les admins)
-- Documents KYC : stockés dans un bucket Supabase privé, accès par URL signée uniquement
-
-#### Utilisation
+### Application des migrations
 
 ```bash
-# Appliquer les migrations à la base distante
-npx supabase db push
-
-# (optionnel) Démarrer en local
+npx supabase db push        # base distante
+# ou en local :
 npx supabase start
 npx supabase migration up
 ```
 
+Le script `supabase/promote_to_admin.sql` permet de promouvoir manuellement un utilisateur en administrateur.
+
 ---
 
-### Différences architecturales (CDC vs Réalité)
+## Edge Functions (`supabase/functions/`, 24)
 
-| Aspect | Cahier de Charge | Réalité |
-|--------|-----------------|---------|
-| Framework | REACT.js 15 (SSR + App Router) | Vite + React 18 (SPA) |
-| State management | TanStack Query + Zustand | Aucun |
-| Backend | Supabase | Aucun (mocké) |
-| Hosting | Vercel | Non configuré |
-| Tests | Non spécifié | Aucun |
+Mouvements financiers et actions privilégiées : `record-deposit`, `record-withdrawal`, `goal-contribute`, `get-transactions`, `tontine-create-group`, `tontine-apply`, `tontine-approve-member`, `tontine-reject-member`, `tontine-record-contribution`, `kyc-approve`, `kyc-reject`, `delete-account`, la famille `admin-*` (invitations, promote/demote, suspend/reactivate) et la vérification email (`send-verification-code`, `verify-email-code`).
+
+Conventions :
+- Les fonctions d'administration valident l'appelant via `getCallerAdmin()` (table `admins` + rôle).
+- Les fonctions membre dérivent l'identité du JWT (`extractUserId`) et n'agissent que pour cet utilisateur.
+- La vérification de signature JWT est assurée par la passerelle Supabase (`verify_jwt` par défaut).
+
+---
+
+## Développement
+
+```bash
+npm install
+npm run dev      # serveur Vite
+npm run build    # build de production
+```
+
+---
+
+## Améliorations connues (non bloquantes)
+
+- [ ] **Tests** — aucun framework de test installé (Vitest / Playwright).
+- [ ] **`tsconfig.json`** — absent ; le projet s'appuie sur la configuration TypeScript par défaut de Vite.
+- [ ] **State management serveur** — pas de cache/refetch (TanStack Query) ; les données sont chargées à la demande via `useState`.

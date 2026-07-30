@@ -1,4 +1,4 @@
-import { getServiceClient } from "../_shared/supabase-client.ts";
+import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
 import { validatePagination } from "../_shared/validators.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -17,8 +17,27 @@ Deno.serve(async (req) => {
   try {
     const supabase = getServiceClient();
 
+    // Authorization: the caller may only read their own transactions.
+    // Admins may read anyone's (or all, when no user_id is supplied).
+    const authHeader = req.headers.get("Authorization");
+    const callerId = authHeader ? extractUserId(authHeader) : null;
+    if (!callerId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing or invalid Authorization token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const { data: adminRow } = await supabase
+      .from("admins")
+      .select("id, is_active")
+      .eq("id", callerId)
+      .maybeSingle();
+    const isAdmin = !!(adminRow && adminRow.is_active);
+
     const url = new URL(req.url);
-    const user_id = url.searchParams.get("user_id");
+    const requestedUserId = url.searchParams.get("user_id");
+    // Non-admins are always scoped to their own id, whatever they request.
+    const user_id = isAdmin ? requestedUserId : callerId;
     const account_type = url.searchParams.get("account_type");
     const page = url.searchParams.get("page");
     const limit = url.searchParams.get("limit");

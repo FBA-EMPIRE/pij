@@ -4,6 +4,14 @@ import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 import { formatXAF } from "../lib/format";
+import {
+  fetchInvestmentOpportunities,
+  saveInvestmentOpportunity,
+  setInvestmentOpportunityStatus,
+  fetchInvestmentRequestsWithDetails,
+  decideInvestmentRequest,
+} from "../lib/supabase/queries";
+import { toast } from "sonner";
 
 type TabKey = "opportunities" | "investors" | "approvals" | "returns";
 type FormMode = "create" | "edit" | null;
@@ -26,13 +34,16 @@ export default function AdminInvestments() {
     (async () => {
       try {
         const [opps, reqs, invs] = await Promise.all([
-          supabase.from("investment_opportunities").select("*"),
-          supabase.from("investment_requests").select("*"),
-          supabase.from("users").select("*"),
+          fetchInvestmentOpportunities(),
+          fetchInvestmentRequestsWithDetails(),
+          supabase.from("users").select("*, profiles(first_name, last_name)"),
         ]);
-        setOpportunities(opps.data ?? []);
-        setRequests(reqs.data ?? []);
-        setInvestors(invs.data ?? []);
+        setOpportunities(opps);
+        setRequests(reqs);
+        setInvestors((invs.data ?? []).map((u: any) => ({
+          ...u,
+          name: [u.profiles?.first_name, u.profiles?.last_name].filter(Boolean).join(" ") || u.email,
+        })));
       } catch (err) {
         console.error(err);
       } finally {
@@ -88,16 +99,22 @@ export default function AdminInvestments() {
       </div>
 
       {formMode && tab === "opportunities" && (
-        <OpportunityForm fr={fr} mode={formMode} opportunity={opportunities.find((o) => o.id === editingId)} onCancel={closeForm} onSave={(opportunity: any) => {
-          setOpportunities((current) => formMode === "edit" ? current.map((o) => o.id === opportunity.id ? opportunity : o) : [{ ...opportunity, id: `INV-${Date.now()}`, raised: 0, image: "linear-gradient(135deg, #1E2530 0%, #3A4558 55%, #4CAF68 100%)" }, ...current]);
-          addAudit(formMode === "edit" ? "Opportunity Updated" : "Opportunity Created", opportunity.title);
-          closeForm();
+        <OpportunityForm fr={fr} mode={formMode} opportunity={opportunities.find((o) => o.id === editingId)} onCancel={closeForm} onSave={async (opportunity: any) => {
+          try {
+            const saved: any = await saveInvestmentOpportunity(opportunity);
+            setOpportunities((current) => formMode === "edit" ? current.map((o) => o.id === saved.id ? saved : o) : [saved, ...current]);
+            addAudit(formMode === "edit" ? "Opportunity Updated" : "Opportunity Created", saved.title);
+            toast.success(fr ? "Opportunité enregistrée." : "Opportunity saved.");
+            closeForm();
+          } catch (err: any) {
+            toast.error(err?.message || (fr ? "Échec de l'enregistrement." : "Failed to save."));
+          }
         }} />
       )}
 
-      {tab === "opportunities" && <Opportunities fr={fr} opportunities={opportunities} onEdit={openEdit} onPublish={(id: string) => { setOpportunities((current) => current.map((o) => o.id === id ? { ...o, status: "Published" } : o)); addAudit("Opportunity Published", id); }} onClose={(id: string) => { setOpportunities((current) => current.map((o) => o.id === id ? { ...o, status: "Closed" } : o)); addAudit("Opportunity Closed", id); }} />}
+      {tab === "opportunities" && <Opportunities fr={fr} opportunities={opportunities} onEdit={openEdit} onPublish={async (id: string) => { try { await setInvestmentOpportunityStatus(id, "Published"); setOpportunities((current) => current.map((o) => o.id === id ? { ...o, status: "Published" } : o)); addAudit("Opportunity Published", id); toast.success(fr ? "Opportunité publiée." : "Opportunity published."); } catch (err: any) { toast.error(err?.message || "Error"); } }} onClose={async (id: string) => { try { await setInvestmentOpportunityStatus(id, "Closed"); setOpportunities((current) => current.map((o) => o.id === id ? { ...o, status: "Closed" } : o)); addAudit("Opportunity Closed", id); toast.success(fr ? "Opportunité fermée." : "Opportunity closed."); } catch (err: any) { toast.error(err?.message || "Error"); } }} />}
       {tab === "investors" && <Investors fr={fr} investors={investors} audit={audit} onAdjust={(memberId: string, amount: number, action: "credit" | "debit") => { setInvestors((current) => current.map((m: any) => m.id === memberId ? { ...m, balance_current: action === "credit" ? (m.balance_current ?? 0) + amount : Math.max(0, (m.balance_current ?? 0) - amount) } : m)); addAudit(action === "credit" ? "Wallet Credited" : "Wallet Debited", `${memberId} · ${formatXAF(amount)} · transaction + audit + notification`); }} />}
-      {tab === "approvals" && <Approvals fr={fr} requests={requests} onDecision={(id: string, status: string) => { setRequests((current) => current.map((r) => r.id === id ? { ...r, status } : r)); addAudit(status === "Approved" ? "Investment Approved" : "Investment Rejected", `${id} · user notification + portfolio update`); }} />}
+      {tab === "approvals" && <Approvals fr={fr} requests={requests} onDecision={async (request: any, approve: boolean) => { try { await decideInvestmentRequest(request, approve); setRequests((current) => current.map((r) => r.id === request.id ? { ...r, status: approve ? "Approved" : "Rejected" } : r)); addAudit(approve ? "Investment Approved" : "Investment Rejected", `${request.member} · ${formatXAF(request.amount)}`); toast.success(approve ? (fr ? "Demande approuvée." : "Request approved.") : (fr ? "Demande rejetée." : "Request rejected.")); } catch (err: any) { toast.error(err?.message || (fr ? "Échec de la décision." : "Failed to record decision.")); } }} />}
       {tab === "returns" && <Returns fr={fr} wallet={wallet} audit={audit} onDistribute={(kind: string, amount: number) => { setWallet((current) => ({ ...current, earnings: kind === "profit" ? (current.earnings ?? 0) + amount : Math.max(0, (current.earnings ?? 0) - amount) })); addAudit(kind === "profit" ? "Profit Recorded" : "Loss Recorded", `${formatXAF(amount)} · transaction + audit + notification`); }} />}
     </div>
   );
@@ -115,8 +132,11 @@ function AdjustmentForm({ fr, investors, audit, onAdjust }: { fr: boolean; inves
   return <form onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const memberId = String(data.get("memberId") || investors[0]?.id); const amount = Number(data.get("amount") || 0); const action = String(data.get("action")) === "debit" ? "debit" : "credit"; if (amount > 0) onAdjust(memberId, amount, action); event.currentTarget.reset(); }} className="bg-card rounded-2xl border border-border p-5"><h3 className="mb-4" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Ajustement auditable" : "Auditable adjustment"}</h3><div className="space-y-3"><select name="memberId" className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm">{investors.map((m: any) => <option key={m.id} value={m.id}>{m.id} · {m.name}</option>)}</select><input name="amount" type="number" className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm" placeholder="100000" /><select name="action" className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm"><option value="credit">{fr ? "Créditer" : "Credit"}</option><option value="debit">{fr ? "Débiter" : "Debit"}</option></select><div className="rounded-xl bg-[#F0E8FF] p-3 text-xs text-[#6E3A9A] space-y-1"><p>✓ {fr ? "Transaction créée" : "Transaction created"}</p><p>✓ {fr ? "Audit log enregistré" : "Audit log recorded"}</p><p>✓ {fr ? "Notification utilisateur envoyée" : "User notification sent"}</p></div><button className="w-full py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>{fr ? "Confirmer l'ajustement" : "Confirm adjustment"}</button>{audit.length > 0 && <AuditList audit={audit} />}</div></form>;
 }
 
-function Approvals({ fr, requests, onDecision }: { fr: boolean; requests: any[]; onDecision: (id: string, status: string) => void }) {
-  return <div className="space-y-4">{requests.map((request: any) => <div key={request.id} className="bg-card rounded-2xl border border-border p-5"><div className="flex flex-col sm:flex-row sm:items-center gap-4"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><h3 className="text-sm font-semibold">{request.opportunity}</h3><StatusBadge status={request.status as any} size="sm" /></div><p className="text-xs text-muted-foreground">{request.member} · {formatXAF(request.amount)} · {request.submitted}</p><p className="text-xs text-muted-foreground mt-1">{fr ? "Décision crée notification et met à jour le portfolio." : "Decision creates notification and updates portfolio."}</p></div><div className="flex gap-2"><button onClick={() => onDecision(request.id, "Approved")} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}><CheckCircle size={13} />{fr ? "Approuver" : "Approve"}</button><button onClick={() => onDecision(request.id, "Rejected")} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs text-[#E5484D]"><XCircle size={13} />{fr ? "Rejeter" : "Reject"}</button></div></div></div>)}</div>;
+function Approvals({ fr, requests, onDecision }: { fr: boolean; requests: any[]; onDecision: (request: any, approve: boolean) => void }) {
+  if (!requests.length) {
+    return <p className="text-sm text-muted-foreground text-center py-12">{fr ? "Aucune demande d'investissement" : "No investment requests"}</p>;
+  }
+  return <div className="space-y-4">{requests.map((request: any) => { const isPending = (request.status ?? "Pending") === "Pending"; return <div key={request.id} className="bg-card rounded-2xl border border-border p-5"><div className="flex flex-col sm:flex-row sm:items-center gap-4"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><h3 className="text-sm font-semibold">{request.opportunity_title}</h3><StatusBadge status={request.status as any} size="sm" /></div><p className="text-xs text-muted-foreground">{request.member} · {formatXAF(request.amount)} · {request.submitted_at ? new Date(request.submitted_at).toLocaleDateString(fr ? "fr-FR" : "en") : ""}</p></div>{isPending ? <div className="flex gap-2"><button onClick={() => onDecision(request, true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}><CheckCircle size={13} />{fr ? "Approuver" : "Approve"}</button><button onClick={() => onDecision(request, false)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs text-[#E5484D]"><XCircle size={13} />{fr ? "Rejeter" : "Reject"}</button></div> : <span className="text-xs text-muted-foreground">{request.status === "Approved" ? (fr ? "Approuvée" : "Approved") : (fr ? "Rejetée" : "Rejected")}</span>}</div></div>; })}</div>;
 }
 
 function Returns({ fr, wallet, audit, onDistribute }: { fr: boolean; wallet: any; audit: AuditEntry[]; onDistribute: (kind: string, amount: number) => void }) {
@@ -128,7 +148,7 @@ function ReturnsForm({ fr, audit, onDistribute }: { fr: boolean; audit: AuditEnt
 }
 
 function OpportunityForm({ fr, mode, opportunity, onSave, onCancel }: { fr: boolean; mode: Exclude<FormMode, null>; opportunity?: any; onSave: (opportunity: any) => void; onCancel: () => void }) {
-  return <form onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); onSave({ ...opportunity, id: opportunity?.id ?? "", title: String(data.get("title") || ""), titleEn: String(data.get("titleEn") || data.get("title") || ""), category: String(data.get("category") || ""), description: String(data.get("description") || ""), roi: String(data.get("roi") || ""), duration: String(data.get("duration") || ""), risk: String(data.get("risk") || ""), minAmount: Number(data.get("minAmount") || 0), maxAmount: Number(data.get("maxAmount") || 0), goal: Number(data.get("goal") || 0), status: String(data.get("status") || ""), featured: opportunity?.featured ?? false, raised: opportunity?.raised ?? 0, image: opportunity?.image ?? "linear-gradient(135deg, #1E2530 0%, #3A4558 55%, #4CAF68 100%)" }); }} className="mb-6 bg-card rounded-2xl border border-border p-5 space-y-4"><h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{mode === "create" ? (fr ? "Créer une opportunité" : "Create opportunity") : (fr ? "Modifier l'opportunité" : "Edit opportunity")}</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Field name="title" label={fr ? "Titre" : "Title"} defaultValue={opportunity?.title} /><Field name="titleEn" label={fr ? "Titre anglais" : "English title"} defaultValue={opportunity?.titleEn} /><Field name="category" label={fr ? "Catégorie" : "Category"} defaultValue={opportunity?.category} /><Field name="roi" label="ROI" defaultValue={opportunity?.roi} /><Field name="duration" label={fr ? "Durée" : "Duration"} defaultValue={opportunity?.duration} /><SelectField name="risk" label={fr ? "Risque" : "Risk"} defaultValue={opportunity?.risk} options={["Faible", "Modéré", "Élevé"].map((value) => ({ value, label: value }))} /><Field name="minAmount" label={fr ? "Montant minimum" : "Minimum amount"} type="number" defaultValue={String(opportunity?.minAmount ?? "")} /><Field name="maxAmount" label={fr ? "Montant maximum" : "Maximum amount"} type="number" defaultValue={String(opportunity?.maxAmount ?? 5000000)} /></div><TextareaField name="description" label="Description" defaultValue={opportunity?.description} /><SelectField name="status" label="Status" defaultValue={opportunity?.status} options={["Published", "Draft", "Closed"].map((value) => ({ value, label: value }))} /><FormActions fr={fr} onCancel={onCancel} /></form>;
+  return <form onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const payload: any = { title: String(data.get("title") || ""), title_en: String(data.get("titleEn") || data.get("title") || ""), category: String(data.get("category") || ""), description: String(data.get("description") || ""), roi: String(data.get("roi") || ""), duration: String(data.get("duration") || ""), risk: String(data.get("risk") || "Modéré"), min_amount: Number(data.get("minAmount") || 0), max_amount: Number(data.get("maxAmount") || 0), goal: Number(data.get("goal") || 0), status: String(data.get("status") || "Draft"), featured: opportunity?.featured ?? false }; if (opportunity?.id) payload.id = opportunity.id; onSave(payload); }} className="mb-6 bg-card rounded-2xl border border-border p-5 space-y-4"><h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{mode === "create" ? (fr ? "Créer une opportunité" : "Create opportunity") : (fr ? "Modifier l'opportunité" : "Edit opportunity")}</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Field name="title" label={fr ? "Titre" : "Title"} defaultValue={opportunity?.title} /><Field name="titleEn" label={fr ? "Titre anglais" : "English title"} defaultValue={opportunity?.title_en} /><Field name="category" label={fr ? "Catégorie" : "Category"} defaultValue={opportunity?.category} /><Field name="roi" label="ROI" defaultValue={opportunity?.roi} /><Field name="duration" label={fr ? "Durée" : "Duration"} defaultValue={opportunity?.duration} /><SelectField name="risk" label={fr ? "Risque" : "Risk"} defaultValue={opportunity?.risk} options={["Faible", "Modéré", "Élevé"].map((value) => ({ value, label: value }))} /><Field name="minAmount" label={fr ? "Montant minimum" : "Minimum amount"} type="number" defaultValue={String(opportunity?.min_amount ?? "")} /><Field name="maxAmount" label={fr ? "Montant maximum" : "Maximum amount"} type="number" defaultValue={String(opportunity?.max_amount ?? 5000000)} /><Field name="goal" label={fr ? "Objectif de collecte" : "Fundraising goal"} type="number" defaultValue={String(opportunity?.goal ?? "")} /></div><TextareaField name="description" label="Description" defaultValue={opportunity?.description} /><SelectField name="status" label="Status" defaultValue={opportunity?.status} options={["Published", "Draft", "Closed"].map((value) => ({ value, label: value }))} /><FormActions fr={fr} onCancel={onCancel} /></form>;
 }
 
 function AuditList({ audit }: { audit: AuditEntry[] }) {

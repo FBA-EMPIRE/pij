@@ -193,9 +193,26 @@ export function RegisterPage() {
 
   const handleRegister = async () => {
     setError("");
-    if (!canSubmit) return;
+    // Surface exactly what's missing instead of silently doing nothing.
+    if (!firstName || !lastName) {
+      setError(fr ? "Veuillez renseigner votre prénom et votre nom." : "Please enter your first and last name.");
+      return;
+    }
+    if (!emailValid) {
+      setError(fr ? "Veuillez saisir une adresse email valide." : "Please enter a valid email address.");
+      return;
+    }
+    if (!allMet) {
+      setError(fr ? "Votre mot de passe ne respecte pas tous les critères requis." : "Your password does not meet all the required criteria.");
+      return;
+    }
+    if (!acceptedTerms) {
+      setError(fr ? "Veuillez accepter les conditions d'utilisation." : "Please accept the terms of use.");
+      return;
+    }
+    if (loading) return;
     setLoading(true);
-    const { error: signUpErr } = await supabase.auth.signUp({
+    const { data, error: signUpErr } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -206,12 +223,20 @@ export function RegisterPage() {
         },
       },
     });
-    setLoading(false);
     if (signUpErr) {
+      setLoading(false);
       setError(signUpErr.message);
       return;
     }
-    navigate("/verify-email");
+    // Email confirmation is disabled, so signUp returns an active session and
+    // the member is logged in immediately — send them straight to KYC. If a
+    // session isn't present (confirmation still enforced server-side), fall
+    // back to signing in with the credentials just created.
+    if (!data.session) {
+      await supabase.auth.signInWithPassword({ email, password });
+    }
+    setLoading(false);
+    navigate("/kyc");
   };
 
   return (
@@ -314,8 +339,9 @@ export function RegisterPage() {
           </label>
           <button
             onClick={handleRegister}
-            disabled={!canSubmit}
-            className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={loading}
+            aria-disabled={!canSubmit}
+            className={`w-full py-3 rounded-xl text-white font-medium text-sm mt-2 transition-all ${canSubmit ? "hover:opacity-90" : "opacity-60"} disabled:opacity-40 disabled:cursor-not-allowed`}
             style={{ background: "#4CAF68" }}
           >
             {loading ? (fr ? "Création..." : "Creating...") : (fr ? "Créer mon compte" : "Create my account")}
