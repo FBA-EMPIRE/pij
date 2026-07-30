@@ -12,10 +12,10 @@ export default function TransactionDetailModal({ transaction, onClose }: Transac
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const amount = transaction.amount ?? 0;
-  const isCredit = amount > 0;
-  const date = transaction.date || transaction.created_at || "";
-  const account = transaction.account || transaction.account_type || "";
-  const txnType = transaction.type || transaction.transaction_type || "";
+  const isCredit = transaction.type === "deposit";
+  const date = transaction.created_at || "";
+  const account = transaction.account_type || "";
+  const txnTypeLabel = transaction.type === "deposit" ? (fr ? "Dépôt" : "Deposit") : (fr ? "Retrait" : "Withdrawal");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -26,7 +26,7 @@ export default function TransactionDetailModal({ transaction, onClose }: Transac
               {isCredit ? <ArrowDownRight size={18} color="#4CAF68" /> : <ArrowUpRight size={18} color="#E5484D" />}
             </div>
             <div>
-              <p className="text-sm font-semibold">{transaction.description || ""}</p>
+              <p className="text-sm font-semibold">{transaction.notes || ""}</p>
               <p className="text-xs text-muted-foreground" style={{ fontFamily: "Geist Mono, monospace" }}>{transaction.id}</p>
             </div>
           </div>
@@ -56,8 +56,8 @@ export default function TransactionDetailModal({ transaction, onClose }: Transac
                 <Hash size={12} />
                 {fr ? "Type" : "Type"}
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${txnType === "Deposit" ? "bg-[#E8F5EC] text-[#1F9D55]" : txnType === "Withdrawal" ? "bg-red-50 text-[#E5484D]" : "bg-[#F0E8FF] text-[#6E3A9A]"}`}>
-                {txnType}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isCredit ? "bg-[#E8F5EC] text-[#1F9D55]" : "bg-red-50 text-[#E5484D]"}`}>
+                {txnTypeLabel}
               </span>
             </div>
             <div className="p-3 rounded-xl border border-border">
@@ -73,7 +73,7 @@ export default function TransactionDetailModal({ transaction, onClose }: Transac
                 {fr ? "Statut" : "Status"}
               </div>
               <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8F5EC] text-[#1F9D55] font-medium">
-                {transaction.status || "Completed"}
+                {fr ? "Terminé" : "Completed"}
               </span>
             </div>
           </div>

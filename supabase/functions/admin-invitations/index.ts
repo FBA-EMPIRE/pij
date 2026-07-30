@@ -1,5 +1,5 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-import { getCallerAdmin } from "../_shared/admin-auth.ts";
+import { getCallerAdmin, requireSuperAdmin } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
@@ -11,7 +11,8 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const supabase = getServiceClient();
 
-    await getCallerAdmin(authHeader, supabase);
+    const caller = await getCallerAdmin(authHeader, supabase);
+    requireSuperAdmin(caller);
 
     await supabase
       .from("admin_invitations")

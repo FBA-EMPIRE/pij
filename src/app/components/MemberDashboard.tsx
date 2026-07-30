@@ -68,42 +68,14 @@ export default function MemberDashboard() {
         </p>
       </div>
 
-      {/* KYC banner — reflects the member's real verification status */}
-      {(() => {
-        const kyc = profile?.kyc_status ?? "not_submitted";
-        if (kyc === "approved") {
-          return (
-            <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#E8F5EC] border border-[#4CAF68]/30">
-              <AlertCircle size={16} color="#1F9D55" className="shrink-0" />
-              <p className="text-sm text-[#1F9D55]">
-                {fr ? "Votre identité est vérifiée. " : "Your identity is verified. "}
-                <button onClick={() => navigate("/marketplace")} className="font-medium underline">{fr ? "Rejoindre une tontine →" : "Join a tontine →"}</button>
-              </p>
-            </div>
-          );
-        }
-        if (kyc === "pending") {
-          return (
-            <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#FFF4E5] border border-[#F2994A]/30">
-              <AlertCircle size={16} color="#F2994A" className="shrink-0" />
-              <p className="text-sm text-[#B26A1A]">
-                {fr ? "Votre vérification KYC est en cours d'examen par notre équipe." : "Your KYC verification is under review by our team."}
-              </p>
-            </div>
-          );
-        }
-        return (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#F0E8FF] border border-[#6E3A9A]/20">
-            <AlertCircle size={16} color="#6E3A9A" className="shrink-0" />
-            <p className="text-sm text-[#6E3A9A]">
-              {kyc === "rejected"
-                ? (fr ? "Votre vérification KYC a été refusée. " : "Your KYC verification was rejected. ")
-                : (fr ? "Complétez votre vérification KYC pour débloquer toutes les fonctionnalités. " : "Complete your KYC verification to unlock all features. ")}
-              <button onClick={() => navigate("/kyc")} className="font-medium underline">{fr ? "Compléter le KYC →" : "Complete KYC →"}</button>
-            </p>
-          </div>
-        );
-      })()}
+      {/* KYC banner */}
+      <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#F0E8FF] border border-[#6E3A9A]/20">
+        <AlertCircle size={16} color="#6E3A9A" className="shrink-0" />
+        <p className="text-sm text-[#6E3A9A]">
+          {fr ? "Votre compte est actif. " : "Your account is active. "}
+          <button onClick={() => navigate("/tontines")} className="font-medium underline">{fr ? "Rejoindre une tontine →" : "Join a tontine →"}</button>
+        </p>
+      </div>
 
       {/* Account Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
@@ -113,7 +85,6 @@ export default function MemberDashboard() {
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
             {formatXAF(currentAccount)}
           </p>
-          <p className="text-xs text-white/50">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">
             <StatusBadge status="Active" size="sm" />
           </div>
@@ -125,7 +96,6 @@ export default function MemberDashboard() {
           <p className="text-xl sm:text-3xl font-bold mb-1" style={{ fontFamily: "Geist Mono, monospace" }}>
             {formatXAF(savingsAccount)}
           </p>
-          <p className="text-xs text-white/60">{fr ? "Mis à jour le 10 juin 2024" : "Updated June 10, 2024"}</p>
           <div className="mt-4 flex items-center gap-2">
             <StatusBadge status="Active" size="sm" />
           </div>
@@ -146,22 +116,16 @@ export default function MemberDashboard() {
               </button>
             </div>
             <div className="space-y-1">
-              {recentTxns.length === 0 && (
-                <p className="text-sm text-muted-foreground py-4 text-center">{fr ? "Aucune transaction pour le moment" : "No transactions yet"}</p>
-              )}
               {recentTxns.map((txn) => {
                 const isCredit = txn.type === "deposit";
-                const desc = txn.notes || (isCredit ? (fr ? "Dépôt" : "Deposit") : (fr ? "Retrait" : "Withdrawal"));
-                const date = txn.created_at ? new Date(txn.created_at).toLocaleDateString(fr ? "fr-FR" : "en") : "";
-                const account = txn.account_type ? (fr ? (txn.account_type === "savings" ? "Épargne" : "Courant") : txn.account_type) : "";
                 return (
                   <div key={txn.id} className="flex items-center gap-2 sm:gap-3 py-2 sm:py-3 border-b border-border last:border-0">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isCredit ? "bg-[#E8F5EC]" : "bg-red-50"}`}>
                       {isCredit ? <ArrowDownRight size={16} color="#4CAF68" /> : <ArrowUpRight size={16} color="#E5484D" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{desc}</p>
-                      <p className="text-xs text-muted-foreground">{date}{account ? ` · ${account}` : ""}</p>
+                      <p className="text-sm font-medium truncate">{txn.notes}</p>
+                      <p className="text-xs text-muted-foreground">{txn.created_at} · {txn.account_type}</p>
                     </div>
                     <span className={`text-sm font-bold shrink-0 ${isCredit ? "text-[#1F9D55]" : "text-[#E5484D]"}`} style={{ fontFamily: "Geist Mono, monospace" }}>
                       {isCredit ? "+" : "−"}{formatXAF(txn.amount)}

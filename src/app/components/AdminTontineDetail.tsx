@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Users, CheckCircle, TrendingUp, Eye, Loader2, X } from "lucide-react";
-import { fetchTontineById, fetchTontineMembers, approveTontineMember, rejectTontineMember } from "../lib/supabase/queries";
+import { fetchTontineById, fetchTontineMembers, fetchTontineRounds, approveTontineMember, rejectTontineMember } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
@@ -14,6 +14,7 @@ export default function AdminTontineDetail() {
 
   const [tontine, setTontine] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
+  const [rounds, setRounds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [decidingId, setDecidingId] = useState<string | null>(null);
@@ -21,12 +22,14 @@ export default function AdminTontineDetail() {
 
   const reload = async () => {
     if (!id) return;
-    const [t, m] = await Promise.all([
+    const [t, m, r] = await Promise.all([
       fetchTontineById(id),
       fetchTontineMembers(id),
+      fetchTontineRounds(id),
     ]);
     setTontine(t);
     setMembers(m);
+    setRounds(r);
   };
 
   useEffect(() => {
@@ -211,7 +214,25 @@ export default function AdminTontineDetail() {
           <TrendingUp size={16} className="text-muted-foreground" />
           {fr ? "Tours de paiement" : "Payout rounds"}
         </h3>
-        <p className="text-sm text-muted-foreground">{fr ? "Aucun paiement effectué" : "No payouts made yet"}</p>
+        {rounds.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{fr ? "Aucun paiement effectué" : "No payouts made yet"}</p>
+        ) : (
+          <div className="divide-y divide-border -mx-5">
+            {rounds.map((round: any) => {
+              const recipient = members.find((m: any) => m.id === round.recipient_member_id);
+              return (
+                <div key={round.id} className="flex items-center gap-3 px-5 py-3">
+                  <span className="text-sm font-medium text-muted-foreground w-16" style={{ fontFamily: "Geist Mono, monospace" }}>
+                    #{round.round_number}
+                  </span>
+                  <span className="flex-1 text-sm font-medium truncate">{recipient?.users?.name ?? (fr ? "Non attribué" : "Unassigned")}</span>
+                  <span className="text-xs text-muted-foreground">{round.payout_date ?? "—"}</span>
+                  <StatusBadge status={round.status === "paid" ? "Paid" : "Pending"} size="sm" />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Audit trail */}

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import {
   Download, UserPlus, Activity, AlertTriangle, Shield,
   RefreshCw, Landmark,
-  ChevronRight
+  ChevronRight, ArrowLeft
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
@@ -109,6 +109,9 @@ export default function SystemMonitoring() {
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
         <div>
@@ -203,15 +206,19 @@ export default function SystemMonitoring() {
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {admins.slice(0, 8).map((admin: any) => (
-            <div key={admin.email} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: admin.initialsColor }}>
-                {admin.initials}
+          {admins.slice(0, 8).map((admin: any) => {
+            const initials = (admin.first_name?.[0] ?? "") + (admin.last_name?.[0] ?? "");
+            const name = [admin.first_name, admin.last_name].filter(Boolean).join(" ") || admin.email;
+            return (
+              <div key={admin.id ?? admin.email} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "#6E3A9A" }}>
+                  {initials}
+                </div>
+                <span className="text-xs font-medium">{name}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${admin.is_active ? "bg-[#4CAF68]" : "bg-[#E8A317]"}`} />
               </div>
-              <span className="text-xs font-medium">{admin.name}</span>
-              <span className={`w-1.5 h-1.5 rounded-full ${admin.is_active ? "bg-[#4CAF68]" : "bg-[#E8A317]"}`} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

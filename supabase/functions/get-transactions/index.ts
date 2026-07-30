@@ -15,32 +15,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = getServiceClient();
-
-    // Authorization: the caller may only read their own transactions.
-    // Admins may read anyone's (or all, when no user_id is supplied).
     const authHeader = req.headers.get("Authorization");
     const callerId = authHeader ? extractUserId(authHeader) : null;
-    if (!callerId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing or invalid Authorization token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (!callerId) throw new Error("Missing or invalid Authorization token");
+
+    const supabase = getServiceClient();
+
     const { data: adminRow } = await supabase
       .from("admins")
       .select("id, is_active")
       .eq("id", callerId)
       .maybeSingle();
-    const isAdmin = !!(adminRow && adminRow.is_active);
+    const isAdmin = !!adminRow?.is_active;
 
     const url = new URL(req.url);
     const requestedUserId = url.searchParams.get("user_id");
-    // Non-admins are always scoped to their own id, whatever they request.
-    const user_id = isAdmin ? requestedUserId : callerId;
     const account_type = url.searchParams.get("account_type");
     const page = url.searchParams.get("page");
     const limit = url.searchParams.get("limit");
+
+    // Non-admins may only ever read their own transactions, regardless of
+    // what user_id they pass — prevents one member reading another's ledger.
+    const user_id = isAdmin ? requestedUserId : callerId;
 
     const { page: p, limit: l } = validatePagination(
       page ? Number(page) : undefined,

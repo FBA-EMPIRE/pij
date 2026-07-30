@@ -24,6 +24,8 @@ export default function GoalDetailModal({ goal, onClose, onUpdated }: GoalDetail
   const [goalCurrent, setGoalCurrent] = useState(goal.current_amount ?? 0);
   const [contributing, setContributing] = useState(false);
   const [contribError, setContribError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const loadTxns = () =>
     supabase
@@ -129,7 +131,7 @@ export default function GoalDetailModal({ goal, onClose, onUpdated }: GoalDetail
                       setContributing(true);
                       try {
                         const result = await contributeToGoal({ goal_id: goal.id, amount: amt });
-                        setGoalCurrent(Number(result.goal.current_amount));
+                        setGoalCurrent(Number(result.goal?.current_amount ?? goalCurrent + amt));
                         setContributionAmount("");
                         await loadTxns();
                         onUpdated();
@@ -192,11 +194,17 @@ export default function GoalDetailModal({ goal, onClose, onUpdated }: GoalDetail
               </div>
               <div>
                 <label className="text-sm font-medium">{fr ? "Date d'échéance" : "Target date"}</label>
-                <input type="date" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+                <input type="date" value={editDeadline ?? ""} onChange={(e) => setEditDeadline(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
               </div>
+              {editError && (
+                <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-xs">{editError}</div>
+              )}
               <button
+                disabled={editSaving}
                 onClick={async () => {
-                  await supabase
+                  setEditError("");
+                  setEditSaving(true);
+                  const { error } = await supabase
                     .from("savings_goals")
                     .update({
                       name: editName,
@@ -204,12 +212,18 @@ export default function GoalDetailModal({ goal, onClose, onUpdated }: GoalDetail
                       deadline: editDeadline,
                     })
                     .eq("id", goal.id);
+                  setEditSaving(false);
+                  if (error) {
+                    setEditError(error.message);
+                    return;
+                  }
+                  onUpdated();
                   onClose();
                 }}
-                className="w-full py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all"
+                className="w-full py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
                 style={{ background: "#4CAF68" }}
               >
-                {fr ? "Enregistrer" : "Save changes"}
+                {editSaving ? (fr ? "Enregistrement..." : "Saving...") : (fr ? "Enregistrer" : "Save changes")}
               </button>
             </div>
           )}

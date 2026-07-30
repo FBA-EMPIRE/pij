@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { Download, FileText, TrendingUp, Users, Layers, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Download, FileText, TrendingUp, Users, Layers, Loader2, ArrowLeft } from "lucide-react";
 import {
   BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -17,6 +18,7 @@ import {
 import { formatXAF } from "../lib/format";
 
 export default function AdminReports() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [kpi, setKpi] = useState<any>(null);
@@ -119,6 +121,9 @@ export default function AdminReports() {
 
   return (
     <div className="p-4 lg:p-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Rapports & Analytiques" : "Reports & Analytics"}</h2>

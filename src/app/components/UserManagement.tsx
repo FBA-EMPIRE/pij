@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Search, Eye, Edit, UserX, UserCheck, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Search, Eye, Edit, UserX, UserCheck, Loader2, ArrowLeft } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import MemberDetailModal from "./MemberDetailModal";
 import MemberEditModal from "./MemberEditModal";
@@ -9,6 +10,7 @@ import { supabase } from "../lib/supabase/client";
 import { formatXAF } from "../lib/format";
 
 export default function UserManagement() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [members, setMembers] = useState<any[]>([]);
@@ -58,6 +60,9 @@ export default function UserManagement() {
 
   return (
     <div className="p-4 lg:p-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des membres" : "User management"}</h2>
@@ -118,7 +123,7 @@ export default function UserManagement() {
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        {m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                       </div>
                       <div>
                         <p className="text-sm font-medium">{m.name}</p>

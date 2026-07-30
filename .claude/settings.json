@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp \"D:/tmp/claude/d--pij/174deb9d-8fc4-4b2b-be4b-8ae899c6fc66/scratchpad/darkmode-check.js\" d:/pij/darkmode-check.js)",
+      "Bash(node darkmode-check.js)",
+      "Bash(mv d:/pij/darkmode-check.js d:/pij/darkmode-check.cjs)",
+      "Bash(node darkmode-check.cjs)",
+      "Bash(node darkmode-check2.cjs)",
+      "Bash(node darkmode-check3.cjs)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 16932)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

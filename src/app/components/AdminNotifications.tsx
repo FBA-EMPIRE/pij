@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, Send, Info, AlertTriangle, CheckCircle, Users, Mail, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Bell, CheckCheck, Send, Info, AlertTriangle, CheckCircle, Users, Mail, ArrowRight, ArrowLeft } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 import { getCurrentUserId, fetchUsers } from "../lib/supabase/queries";
@@ -19,11 +20,15 @@ interface AdminNotif {
   titleEn?: string;
   message: string;
   messageEn?: string;
-  read: boolean;
+  is_read: boolean;
   created_at: string;
 }
 
+const memberName = (m: any) =>
+  [m?.profiles?.first_name, m?.profiles?.last_name].filter(Boolean).join(" ") || m?.email || m?.id;
+
 export default function AdminNotifications() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [filter, setFilter] = useState<"all" | "unread">("all");
@@ -34,6 +39,8 @@ export default function AdminNotifications() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sendSuccess, setSendSuccess] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotif[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [adminId, setAdminId] = useState<string | null>(null);
@@ -49,20 +56,23 @@ export default function AdminNotifications() {
           if (data) setNotifications(data as AdminNotif[]);
         });
     });
-    fetchUsers().then(setMembers);
+    fetchUsers().then(setMembers).catch(() => setMembers([]));
   }, []);
 
-  const displayed = filter === "all" ? notifications : notifications.filter((n) => !n.read);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const displayed = filter === "all" ? notifications : notifications.filter((n) => !n.is_read);
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const handleMarkAllRead = async () => {
-    await supabase.from("notifications").update({ read: true }).eq("read", false);
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    const { error } = await supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
+    if (error) { console.error(error); return; }
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   };
 
   const handleSend = async () => {
     if (!title || !message) return;
     setSending(true);
+    setSendError("");
+    setSendSuccess(false);
 
     const targets: string[] = [];
     if (targetMode === "all") {
@@ -78,15 +88,21 @@ export default function AdminNotifications() {
       type: notifType,
       title: title,
       message: message,
-      read: false,
+      is_read: false,
     }));
-    await supabase.from("notifications").insert(rows);
+    const { error } = await supabase.from("notifications").insert(rows);
+    setSending(false);
+    if (error) {
+      setSendError(error.message);
+      return;
+    }
 
     setTitle("");
     setMessage("");
     setSelectedMember("");
     setSelectedMembers([]);
-    setSending(false);
+    setSendSuccess(true);
+    setTimeout(() => setSendSuccess(false), 3000);
   };
 
   const toggleMember = (id: string) => {
@@ -97,6 +113,9 @@ export default function AdminNotifications() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>
@@ -149,8 +168,8 @@ export default function AdminNotifications() {
                 return (
                   <div
                     key={n.id}
-                    className={`bg-card rounded-2xl border p-4 transition-all hover:border-[#4CAF68]/30 ${n.read ? "border-border" : "border-[#4CAF68]/20"}`}
-                    style={!n.read ? { borderLeftColor: cfg.color, borderLeftWidth: 3 } : {}}
+                    className={`bg-card rounded-2xl border p-4 transition-all hover:border-[#4CAF68]/30 ${n.is_read ? "border-border" : "border-[#4CAF68]/20"}`}
+                    style={!n.is_read ? { borderLeftColor: cfg.color, borderLeftWidth: 3 } : {}}
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: cfg.bg }}>
@@ -202,7 +221,7 @@ export default function AdminNotifications() {
                 <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#6E3A9A]/40">
                   <option value="">{fr ? "Sélectionner un membre" : "Select a member"}</option>
                   {members.map((m: any) => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
+                    <option key={m.id} value={m.id}>{memberName(m)} ({m.id})</option>
                   ))}
                 </select>
               )}
@@ -214,7 +233,7 @@ export default function AdminNotifications() {
                       onClick={() => toggleMember(m.id)}
                       className={`w-full text-left px-2 py-1.5 rounded-lg text-xs transition-all ${selectedMembers.includes(m.id) ? "bg-[#F0E8FF] text-[#6E3A9A]" : "hover:bg-muted"}`}
                     >
-                      {m.name}
+                      {memberName(m)}
                     </button>
                   ))}
                 </div>
@@ -255,6 +274,14 @@ export default function AdminNotifications() {
                 placeholder={fr ? "Contenu du message..." : "Message content..."} />
             </div>
 
+            {sendError && (
+              <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-xs">{sendError}</div>
+            )}
+            {sendSuccess && (
+              <div className="p-2.5 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] border border-[#4CAF68]/30 text-[#1F9D55] dark:text-[#4CAF68] text-xs">
+                {fr ? "Notification envoyée avec succès." : "Notification sent successfully."}
+              </div>
+            )}
             <button
               onClick={handleSend}
               disabled={!title || !message || (targetMode === "single" && !selectedMember) || sending}

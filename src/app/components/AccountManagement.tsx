@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, ArrowDownLeft, ArrowUpRight, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Plus, ArrowDownLeft, ArrowUpRight, Check, ChevronsUpDown, Loader2, ArrowLeft } from "lucide-react";
 import { fetchAccountsWithUsers, getCurrentUserId, recordDeposit, recordWithdrawal } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
@@ -23,6 +24,7 @@ function highlightMatch(text: string, query: string) {
 }
 
 export default function AccountManagement() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [members, setMembers] = useState<any[]>([]);
@@ -39,7 +41,6 @@ export default function AccountManagement() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedMember, setSelectedMember] = useState("");
   const [accountType, setAccountType] = useState<string>("current");
-  const [goalId, setGoalId] = useState<string>("");
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [done, setDone] = useState(false);
@@ -52,7 +53,6 @@ export default function AccountManagement() {
     setStep(1);
     setSelectedMember(members[0]?.id || "");
     setAccountType("current");
-    setGoalId("");
     setAmount("");
     setDesc("");
     setDone(false);
@@ -97,6 +97,9 @@ export default function AccountManagement() {
 
   return (
     <div className="p-4 lg:p-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="mb-6">
         <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des comptes" : "Account management"}</h2>
       </div>
@@ -135,7 +138,7 @@ export default function AccountManagement() {
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[#4CAF68] flex items-center justify-center text-white text-xs font-bold">
-                          {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                          {m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                         </div>
                         <div>
                           <p className="text-sm font-medium">{m.name}</p>
@@ -253,17 +256,6 @@ export default function AccountManagement() {
                       ))}
                     </select>
                   </div>
-                  {tab === "deposit" && accountType === "savings" && (
-                    <div>
-                      <label className="text-sm font-medium">{fr ? "Objectif d'épargne (optionnel)" : "Savings goal (optional)"}</label>
-                      <select value={goalId} onChange={(e) => setGoalId(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
-                        <option value="">{fr ? "Aucun objectif" : "No goal"}</option>
-                        {[].map((g: any) => (
-                          <option key={g.id} value={g.id}>{g.name} — {formatXAF((g.target_amount ?? 0) - (g.current_amount ?? 0))} {fr ? "restant" : "remaining"}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                   <button onClick={() => setStep(2)} className="w-full py-3 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
                     {fr ? "Continuer" : "Continue"}
                   </button>
@@ -276,12 +268,6 @@ export default function AccountManagement() {
                   <div className="text-sm text-muted-foreground p-3 rounded-xl bg-muted">
                     <span className="font-medium text-foreground">{fr ? "Compte" : "Account"}: </span>
                     {fr ? ACCOUNT_TYPE_MAP[accountType] || "Courant" : accountType}
-                    {goalId && (
-                      <span className="ml-3">
-                        <span className="font-medium text-foreground">{fr ? "Objectif" : "Goal"}: </span>
-                        {(() => null)()}
-                      </span>
-                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium">{fr ? "Montant (XAF)" : "Amount (XAF)"}</label>
@@ -314,12 +300,6 @@ export default function AccountManagement() {
                       <span className="text-muted-foreground">{fr ? "Compte" : "Account"}</span>
                       <span className="font-medium">{fr ? ACCOUNT_TYPE_MAP[accountType] || "Courant" : accountType}</span>
                     </div>
-                    {goalId && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{fr ? "Objectif" : "Goal"}</span>
-                        <span className="font-medium">{(() => null)()}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{fr ? "Montant" : "Amount"}</span>
                       <span className="font-bold text-lg" style={{ fontFamily: "Geist Mono, monospace", color: tab === "deposit" ? "#4CAF68" : "#E5484D" }}>

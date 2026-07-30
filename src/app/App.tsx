@@ -1,9 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router";
+import { ArrowLeft } from "lucide-react";
 import { AppProvider } from "./context/AppContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./components/LandingPage";
-import { LoginPage, RegisterPage, ForgotPasswordPage } from "./components/AuthPages";
+import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./components/AuthPages";
 import KYCOnboarding from "./components/KYCOnboarding";
+import VerifyEmail from "./components/VerifyEmail";
 import { MemberLayout } from "./components/MemberLayout";
 import MemberDashboard from "./components/MemberDashboard";
 import TransactionHistory from "./components/TransactionHistory";
@@ -39,14 +41,17 @@ import ProfilePage from "./components/ProfilePage";
 import MemberSettings from "./components/MemberSettings";
 import AuditLogs from "./components/AuditLogs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Toaster } from "./components/ui/sonner";
 import { useAppContext } from "./context/AppContext";
 
 function AdminSettingsPlaceholder() {
+  const navigate = useNavigate();
   const { darkMode, toggleDark, toggleLang, lang } = useAppContext();
   const fr = lang === "fr";
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <h2 className="mb-6" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Paramètres système" : "System settings"}</h2>
       <div className="space-y-4">
         <div className="bg-card rounded-2xl border border-border p-5">
@@ -85,7 +90,6 @@ export default function App() {
   return (
     <ErrorBoundary>
     <AppProvider>
-      <Toaster richColors position="top-center" />
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
@@ -93,6 +97,8 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/admin/invite/:token" element={<AdminInviteAccept />} />
           <Route path="/kyc" element={<KYCOnboarding />} />
 

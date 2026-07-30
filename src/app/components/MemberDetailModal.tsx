@@ -67,7 +67,7 @@ export default function MemberDetailModal({ memberId, onClose }: MemberDetailMod
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-sm font-bold shrink-0">
-              {member.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+              {member.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
             </div>
             <div>
               <p className="text-sm font-semibold">{member.name}</p>

@@ -31,7 +31,7 @@ interface Notification {
   titleEn?: string;
   message: string;
   messageEn?: string;
-  read: boolean;
+  is_read: boolean;
   created_at: string;
 }
 
@@ -58,17 +58,18 @@ export default function NotificationsPage() {
   }, []);
 
   const userNotifs = notifications;
-  const displayed = filter === "all" ? userNotifs : userNotifs.filter((n) => !n.read);
-  const unreadCount = userNotifs.filter((n) => !n.read).length;
+  const displayed = filter === "all" ? userNotifs : userNotifs.filter((n) => !n.is_read);
+  const unreadCount = userNotifs.filter((n) => !n.is_read).length;
 
   const handleMarkAllRead = async () => {
     if (!userId) return;
-    await supabase
+    const { error } = await supabase
       .from("notifications")
-      .update({ read: true })
+      .update({ is_read: true })
       .eq("user_id", userId)
-      .eq("read", false);
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      .eq("is_read", false);
+    if (error) { console.error(error); return; }
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   };
 
   return (
@@ -125,8 +126,8 @@ export default function NotificationsPage() {
             return (
               <div
                 key={n.id}
-                className={`bg-card rounded-2xl border p-4 transition-all hover:border-[#4CAF68]/30 ${n.read ? "border-border" : "border-[#4CAF68]/20"}`}
-                style={!n.read ? { borderLeftColor: color, borderLeftWidth: 3 } : {}}
+                className={`bg-card rounded-2xl border p-4 transition-all hover:border-[#4CAF68]/30 ${n.is_read ? "border-border" : "border-[#4CAF68]/20"}`}
+                style={!n.is_read ? { borderLeftColor: color, borderLeftWidth: 3 } : {}}
               >
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}15` }}>
@@ -136,7 +137,7 @@ export default function NotificationsPage() {
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium">{fr ? n.title : n.titleEn || n.title}</p>
                       <div className="flex items-center gap-2 shrink-0">
-                        {!n.read && <div className="w-2 h-2 rounded-full" style={{ background: color }} />}
+                        {!n.is_read && <div className="w-2 h-2 rounded-full" style={{ background: color }} />}
                         <span className="text-xs text-muted-foreground">{n.created_at.split("T")[0]}</span>
                       </div>
                     </div>

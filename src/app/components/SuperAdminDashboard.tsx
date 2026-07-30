@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Users, Wallet, TrendingUp, BarChart3, UserCog, Mail, Activity, FileSearch,
-  ChevronRight, Loader2
+  ChevronRight, Loader2, ArrowLeft
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -94,7 +94,7 @@ export default function SuperAdminDashboard() {
     {
       label: fr ? "Administrateurs" : "Total Administrators",
       value: `${activeAdmins} ${fr ? "actifs" : "active"} / ${totalAdmins} ${fr ? "total" : "total"}`,
-      sub: `${admins.filter((a: any) => a.role === "super_admin" && (a.status === "Active" || a.status === "active")).length} super admin · ${admins.filter((a: any) => a.role === "admin" && (a.status === "Active" || a.status === "active")).length} admin`,
+      sub: `${admins.filter((a: any) => a.roles?.name === "super_admin" && a.is_active).length} super admin · ${admins.filter((a: any) => a.roles?.name === "admin" && a.is_active).length} admin`,
       icon: UserCog, color: "#6E3A9A", bg: "#F0E8FF",
     },
     {
@@ -150,6 +150,9 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       {/* Row 1 - 4 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {kpiRow1.map((kpi) => (
@@ -169,7 +172,7 @@ export default function SuperAdminDashboard() {
       {/* Row 2 - 3 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {kpiRow2.map((kpi) => (
-          <div key={kpi.label} className={`bg-card rounded-2xl border p-5 ${kpi.urgent ? "border-amber-200" : "border-border"}`}>
+          <div key={kpi.label} className="bg-card rounded-2xl border border-border p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-muted-foreground">{kpi.label}</p>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: kpi.bg }}>
@@ -177,7 +180,7 @@ export default function SuperAdminDashboard() {
               </div>
             </div>
             <p className="text-2xl font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{kpi.value}</p>
-            <p className={`text-xs mt-1 ${kpi.urgent ? "text-amber-600" : "text-muted-foreground"}`}>{kpi.sub}</p>
+            <p className="text-xs mt-1 text-muted-foreground">{kpi.sub}</p>
           </div>
         ))}
       </div>

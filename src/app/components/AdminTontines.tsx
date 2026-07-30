@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Plus, CheckCircle, XCircle, Eye, Archive, Loader2, Check } from "lucide-react";
+import { Plus, CheckCircle, XCircle, Eye, Archive, Loader2, Check, ArrowLeft } from "lucide-react";
 import { fetchTontines, fetchTontineTypes } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
@@ -64,6 +64,9 @@ export default function AdminTontines() {
 
   return (
     <div className="p-4 lg:p-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des Tontines" : "Tontine Management"}</h2>

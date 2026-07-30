@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Search, Filter, Shield, Download, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Search, Filter, Shield, Download, Loader2, ArrowLeft } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 
@@ -13,6 +14,7 @@ interface AuditLog {
 }
 
 export default function AuditLogs() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [search, setSearch] = useState("");
@@ -77,6 +79,9 @@ export default function AuditLogs() {
 
   return (
     <div className="p-4 lg:p-6">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Logs d'audit" : "Audit Logs"}</h2>

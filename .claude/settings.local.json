@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(npm install *)",
+      "Bash(git checkout *)",
+      "Bash(npx supabase *)",
+      "Bash(supabase projects *)",
+      "Bash(supabase functions *)",
+      "Bash(curl -s -o /dev/null -w \"OPTIONS record-deposit: %{http_code}\\\\n\" -X OPTIONS \"https://ktyzbrrbukpzrcokdmpu.supabase.co/functions/v1/record-deposit\" -H \"Access-Control-Request-Method: POST\" -H \"Origin: http://localhost:5173\")",
+      "Bash(curl -s -o /dev/null -w \"OPTIONS record-withdrawal: %{http_code}\\\\n\" -X OPTIONS \"https://ktyzbrrbukpzrcokdmpu.supabase.co/functions/v1/record-withdrawal\" -H \"Access-Control-Request-Method: POST\" -H \"Origin: http://localhost:5173\")",
+      "Bash(curl -s -X POST \"https://ktyzbrrbukpzrcokdmpu.supabase.co/functions/v1/record-deposit\" -H \"Content-Type: application/json\" -H \"apikey: sb_publishable_qfdelJMXrWN0yFbsW74xhA_RGaME9OL\" -d '{\"user_id\":\"test\",\"amount\":100,\"account_type\":\"current\"}' -w \"\\\\nHTTP: %{http_code}\\\\n\")",
+      "Bash(node \"D:/tmp/claude/d--pij/174deb9d-8fc4-4b2b-be4b-8ae899c6fc66/scratchpad/fix-cors.js\")",
+      "Bash(npx --yes deno --version)",
+      "Bash(curl -sv -X OPTIONS https://ktyzbrrbukpzrcokdmpu.supabase.co/functions/v1/record-deposit -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: authorization,content-type,x-client-info,apikey' -H 'Origin: http://localhost:5173')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(chromium-cli --help)"
+    ]
+  }
+}

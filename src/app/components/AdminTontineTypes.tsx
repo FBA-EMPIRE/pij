@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit3, Trash2, X, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Plus, Edit3, Trash2, X, Loader2, ArrowLeft } from "lucide-react";
 import { fetchTontineTypes } from "../lib/supabase/queries";
 import { useAppContext } from "../context/AppContext";
 
 export default function AdminTontineTypes() {
+  const navigate = useNavigate();
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const [types, setTypes] = useState<any[]>([]);
@@ -41,6 +43,9 @@ export default function AdminTontineTypes() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>

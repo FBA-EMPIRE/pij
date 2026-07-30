@@ -100,6 +100,9 @@ function FormationDashboard({ categories, courses }: { categories: any[]; course
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
       <div className="mb-6 p-4 sm:p-6 lg:p-8 rounded-2xl bg-card border border-border relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #4CAF68 0%, transparent 70%)", transform: "translate(30%, -30%)" }} />
         <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-5">
@@ -223,8 +226,9 @@ function ContentList({ items, fr, courseId, completions, onToggleComplete }: { i
 
 function MyLearning({ courses }: { courses: any[] }) {
   const { lang } = useAppContext();
+  const navigate = useNavigate();
   const fr = lang === "fr";
-  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Mon apprentissage" : "My learning"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Suivez vos cours terminés et en cours." : "Track completed and in-progress courses."}</p><div className="space-y-6"><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "En cours" : "In progress"}</h2><div className="space-y-4">{courses.filter((c: any) => c.progress < 100).map((c: any) => <CourseRow key={c.id} course={c} />)}</div></section><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Terminés" : "Completed"}</h2><div className="space-y-4">{courses.filter((c: any) => c.progress === 100).map((c: any) => <CourseRow key={c.id} course={c} />)}</div></section></div></div>;
+  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4"><ArrowLeft size={20} className="text-muted-foreground" /></button><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Mon apprentissage" : "My learning"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Suivez vos cours terminés et en cours." : "Track completed and in-progress courses."}</p><div className="space-y-6"><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "En cours" : "In progress"}</h2><div className="space-y-4">{courses.filter((c: any) => c.progress < 100).map((c: any) => <CourseRow key={c.id} course={c} />)}</div></section><section className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Terminés" : "Completed"}</h2><div className="space-y-4">{courses.filter((c: any) => c.progress === 100).map((c: any) => <CourseRow key={c.id} course={c} />)}</div></section></div></div>;
 }
 
 function ConsultationRequest({ consultations, onRefresh }: { consultations: any[]; onRefresh?: () => void }) {

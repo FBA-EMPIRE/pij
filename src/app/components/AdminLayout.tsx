@@ -43,6 +43,7 @@ const navGroups = [
     items: [
       { icon: FileText, label: "Rapports", labelEn: "Reports", path: "/admin/reports" },
       { icon: Bell, label: "Notifications", labelEn: "Notifications", path: "/admin/notifications" },
+      { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/admin/formations" },
     ],
   },
   {

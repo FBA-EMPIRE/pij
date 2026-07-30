@@ -158,7 +158,7 @@ export default function MyTontines() {
                       <p className="text-xs text-muted-foreground mt-0.5">{t?.start_date ?? ""}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <StatusBadge status="closed" size="sm" />
+                      <StatusBadge status="Closed" size="sm" />
                       <ChevronRight size={16} className="text-muted-foreground" />
                     </div>
                   </div>

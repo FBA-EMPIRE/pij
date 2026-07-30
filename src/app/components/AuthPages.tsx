@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check, Loader2 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { sendVerificationEmail } from "../lib/emailjs";
 
 const DISPOSABLE_DOMAINS = new Set([
   "mailinator.com", "guerrillamail.com", "tempmail.com", "10minutemail.com",
@@ -94,6 +95,9 @@ export function LoginPage() {
     <AuthCard darkMode={darkMode}>
       <div className="w-full max-w-sm">
         <div className="lg:hidden mb-8"><PIJLogo variant="full" size="md" /></div>
+        <button onClick={() => navigate("/")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+          <ArrowLeft size={14} /> {fr ? "Retour" : "Back"}
+        </button>
         <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Se connecter" : "Log in"}</h2>
         <p className="text-sm text-muted-foreground mb-8">{fr ? "Accédez à votre espace membre PIJ." : "Access your PIJ member space."}</p>
 
@@ -169,12 +173,12 @@ export function RegisterPage() {
   const [showPw, setShowPw] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [signingUp, setSigningUp] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const fr = lang === "fr";
 
   const emailCheck = useMemo(() => {
@@ -189,54 +193,61 @@ export function RegisterPage() {
 
   const allMet = criteria.every((c) => c.met);
   const emailValid = emailCheck?.valid === true;
-  const canSubmit = allMet && emailValid && !!firstName && !!lastName && acceptedTerms && !loading;
+  const canSubmit = allMet && emailValid && !!firstName && !!lastName && acceptedTerms && !signingUp;
 
-  const handleRegister = async () => {
+  const handleSignUp = async () => {
+    if (!canSubmit) return;
     setError("");
-    // Surface exactly what's missing instead of silently doing nothing.
-    if (!firstName || !lastName) {
-      setError(fr ? "Veuillez renseigner votre prénom et votre nom." : "Please enter your first and last name.");
+    setSigningUp(true);
+
+    // 1. Generate and store the code server-side
+    const { data: codeData, error: codeErr } = await supabase.functions.invoke(
+      "send-verification-code",
+      { body: { email } },
+    );
+
+    if (codeErr || !codeData?.success) {
+      setSigningUp(false);
+      setError(codeData?.error || codeErr?.message || "Échec de la génération du code");
       return;
     }
-    if (!emailValid) {
-      setError(fr ? "Veuillez saisir une adresse email valide." : "Please enter a valid email address.");
+
+    if (!codeData?.code || !codeData?.expires_at) {
+      setSigningUp(false);
+      setError(
+        fr
+          ? "Erreur serveur: redéployez la fonction send-verification-code"
+          : "Server error: redeploy the send-verification-code function",
+      );
       return;
     }
-    if (!allMet) {
-      setError(fr ? "Votre mot de passe ne respecte pas tous les critères requis." : "Your password does not meet all the required criteria.");
-      return;
-    }
-    if (!acceptedTerms) {
-      setError(fr ? "Veuillez accepter les conditions d'utilisation." : "Please accept the terms of use.");
-      return;
-    }
-    if (loading) return;
-    setLoading(true);
-    const { data, error: signUpErr } = await supabase.auth.signUp({
+
+    // 2. Send the email directly from the browser via EmailJS
+    const { sent, error: emailError } = await sendVerificationEmail(
       email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          phone: phone || undefined,
-        },
-      },
-    });
-    if (signUpErr) {
-      setLoading(false);
-      setError(signUpErr.message);
+      codeData.code,
+      new Date(codeData.expires_at),
+    );
+
+    if (!sent) {
+      setSigningUp(false);
+      setError(
+        fr
+          ? `Impossible d'envoyer le code: ${emailError}`
+          : `Failed to send code: ${emailError}`,
+      );
       return;
     }
-    // Email confirmation is disabled, so signUp returns an active session and
-    // the member is logged in immediately — send them straight to KYC. If a
-    // session isn't present (confirmation still enforced server-side), fall
-    // back to signing in with the credentials just created.
-    if (!data.session) {
-      await supabase.auth.signInWithPassword({ email, password });
-    }
-    setLoading(false);
-    navigate("/kyc");
+
+    // 3. Store registration details — account is created only after verification
+    sessionStorage.setItem("pij_pending_email", email);
+    sessionStorage.setItem("pij_pending_password", password);
+    sessionStorage.setItem("pij_pending_first_name", firstName);
+    sessionStorage.setItem("pij_pending_last_name", lastName);
+    if (phone) sessionStorage.setItem("pij_pending_phone", phone);
+
+    setSigningUp(false);
+    navigate("/verify-email", { state: { email } });
   };
 
   return (
@@ -257,11 +268,21 @@ export function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">{fr ? "Prénom" : "First name"}</label>
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Amara" />
+              <input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                placeholder="Amara"
+              />
             </div>
             <div>
               <label className="text-sm font-medium">{fr ? "Nom" : "Last name"}</label>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="Diallo" />
+              <input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                placeholder="Diallo"
+              />
             </div>
           </div>
           <div>
@@ -293,7 +314,12 @@ export function RegisterPage() {
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Téléphone" : "Phone"}</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="+237 6 XX XX XX XX" />
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+              placeholder="+237 6 XX XX XX XX"
+            />
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Mot de passe" : "Password"}</label>
@@ -333,18 +359,25 @@ export function RegisterPage() {
               </button>
             </div>
           </div>
+
+          {error && (
+            <p className="text-sm text-red-500 text-center">{error}</p>
+          )}
+
           <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
             <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="mt-0.5 rounded border-border accent-[#4CAF68]" />
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
           <button
-            onClick={handleRegister}
-            disabled={loading}
-            aria-disabled={!canSubmit}
-            className={`w-full py-3 rounded-xl text-white font-medium text-sm mt-2 transition-all ${canSubmit ? "hover:opacity-90" : "opacity-60"} disabled:opacity-40 disabled:cursor-not-allowed`}
-            style={{ background: "#4CAF68" }}
+            onClick={handleSignUp}
+            disabled={!canSubmit}
+            className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{ background: signingUp ? "#6B7280" : "#4CAF68" }}
           >
-            {loading ? (fr ? "Création..." : "Creating...") : (fr ? "Créer mon compte" : "Create my account")}
+            {signingUp && <Loader2 size={16} className="animate-spin" />}
+            {signingUp
+              ? (fr ? "Création en cours..." : "Creating account...")
+              : (fr ? "Créer mon compte" : "Create my account")}
           </button>
         </div>
 
@@ -362,8 +395,29 @@ export function RegisterPage() {
 export function ForgotPasswordPage() {
   const { darkMode, lang } = useAppContext();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const fr = lang === "fr";
+
+  const handleSend = async () => {
+    setError("");
+    if (!email) {
+      setError(fr ? "Veuillez renseigner votre email." : "Please enter your email.");
+      return;
+    }
+    setLoading(true);
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (resetErr) {
+      setError(resetErr.message);
+      return;
+    }
+    setSent(true);
+  };
 
   return (
     <AuthCard darkMode={darkMode}>
@@ -375,12 +429,16 @@ export function ForgotPasswordPage() {
           <>
             <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mot de passe oublié" : "Forgot password"}</h2>
             <p className="text-sm text-muted-foreground mb-8">{fr ? "Entrez votre email. Nous vous enverrons un lien de réinitialisation." : "Enter your email. We'll send you a reset link."}</p>
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Email</label>
-                <input className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
+                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder="vous@email.com" />
               </div>
-              <button onClick={() => setSent(true)} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 transition-all" style={{ background: "#4CAF68" }}>
+              <button onClick={handleSend} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2" style={{ background: "#4CAF68" }}>
+                {loading && <Loader2 size={16} className="animate-spin" />}
                 {fr ? "Envoyer le lien" : "Send reset link"}
               </button>
             </div>
@@ -392,6 +450,104 @@ export function ForgotPasswordPage() {
             </div>
             <h2 className="mb-2" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Email envoyé !" : "Email sent!"}</h2>
             <p className="text-sm text-muted-foreground mb-6">{fr ? "Vérifiez votre boîte mail et cliquez sur le lien de réinitialisation." : "Check your inbox and click the reset link."}</p>
+            <button onClick={() => navigate("/login")} className="text-sm text-[#4CAF68] font-medium hover:underline">
+              {fr ? "Retour à la connexion" : "Back to login"}
+            </button>
+          </div>
+        )}
+      </div>
+    </AuthCard>
+  );
+}
+
+export function ResetPasswordPage() {
+  const { darkMode, lang } = useAppContext();
+  const navigate = useNavigate();
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const fr = lang === "fr";
+
+  const criteriaMet = useMemo(() => PASSWORD_CRITERIA.every((c) => c.test(password)), [password]);
+
+  const handleReset = async () => {
+    setError("");
+    if (!criteriaMet) {
+      setError(fr ? "Le mot de passe ne respecte pas les critères requis." : "Password does not meet the required criteria.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError(fr ? "Les mots de passe ne correspondent pas." : "Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    const { error: updateErr } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (updateErr) {
+      setError(updateErr.message);
+      return;
+    }
+    setDone(true);
+  };
+
+  return (
+    <AuthCard darkMode={darkMode}>
+      <div className="w-full max-w-sm">
+        {!done ? (
+          <>
+            <h2 className="mb-1" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Réinitialiser le mot de passe" : "Reset password"}</h2>
+            <p className="text-sm text-muted-foreground mb-8">{fr ? "Choisissez un nouveau mot de passe pour votre compte." : "Choose a new password for your account."}</p>
+            {error && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">{fr ? "Nouveau mot de passe" : "New password"}</label>
+                <div className="relative mt-1.5">
+                  <input
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    type={showPw ? "text" : "password"}
+                    className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                  />
+                  <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <div className="mt-2 space-y-1">
+                  {PASSWORD_CRITERIA.map((c) => (
+                    <div key={c.key} className="flex items-center gap-1.5 text-xs">
+                      {c.test(password) ? <Check size={12} color="#4CAF68" /> : <X size={12} className="text-muted-foreground" />}
+                      <span className={c.test(password) ? "text-[#4CAF68]" : "text-muted-foreground"}>{fr ? c.label.fr : c.label.en}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{fr ? "Confirmer le mot de passe" : "Confirm password"}</label>
+                <input
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  type={showPw ? "text" : "password"}
+                  className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                />
+              </div>
+              <button onClick={handleReset} disabled={loading} className="w-full py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2" style={{ background: "#4CAF68" }}>
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {fr ? "Réinitialiser" : "Reset password"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center">
+            <div className="w-14 h-14 rounded-full bg-[#E8F5EC] flex items-center justify-center mx-auto mb-5">
+              <CheckCircle size={24} color="#4CAF68" />
+            </div>
+            <h2 className="mb-2" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Mot de passe mis à jour !" : "Password updated!"}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{fr ? "Vous pouvez maintenant vous connecter avec votre nouveau mot de passe." : "You can now sign in with your new password."}</p>
             <button onClick={() => navigate("/login")} className="text-sm text-[#4CAF68] font-medium hover:underline">
               {fr ? "Retour à la connexion" : "Back to login"}
             </button>

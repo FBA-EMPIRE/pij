@@ -94,7 +94,7 @@ export default function MemberEditModal({ memberId, onClose, onSave }: MemberEdi
         <div className="p-5 space-y-4">
           <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
             <div className="w-10 h-10 rounded-full bg-[#6E3A9A] flex items-center justify-center text-white text-sm font-bold shrink-0">
-              {memberName(member).split(" ").map((n) => n[0]).join("").slice(0, 2)}
+              {memberName(member).split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">{member.id}</p>
