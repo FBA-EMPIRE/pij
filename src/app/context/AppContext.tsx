@@ -43,13 +43,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       setSessionLoading(false);
-      if (u) fetchProfile(u.id);
+      if (u) fetchProfile(u.id).catch((err) => console.error("Failed to load profile:", err));
+    }).catch((err) => {
+      console.error("Failed to load session:", err);
+      setSessionLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (u) fetchProfile(u.id);
+      if (u) fetchProfile(u.id).catch((err) => console.error("Failed to load profile:", err));
       else setUserProfile(null);
     });
 
@@ -58,25 +61,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     setProfileLoading(true);
-    const { data, error } = await supabase
-      .from("users")
-      .select("*, profiles(*)")
-      .eq("id", userId)
-      .maybeSingle();
-    if (!error && data) {
-      const profiles = (data as any).profiles;
-      const name = profiles ? `${profiles.first_name} ${profiles.last_name}`.trim() : data.email;
-      const merged = { ...data, ...profiles, name, id: userId };
-      delete merged.profiles;
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*, profiles(*)")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!error && data) {
+        const profiles = (data as any).profiles;
+        const name = profiles ? `${profiles.first_name} ${profiles.last_name}`.trim() : data.email;
+        const merged = { ...data, ...profiles, name, id: userId };
+        delete merged.profiles;
 
-      const { data: adminRole } = await supabase.rpc("current_admin_role");
-      if (adminRole) {
-        merged.role = adminRole as "admin" | "super_admin";
+        try {
+          const { data: adminRole } = await supabase.rpc("current_admin_role");
+          if (adminRole) {
+            merged.role = adminRole as "admin" | "super_admin";
+          }
+        } catch (err) {
+          console.error("Failed to resolve admin role:", err);
+        }
+
+        setUserProfile(merged as UserProfile);
       }
-
-      setUserProfile(merged as UserProfile);
+    } finally {
+      setProfileLoading(false);
     }
-    setProfileLoading(false);
   };
 
   const toggleDark = useCallback(() => setDarkMode((d) => !d), []);
