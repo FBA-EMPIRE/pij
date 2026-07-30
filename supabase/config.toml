@@ -31,10 +31,11 @@ enable_signup = true
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
-# Email confirmation disabled: members register and sign in immediately with no
-# OTP / email-verification step. (Must also be turned off in the Supabase
-# dashboard: Auth > Providers > Email > "Confirm email" = OFF.)
-enable_confirmations = false
+# Email confirmation uses Supabase's built-in flow: signUp() sends a
+# confirmation link (no custom code/table), the member clicks it, and
+# Supabase redirects back with an active session. (Must also be turned ON
+# in the Supabase dashboard: Auth > Providers > Email > "Confirm email" = ON.)
+enable_confirmations = true
 
 [edge_runtime]
 enabled = true

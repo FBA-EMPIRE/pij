@@ -178,6 +178,8 @@ export function RegisterPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
   const [error, setError] = useState("");
+  const [confirmationSent, setConfirmationSent] = useState(false);
+  const [resending, setResending] = useState(false);
   const fr = lang === "fr";
 
   const emailCheck = useMemo(() => {
@@ -221,25 +223,71 @@ export function RegisterPage() {
       password,
       options: {
         data: { first_name: firstName, last_name: lastName, phone: phone || undefined },
+        emailRedirectTo: `${window.location.origin}/kyc`,
       },
     });
 
+    setSigningUp(false);
     if (signUpErr) {
-      setSigningUp(false);
       setError(signUpErr.message);
       return;
     }
 
-    // Email confirmation is disabled, so signUp returns an active session and
-    // the member is logged in immediately — send them straight to KYC. If a
-    // session isn't present (confirmation still enforced server-side), fall
-    // back to signing in with the credentials just created.
-    if (!data.session) {
-      await supabase.auth.signInWithPassword({ email, password });
+    // With "Confirm email" on, signUp() creates the account but returns no
+    // session until the member clicks the confirmation link — show them
+    // that screen instead of navigating in. If confirmation is off (or this
+    // account was pre-confirmed some other way), a session comes back
+    // immediately and we can skip straight to KYC.
+    if (data.session) {
+      navigate("/kyc");
+      return;
     }
-    setSigningUp(false);
-    navigate("/kyc");
+    setConfirmationSent(true);
   };
+
+  const handleResendConfirmation = async () => {
+    if (!email || resending) return;
+    setResending(true);
+    setError("");
+    const { error: resendErr } = await supabase.auth.resend({ type: "signup", email });
+    setResending(false);
+    if (resendErr) setError(resendErr.message);
+  };
+
+  if (confirmationSent) {
+    return (
+      <AuthCard darkMode={darkMode}>
+        <div className="w-full max-w-sm text-center">
+          <div className="w-14 h-14 rounded-full bg-[#E8F5EC] flex items-center justify-center mx-auto mb-5">
+            <Mail size={24} color="#4CAF68" />
+          </div>
+          <h2 className="mb-2" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Vérifiez votre email" : "Check your email"}</h2>
+          <p className="text-sm text-muted-foreground mb-2">
+            {fr
+              ? "Nous avons envoyé un lien de confirmation à :"
+              : "We've sent a confirmation link to:"}
+          </p>
+          <p className="text-sm font-medium mb-6">{email}</p>
+          <p className="text-xs text-muted-foreground mb-6">
+            {fr
+              ? "Cliquez sur le lien pour activer votre compte, puis connectez-vous."
+              : "Click the link to activate your account, then log in."}
+          </p>
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
+          )}
+          <button onClick={handleResendConfirmation} disabled={resending} className="text-sm text-[#4CAF68] font-medium hover:underline disabled:opacity-50">
+            {resending ? (fr ? "Envoi..." : "Sending...") : (fr ? "Renvoyer l'email" : "Resend email")}
+          </button>
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            <button onClick={() => navigate("/login")} className="text-[#6E3A9A] font-medium hover:underline">
+              {fr ? "Retour à la connexion" : "Back to login"}
+            </button>
+          </p>
+        </div>
+      </AuthCard>
+    );
+  }
 
   return (
     <AuthCard darkMode={darkMode}>
