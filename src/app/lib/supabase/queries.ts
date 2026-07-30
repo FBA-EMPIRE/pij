@@ -695,6 +695,123 @@ export async function fetchTontineTypes() {
   return data ?? [];
 }
 
+// ---------------------------------------------------------------------
+// Investments
+// ---------------------------------------------------------------------
+
+export async function fetchInvestmentOpportunities(opts: { publishedOnly?: boolean } = {}) {
+  let query = supabase.from("investment_opportunities").select("*");
+  if (opts.publishedOnly) query = query.eq("status", "Published");
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function saveInvestmentOpportunity(opportunity: Record<string, unknown>) {
+  const { id, ...fields } = opportunity as { id?: string; [key: string]: unknown };
+  if (id) {
+    const { data, error } = await supabase.from("investment_opportunities").update(fields).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await supabase.from("investment_opportunities").insert(fields).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setInvestmentOpportunityStatus(id: string, status: string) {
+  const { data, error } = await supabase.from("investment_opportunities").update({ status }).eq("id", id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// Member submits a request to invest in an opportunity (stays "Pending" until
+// an admin approves it — see decideInvestmentRequest).
+export async function createInvestmentRequest({ opportunity_id, amount }: { opportunity_id: string; amount: number }) {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from("investment_requests")
+    .insert({ user_id: userId, opportunity_id, amount, status: "Pending" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Admin view: every pending/decided request with member + opportunity labels.
+export async function fetchInvestmentRequestsWithDetails() {
+  const { data, error } = await supabase
+    .from("investment_requests")
+    .select("*, users(email, profiles(first_name, last_name)), investment_opportunities(title)")
+    .order("submitted_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const profile = r.users?.profiles;
+    const member = profile ? `${profile.first_name} ${profile.last_name}`.trim() : (r.users?.email ?? "—");
+    return { ...r, member: member || "—", opportunity_title: r.investment_opportunities?.title ?? "—" };
+  });
+}
+
+// Admin approves/rejects a request. On approval we create the portfolio entry,
+// bump the opportunity's raised total, notify the member and write an audit log
+// — all with the admin's RLS grants (no balance movement in this phase).
+export async function decideInvestmentRequest(request: any, approve: boolean) {
+  const reviewerId = await getCurrentUserId();
+  const nowIso = new Date().toISOString();
+  const newStatus = approve ? "Approved" : "Rejected";
+
+  const { error: updErr } = await supabase
+    .from("investment_requests")
+    .update({ status: newStatus, reviewed_by: reviewerId, reviewed_at: nowIso })
+    .eq("id", request.id);
+  if (updErr) throw updErr;
+
+  if (approve) {
+    const { error: portErr } = await supabase.from("investment_portfolio").insert({
+      user_id: request.user_id,
+      opportunity_id: request.opportunity_id,
+      amount: request.amount,
+      current_value: request.amount,
+      returns: 0,
+      status: "Active",
+    });
+    if (portErr) throw portErr;
+
+    if (request.opportunity_id) {
+      const { data: opp } = await supabase
+        .from("investment_opportunities")
+        .select("raised")
+        .eq("id", request.opportunity_id)
+        .maybeSingle();
+      if (opp) {
+        await supabase
+          .from("investment_opportunities")
+          .update({ raised: Number(opp.raised ?? 0) + Number(request.amount ?? 0) })
+          .eq("id", request.opportunity_id);
+      }
+    }
+  }
+
+  await supabase.from("notifications").insert({
+    user_id: request.user_id,
+    type: "general",
+    title: approve ? "Investment request approved" : "Investment request declined",
+    message: approve
+      ? `Your investment request for "${request.opportunity_title ?? "an opportunity"}" has been approved.`
+      : `Your investment request for "${request.opportunity_title ?? "an opportunity"}" was declined.`,
+  });
+
+  await supabase.from("audit_logs").insert({
+    actor_id: reviewerId,
+    action: approve ? "Investment Request Approved" : "Investment Request Rejected",
+    entity_type: "investment_request",
+    entity_id: request.id,
+    metadata: { user_id: request.user_id, amount: request.amount, opportunity_id: request.opportunity_id },
+  });
+
+  return { success: true };
+}
+
 export async function fetchAccountsWithUsers() {
   const { data: accounts, error: accErr } = await supabase
     .from("accounts")
