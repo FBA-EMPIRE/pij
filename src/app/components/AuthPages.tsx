@@ -4,7 +4,6 @@ import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check, Loader2 } from "lu
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
-import { sendVerificationEmail } from "../lib/emailjs";
 
 const DISPOSABLE_DOMAINS = new Set([
   "mailinator.com", "guerrillamail.com", "tempmail.com", "10minutemail.com",
@@ -195,59 +194,51 @@ export function RegisterPage() {
   const emailValid = emailCheck?.valid === true;
   const canSubmit = allMet && emailValid && !!firstName && !!lastName && acceptedTerms && !signingUp;
 
-  const handleSignUp = async () => {
-    if (!canSubmit) return;
+  const handleRegister = async () => {
     setError("");
+    // Surface exactly what's missing instead of silently doing nothing.
+    if (!firstName || !lastName) {
+      setError(fr ? "Veuillez renseigner votre prénom et votre nom." : "Please enter your first and last name.");
+      return;
+    }
+    if (!emailValid) {
+      setError(fr ? "Veuillez saisir une adresse email valide." : "Please enter a valid email address.");
+      return;
+    }
+    if (!allMet) {
+      setError(fr ? "Votre mot de passe ne respecte pas tous les critères requis." : "Your password does not meet all the required criteria.");
+      return;
+    }
+    if (!acceptedTerms) {
+      setError(fr ? "Veuillez accepter les conditions d'utilisation." : "Please accept the terms of use.");
+      return;
+    }
+    if (signingUp) return;
     setSigningUp(true);
 
-    // 1. Generate and store the code server-side
-    const { data: codeData, error: codeErr } = await supabase.functions.invoke(
-      "send-verification-code",
-      { body: { email } },
-    );
-
-    if (codeErr || !codeData?.success) {
-      setSigningUp(false);
-      setError(codeData?.error || codeErr?.message || "Échec de la génération du code");
-      return;
-    }
-
-    if (!codeData?.code || !codeData?.expires_at) {
-      setSigningUp(false);
-      setError(
-        fr
-          ? "Erreur serveur: redéployez la fonction send-verification-code"
-          : "Server error: redeploy the send-verification-code function",
-      );
-      return;
-    }
-
-    // 2. Send the email directly from the browser via EmailJS
-    const { sent, error: emailError } = await sendVerificationEmail(
+    const { data, error: signUpErr } = await supabase.auth.signUp({
       email,
-      codeData.code,
-      new Date(codeData.expires_at),
-    );
+      password,
+      options: {
+        data: { first_name: firstName, last_name: lastName, phone: phone || undefined },
+      },
+    });
 
-    if (!sent) {
+    if (signUpErr) {
       setSigningUp(false);
-      setError(
-        fr
-          ? `Impossible d'envoyer le code: ${emailError}`
-          : `Failed to send code: ${emailError}`,
-      );
+      setError(signUpErr.message);
       return;
     }
 
-    // 3. Store registration details — account is created only after verification
-    sessionStorage.setItem("pij_pending_email", email);
-    sessionStorage.setItem("pij_pending_password", password);
-    sessionStorage.setItem("pij_pending_first_name", firstName);
-    sessionStorage.setItem("pij_pending_last_name", lastName);
-    if (phone) sessionStorage.setItem("pij_pending_phone", phone);
-
+    // Email confirmation is disabled, so signUp returns an active session and
+    // the member is logged in immediately — send them straight to KYC. If a
+    // session isn't present (confirmation still enforced server-side), fall
+    // back to signing in with the credentials just created.
+    if (!data.session) {
+      await supabase.auth.signInWithPassword({ email, password });
+    }
     setSigningUp(false);
-    navigate("/verify-email", { state: { email } });
+    navigate("/kyc");
   };
 
   return (
@@ -369,9 +360,10 @@ export function RegisterPage() {
             <span>{fr ? "J'accepte les " : "I accept the "}<a href="#" className="text-[#6E3A9A] hover:underline">{fr ? "conditions d'utilisation" : "terms of use"}</a></span>
           </label>
           <button
-            onClick={handleSignUp}
-            disabled={!canSubmit}
-            className="w-full py-3 rounded-xl text-white font-medium text-sm mt-2 hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            onClick={handleRegister}
+            disabled={signingUp}
+            aria-disabled={!canSubmit}
+            className={`w-full py-3 rounded-xl text-white font-medium text-sm mt-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${canSubmit ? "hover:opacity-90" : "opacity-60"}`}
             style={{ background: signingUp ? "#6B7280" : "#4CAF68" }}
           >
             {signingUp && <Loader2 size={16} className="animate-spin" />}

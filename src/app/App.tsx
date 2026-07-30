@@ -5,7 +5,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./components/LandingPage";
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./components/AuthPages";
 import KYCOnboarding from "./components/KYCOnboarding";
-import VerifyEmail from "./components/VerifyEmail";
 import { MemberLayout } from "./components/MemberLayout";
 import MemberDashboard from "./components/MemberDashboard";
 import TransactionHistory from "./components/TransactionHistory";
@@ -41,6 +40,7 @@ import ProfilePage from "./components/ProfilePage";
 import MemberSettings from "./components/MemberSettings";
 import AuditLogs from "./components/AuditLogs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Toaster } from "./components/ui/sonner";
 import { useAppContext } from "./context/AppContext";
 
 function AdminSettingsPlaceholder() {
@@ -90,6 +90,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <AppProvider>
+      <Toaster richColors position="top-center" />
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
@@ -98,7 +99,6 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/admin/invite/:token" element={<AdminInviteAccept />} />
           <Route path="/kyc" element={<KYCOnboarding />} />
 
