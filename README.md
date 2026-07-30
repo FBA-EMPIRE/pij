@@ -50,14 +50,13 @@ Le schéma est découpé en migrations dans `supabase/migrations/` (appliquées 
 | **Tontines** | `tontine_types`, `tontines`, `tontine_members`, `tontine_rounds`, `tontine_contributions` |
 | **Formations** | `formation_categories`, `formation_courses`, `formation_content`, `formation_enrollments`, `formation_content_completions` (+ bucket `formation-assets`) |
 | **Investissements** | `investment_opportunities`, `investment_portfolio`, `investment_requests` |
-| **Système** | `notifications`, `audit_logs`, `system_settings`, `verification_codes`, `consultation_requests`, `user_notification_preferences` |
+| **Système** | `notifications`, `audit_logs`, `system_settings`, `consultation_requests`, `user_notification_preferences` |
 
 Les colonnes de solde dénormalisées (`users.balance_current / balance_savings / balance_investment`) sont maintenues automatiquement à partir de `accounts` par le trigger `sync_user_balances()`.
 
 ### Sécurité
 
 - **Row Level Security (RLS)** activé sur toutes les tables exposées ; membres limités à leurs propres données, staff par rôle (`super_admin`, `admin`, `kyc_officer`, `support_agent`).
-- `verification_codes` : RLS activé sans policy — accès réservé aux Edge Functions (service role).
 - `audit_logs` : insert-only, immutable par conception.
 - `transactions` : mouvements d'argent effectués uniquement par Edge Functions (service role) qui recalculent le solde et écrivent le grand livre.
 - Documents KYC : bucket privé, accès admin + propriétaire, lecture par URL signée uniquement.
