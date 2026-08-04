@@ -11,6 +11,22 @@ const DISPOSABLE_DOMAINS = new Set([
   "burnermail.io", "maildrop.cc", "getnada.com", "temp-mail.org",
 ]);
 
+// Supabase's gateway returns a plain-text (non-JSON) body for gateway-level
+// failures like an invalid/rotated API key, which the client then fails to
+// parse — surfacing a raw "Unexpected token ... is not valid JSON" message
+// instead of a real auth error. Catch that (and plain network failures) and
+// show something a member can actually act on.
+function friendlyAuthError(message: string, fr: boolean): string {
+  const isGatewayOrNetworkFailure =
+    /is not valid JSON|Invalid API key|Failed to fetch|NetworkError|Load failed/i.test(message);
+  if (isGatewayOrNetworkFailure) {
+    return fr
+      ? "Impossible de contacter nos serveurs pour le moment. Veuillez réessayer dans un instant."
+      : "We couldn't reach our servers right now. Please try again in a moment.";
+  }
+  return message;
+}
+
 function validateEmail(email: string) {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!re.test(email)) return { valid: false, reason: "format" };
@@ -84,7 +100,7 @@ export function LoginPage() {
     const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (signInErr) {
-      setError(signInErr.message);
+      setError(friendlyAuthError(signInErr.message, fr));
       return;
     }
     navigate("/dashboard");
@@ -229,7 +245,7 @@ export function RegisterPage() {
 
     setSigningUp(false);
     if (signUpErr) {
-      setError(signUpErr.message);
+      setError(friendlyAuthError(signUpErr.message, fr));
       return;
     }
 
@@ -251,7 +267,7 @@ export function RegisterPage() {
     setError("");
     const { error: resendErr } = await supabase.auth.resend({ type: "signup", email });
     setResending(false);
-    if (resendErr) setError(resendErr.message);
+    if (resendErr) setError(friendlyAuthError(resendErr.message, fr));
   };
 
   if (confirmationSent) {
@@ -453,7 +469,7 @@ export function ForgotPasswordPage() {
     });
     setLoading(false);
     if (resetErr) {
-      setError(resetErr.message);
+      setError(friendlyAuthError(resetErr.message, fr));
       return;
     }
     setSent(true);
@@ -527,7 +543,7 @@ export function ResetPasswordPage() {
     const { error: updateErr } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (updateErr) {
-      setError(updateErr.message);
+      setError(friendlyAuthError(updateErr.message, fr));
       return;
     }
     setDone(true);
