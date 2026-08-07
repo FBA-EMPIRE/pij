@@ -4,6 +4,7 @@ import { Eye, EyeOff, ArrowLeft, CheckCircle, Mail, X, Check, Loader2 } from "lu
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { isPhoneRegistered } from "../lib/supabase/queries";
 
 const DISPOSABLE_DOMAINS = new Set([
   "mailinator.com", "guerrillamail.com", "tempmail.com", "10minutemail.com",
@@ -18,7 +19,7 @@ const DISPOSABLE_DOMAINS = new Set([
 // show something a member can actually act on.
 function friendlyAuthError(message: string, fr: boolean): string {
   const isGatewayOrNetworkFailure =
-    /is not valid JSON|Invalid API key|Failed to fetch|NetworkError|Load failed/i.test(message);
+    /is not valid JSON|Invalid API key|Failed to fetch|NetworkError|Load failed|^\{\}$/i.test(message.trim());
   if (isGatewayOrNetworkFailure) {
     return fr
       ? "Impossible de contacter nos serveurs pour le moment. Veuillez réessayer dans un instant."
@@ -33,6 +34,23 @@ function validateEmail(email: string) {
   const domain = email.split("@")[1].toLowerCase();
   if (DISPOSABLE_DOMAINS.has(domain)) return { valid: false, reason: "disposable" };
   return { valid: true, reason: null };
+}
+
+// Existing phone data in the DB is stored as a bare 9-digit local number
+// (no +237, no spaces) -- normalize whatever format the member types
+// (+237 6XX XXX XXX, 237690123456, 06 90 12 34 56, ...) to that same
+// shape so validation, the duplicate check, and storage all agree.
+function normalizeCameroonPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("237")) digits = digits.slice(3);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return digits;
+}
+
+function validateCameroonPhone(raw: string) {
+  const normalized = normalizeCameroonPhone(raw);
+  const valid = /^6\d{8}$/.test(normalized);
+  return { valid, normalized };
 }
 
 interface PasswordCriterion {
@@ -203,6 +221,11 @@ export function RegisterPage() {
     return validateEmail(email);
   }, [email]);
 
+  const phoneCheck = useMemo(() => {
+    if (!phone) return null;
+    return validateCameroonPhone(phone);
+  }, [phone]);
+
   const criteria = useMemo(() =>
     PASSWORD_CRITERIA.map((c) => ({ ...c, met: c.test(password) })),
     [password]
@@ -210,7 +233,8 @@ export function RegisterPage() {
 
   const allMet = criteria.every((c) => c.met);
   const emailValid = emailCheck?.valid === true;
-  const canSubmit = allMet && emailValid && !!firstName && !!lastName && acceptedTerms && !signingUp;
+  const phoneValid = phoneCheck?.valid === true;
+  const canSubmit = allMet && emailValid && phoneValid && !!firstName && !!lastName && acceptedTerms && !signingUp;
 
   const handleRegister = async () => {
     setError("");
@@ -221,6 +245,12 @@ export function RegisterPage() {
     }
     if (!emailValid) {
       setError(fr ? "Veuillez saisir une adresse email valide." : "Please enter a valid email address.");
+      return;
+    }
+    if (!phoneValid) {
+      setError(fr
+        ? "Veuillez saisir un numéro de téléphone camerounais valide (ex: +237 6XX XXX XXX)."
+        : "Please enter a valid Cameroon phone number (e.g. +237 6XX XXX XXX).");
       return;
     }
     if (!allMet) {
@@ -234,11 +264,23 @@ export function RegisterPage() {
     if (signingUp) return;
     setSigningUp(true);
 
+    const normalizedPhone = phoneCheck!.normalized;
+    try {
+      if (await isPhoneRegistered(normalizedPhone)) {
+        setError(fr ? "Ce numéro de téléphone est déjà enregistré." : "This phone number is already registered.");
+        setSigningUp(false);
+        return;
+      }
+    } catch {
+      // Availability check itself failing shouldn't block signup -- the DB's
+      // unique constraint still enforces this as a last resort.
+    }
+
     const { data, error: signUpErr } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { first_name: firstName, last_name: lastName, phone: phone || undefined },
+        data: { first_name: firstName, last_name: lastName, phone: normalizedPhone },
         emailRedirectTo: `${window.location.origin}/kyc`,
       },
     });
@@ -369,12 +411,28 @@ export function RegisterPage() {
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Téléphone" : "Phone"}</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
-              placeholder="+237 6 XX XX XX XX"
-            />
+            <div className="relative mt-1.5">
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 pr-10"
+                placeholder="+237 6 XX XX XX XX"
+              />
+              {phoneCheck && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {phoneCheck.valid ? (
+                    <Check size={16} className="text-green-500" />
+                  ) : (
+                    <X size={16} className="text-red-500" />
+                  )}
+                </span>
+              )}
+            </div>
+            {phoneCheck && !phoneCheck.valid && (
+              <p className="text-xs text-red-500 mt-1">
+                {fr ? "Format invalide (ex: +237 6XX XXX XXX)" : "Invalid format (e.g. +237 6XX XXX XXX)"}
+              </p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium">{fr ? "Mot de passe" : "Password"}</label>

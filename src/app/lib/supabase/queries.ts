@@ -76,6 +76,12 @@ export async function recordWithdrawal({
   });
 }
 
+export async function isPhoneRegistered(phone: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("phone_is_registered", { p_phone: phone });
+  if (error) throw error;
+  return !!data;
+}
+
 export async function getCurrentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw new Error("Not authenticated");
