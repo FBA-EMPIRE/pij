@@ -588,7 +588,7 @@ export async function fetchTontines() {
 export async function updateTontine(id: string, patch: {
   name?: string;
   capacity?: number;
-  frequency?: "weekly" | "monthly";
+  frequency?: "weekly" | "monthly" | "daily" | "quarterly";
   entry_fee?: number;
   start_date?: string;
 }) {

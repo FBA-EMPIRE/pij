@@ -73,7 +73,12 @@ export default function AdminTontineTypes() {
                 <p className="text-xs text-muted-foreground truncate">{fr ? t.description : t.descriptionEn || t.description}</p>
               </div>
               <div className="text-sm text-muted-foreground">
-                {t.frequency === "weekly" ? (fr ? "Hebdo" : "Weekly") : t.frequency === "biweekly" ? (fr ? "Bihebdo" : "Biweekly") : t.frequency === "monthly" ? (fr ? "Mensuel" : "Monthly") : t.frequency}
+                {t.frequency === "daily" ? (fr ? "Journalier" : "Daily")
+                  : t.frequency === "weekly" ? (fr ? "Hebdo" : "Weekly")
+                  : t.frequency === "biweekly" ? (fr ? "Bihebdo" : "Biweekly")
+                  : t.frequency === "monthly" ? (fr ? "Mensuel" : "Monthly")
+                  : t.frequency === "quarterly" ? (fr ? "Trimestriel" : "Quarterly")
+                  : t.frequency}
               </div>
               <div className="text-sm font-mono">{t.default_contribution?.toLocaleString() || t.defaultContribution?.toLocaleString() || "—"} XAF</div>
               <div className="text-sm">{t.default_capacity || t.defaultCapacity || "—"}</div>

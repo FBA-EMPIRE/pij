@@ -23,7 +23,7 @@ export default function AdminTontineDetail() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editCapacity, setEditCapacity] = useState("");
-  const [editFrequency, setEditFrequency] = useState<"weekly" | "monthly">("weekly");
+  const [editFrequency, setEditFrequency] = useState<"weekly" | "monthly" | "daily" | "quarterly">("weekly");
   const [editEntryFee, setEditEntryFee] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -84,7 +84,7 @@ export default function AdminTontineDetail() {
     setSaveError("");
     setEditName(tontine.name ?? "");
     setEditCapacity(String(tontine.capacity ?? ""));
-    setEditFrequency((tontine.frequency as "weekly" | "monthly") ?? "weekly");
+    setEditFrequency((tontine.frequency as "weekly" | "monthly" | "daily" | "quarterly") ?? "weekly");
     setEditEntryFee(String(tontine.entry_fee ?? ""));
     setEditStartDate(tontine.start_date ?? "");
     setEditing(true);
@@ -188,8 +188,10 @@ export default function AdminTontineDetail() {
             <div>
               <label className="text-sm font-medium">{fr ? "Fréquence" : "Frequency"}</label>
               <select value={editFrequency} onChange={(e) => setEditFrequency(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                <option value="daily">{fr ? "Journalière" : "Daily"}</option>
                 <option value="weekly">{fr ? "Hebdomadaire" : "Weekly"}</option>
                 <option value="monthly">{fr ? "Mensuelle" : "Monthly"}</option>
+                <option value="quarterly">{fr ? "Trimestrielle" : "Quarterly"}</option>
               </select>
             </div>
           </div>

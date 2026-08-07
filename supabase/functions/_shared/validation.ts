@@ -1,3 +1,6 @@
+const TONTINE_FREQUENCIES = ["weekly", "monthly", "daily", "quarterly"] as const;
+type TontineFrequency = typeof TONTINE_FREQUENCIES[number];
+
 export function validateDeposit(body: Record<string, unknown>) {
   if (!body.user_id || typeof body.user_id !== "string") {
     throw new Error("user_id is required and must be a string");
@@ -60,8 +63,8 @@ export function validateTontineGroup(body: Record<string, unknown>) {
   if (!Number.isInteger(body.capacity) || (body.capacity as number) <= 0) {
     throw new Error("capacity is required and must be a positive integer");
   }
-  if (body.frequency !== "weekly" && body.frequency !== "monthly") {
-    throw new Error("frequency must be 'weekly' or 'monthly'");
+  if (!TONTINE_FREQUENCIES.includes(body.frequency as TontineFrequency)) {
+    throw new Error(`frequency must be one of: ${TONTINE_FREQUENCIES.join(", ")}`);
   }
   if (typeof body.entry_fee !== "number" || (body.entry_fee as number) < 0) {
     throw new Error("entry_fee is required and must be a non-negative number");
@@ -73,7 +76,7 @@ export function validateTontineGroup(body: Record<string, unknown>) {
     type_id: string;
     name: string;
     capacity: number;
-    frequency: "weekly" | "monthly";
+    frequency: TontineFrequency;
     entry_fee: number;
     start_date: string;
   };
@@ -98,8 +101,8 @@ export function validateTontineUpdate(body: Record<string, unknown>) {
     patch.capacity = body.capacity;
   }
   if (body.frequency !== undefined) {
-    if (body.frequency !== "weekly" && body.frequency !== "monthly") {
-      throw new Error("frequency must be 'weekly' or 'monthly'");
+    if (!TONTINE_FREQUENCIES.includes(body.frequency as TontineFrequency)) {
+      throw new Error(`frequency must be one of: ${TONTINE_FREQUENCIES.join(", ")}`);
     }
     patch.frequency = body.frequency;
   }
@@ -123,7 +126,7 @@ export function validateTontineUpdate(body: Record<string, unknown>) {
   return { id: body.id as string, patch: patch as {
     name?: string;
     capacity?: number;
-    frequency?: "weekly" | "monthly";
+    frequency?: TontineFrequency;
     entry_fee?: number;
     start_date?: string;
   } };

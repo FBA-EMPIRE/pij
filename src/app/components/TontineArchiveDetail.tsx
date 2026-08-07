@@ -65,7 +65,13 @@ export default function TontineArchiveDetail() {
       payout_received: m.payout_received ?? false,
     };
   });
-  const freqLabel = archive.tontine_types?.name ?? (archive.frequency === "weekly" ? (fr ? "Hebdomadaire" : "Weekly") : archive.frequency === "biweekly" ? (fr ? "Bihebdomadaire" : "Biweekly") : (fr ? "Mensuel" : "Monthly"));
+  const freqLabel = archive.tontine_types?.name ?? (
+    archive.frequency === "daily" ? (fr ? "Journalier" : "Daily")
+    : archive.frequency === "weekly" ? (fr ? "Hebdomadaire" : "Weekly")
+    : archive.frequency === "biweekly" ? (fr ? "Bihebdomadaire" : "Biweekly")
+    : archive.frequency === "quarterly" ? (fr ? "Trimestriel" : "Quarterly")
+    : (fr ? "Mensuel" : "Monthly")
+  );
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">

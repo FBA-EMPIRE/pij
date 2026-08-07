@@ -7,6 +7,18 @@ import { StatusBadge } from "./StatusBadge";
 import { supabase } from "../lib/supabase/client";
 import { useAppContext } from "../context/AppContext";
 
+const FREQUENCY_SHORT_LABELS: Record<string, { fr: string; en: string }> = {
+  weekly: { fr: "sem", en: "wk" },
+  monthly: { fr: "mois", en: "mo" },
+  daily: { fr: "jour", en: "day" },
+  quarterly: { fr: "trim", en: "qtr" },
+};
+
+function frequencyShortLabel(freq: string, fr: boolean) {
+  const entry = FREQUENCY_SHORT_LABELS[freq];
+  return entry ? (fr ? entry.fr : entry.en) : freq;
+}
+
 export default function AdminTontines() {
   const navigate = useNavigate();
   const { lang } = useAppContext();
@@ -20,7 +32,7 @@ export default function AdminTontines() {
   const [name, setName] = useState("");
   const [typeId, setTypeId] = useState("");
   const [capacity, setCapacity] = useState("");
-  const [frequency, setFrequency] = useState<"weekly" | "monthly">("weekly");
+  const [frequency, setFrequency] = useState<"weekly" | "monthly" | "daily" | "quarterly">("weekly");
   const [entryFee, setEntryFee] = useState("");
   const [startDate, setStartDate] = useState("");
   const [creating, setCreating] = useState(false);
@@ -183,7 +195,7 @@ export default function AdminTontines() {
                 <select value={typeId} onChange={(e) => setTypeId(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
                   <option value="">{fr ? "Sélectionner..." : "Select..."}</option>
                   {tontineTypes.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name} — {formatXAF(t.contribution_amount)}/{t.frequency === "weekly" ? fr ? "sem" : "wk" : fr ? "mois" : "mo"}</option>
+                    <option key={t.id} value={t.id}>{t.name} — {formatXAF(t.contribution_amount)}/{frequencyShortLabel(t.frequency, fr)}</option>
                   ))}
                 </select>
               </div>
@@ -196,8 +208,10 @@ export default function AdminTontines() {
                 <div>
                   <label className="text-sm font-medium">{fr ? "Fréquence" : "Frequency"}</label>
                   <select value={frequency} onChange={(e) => setFrequency(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                    <option value="daily">{fr ? "Journalière" : "Daily"}</option>
                     <option value="weekly">{fr ? "Hebdomadaire" : "Weekly"}</option>
                     <option value="monthly">{fr ? "Mensuelle" : "Monthly"}</option>
+                    <option value="quarterly">{fr ? "Trimestrielle" : "Quarterly"}</option>
                   </select>
                 </div>
               </div>

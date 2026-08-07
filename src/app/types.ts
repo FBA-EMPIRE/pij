@@ -127,7 +127,7 @@ export interface InvestmentTransaction {
 }
 
 export type TontineStatus = "open" | "active" | "closed";
-export type Frequency = "weekly" | "monthly";
+export type Frequency = "weekly" | "monthly" | "daily" | "quarterly";
 export type TontineMemberStatus = "pending" | "active" | "removed";
 export type ContributionStatus = "paid" | "unpaid";
 export type RoundStatus = "pending" | "paid";
