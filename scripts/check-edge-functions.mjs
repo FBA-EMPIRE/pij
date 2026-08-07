@@ -2,11 +2,12 @@ const URL = "https://ktyzbrrbukpzrcokdmpu.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0eXpicnJidWtwenJjb2tkbXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3ODY1NTMsImV4cCI6MjA5NzM2MjU1M30.epX8oPB4KikrDwZTgO921IRWzYVEdH_-Pvxs5BBNcJE";
 
 const fns = [
-  "investment-adjust-wallet",
-  "investment-approve-request",
-  "investment-reject-request",
-  "investment-distribute-return",
-  "tontine-update",
+  "admin-invitations",
+  "admin-invite",
+  "admin-invite-accept",
+  "admin-invite-resend",
+  "admin-invite-revoke",
+  "admin-invite-validate",
   "kyc-approve", // known-working control, for comparison
 ];
 
