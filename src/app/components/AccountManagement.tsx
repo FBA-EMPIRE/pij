@@ -267,7 +267,7 @@ export default function AccountManagement() {
                 <>
                   <div className="text-sm text-muted-foreground p-3 rounded-xl bg-muted">
                     <span className="font-medium text-foreground">{fr ? "Compte" : "Account"}: </span>
-                    {fr ? ACCOUNT_TYPE_MAP[accountType] || "Courant" : accountType}
+                    {fr ? ACCOUNT_TYPE_MAP[accountType] || "Compte Épargne courant" : accountType}
                   </div>
                   <div>
                     <label className="text-sm font-medium">{fr ? "Montant (XAF)" : "Amount (XAF)"}</label>
@@ -298,7 +298,7 @@ export default function AccountManagement() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{fr ? "Compte" : "Account"}</span>
-                      <span className="font-medium">{fr ? ACCOUNT_TYPE_MAP[accountType] || "Courant" : accountType}</span>
+                      <span className="font-medium">{fr ? ACCOUNT_TYPE_MAP[accountType] || "Compte Épargne courant" : accountType}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{fr ? "Montant" : "Amount"}</span>
