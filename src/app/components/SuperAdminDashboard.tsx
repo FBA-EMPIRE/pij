@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  Users, Wallet, TrendingUp, BarChart3, UserCog, Mail, Activity, FileSearch,
+  Users, Wallet, CreditCard, TrendingUp, BarChart3, UserCog, Mail, Activity, FileSearch,
   ChevronRight, Loader2, ArrowLeft
 } from "lucide-react";
 import {
@@ -21,7 +21,7 @@ export default function SuperAdminDashboard() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
 
-  const [stats, setStats] = useState<{ memberCount: number; tontineCount: number; totalSavings: number } | null>(null);
+  const [stats, setStats] = useState<{ memberCount: number; tontineCount: number; totalSavings: number; total_current?: number } | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,6 +130,12 @@ export default function SuperAdminDashboard() {
       sub: fr ? "Opérationnel" : "Operational",
       icon: Activity, color: "#4CAF68", bg: "#E8F5EC",
     },
+    {
+      label: fr ? "Comptes courants" : "Current accounts",
+      value: stats ? formatXAF(stats.total_current ?? 0) : "—",
+      sub: fr ? "Solde total" : "Total balance",
+      icon: CreditCard, color: "#2F80ED", bg: "#E7F0FE",
+    },
   ];
 
   if (error) {
@@ -169,8 +175,8 @@ export default function SuperAdminDashboard() {
         ))}
       </div>
 
-      {/* Row 2 - 3 KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Row 2 - 4 KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {kpiRow2.map((kpi) => (
           <div key={kpi.label} className="bg-card rounded-2xl border border-border p-5">
             <div className="flex items-center justify-between mb-3">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Users, ShieldCheck, TrendingUp, Wallet, ArrowUpRight, ChevronRight, Loader2, ArrowLeft } from "lucide-react";
+import { Users, ShieldCheck, TrendingUp, Wallet, CreditCard, ArrowUpRight, ChevronRight, Loader2, ArrowLeft } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -18,7 +18,7 @@ export default function AdminDashboard() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
 
-  const [stats, setStats] = useState<{ memberCount: number; tontineCount: number; totalSavings: number } | null>(null);
+  const [stats, setStats] = useState<{ memberCount: number; tontineCount: number; totalSavings: number; total_current?: number } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
   const [kycQueue, setKycQueue] = useState<any[]>([]);
@@ -66,6 +66,7 @@ export default function AdminDashboard() {
     { label: fr ? "KYC en attente" : "Pending KYC", value: pendingKyc, sub: fr ? "À traiter" : "To process", icon: ShieldCheck, color: "#F2994A", bg: "#FFF3E0", urgent: true },
     { label: fr ? "Tontines actives" : "Active tontines", value: stats?.tontineCount ?? 0, sub: fr ? "En cours" : "In progress", icon: TrendingUp, color: "#6E3A9A", bg: "#F0E8FF" },
     { label: fr ? "Épargne totale" : "Total savings", value: stats ? formatXAF(stats.totalSavings) : "—", sub: fr ? "Toutes les comptes" : "All accounts", icon: Wallet, color: "#4CAF68", bg: "#E8F5EC" },
+    { label: fr ? "Comptes courants" : "Current accounts", value: stats ? formatXAF(stats.total_current ?? 0) : "—", sub: fr ? "Solde total" : "Total balance", icon: CreditCard, color: "#2F80ED", bg: "#E7F0FE" },
   ];
 
   if (error) {
