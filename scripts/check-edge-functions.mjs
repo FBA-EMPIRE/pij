@@ -6,6 +6,7 @@ const fns = [
   "investment-approve-request",
   "investment-reject-request",
   "investment-distribute-return",
+  "tontine-update",
   "kyc-approve", // known-working control, for comparison
 ];
 

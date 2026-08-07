@@ -592,14 +592,11 @@ export async function updateTontine(id: string, patch: {
   entry_fee?: number;
   start_date?: string;
 }) {
-  const { data, error } = await supabase
-    .from("tontines")
-    .update(patch)
-    .eq("id", id)
-    .select("*, tontine_types(name, contribution_amount)")
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string; tontine?: any }>("tontine-update", {
+    body: { id, ...patch },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to update tontine");
+  return data.tontine;
 }
 
 export async function fetchTontineById(id: string) {

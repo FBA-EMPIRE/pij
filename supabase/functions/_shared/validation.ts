@@ -79,6 +79,56 @@ export function validateTontineGroup(body: Record<string, unknown>) {
   };
 }
 
+export function validateTontineUpdate(body: Record<string, unknown>) {
+  if (!body.id || typeof body.id !== "string") {
+    throw new Error("id is required and must be a string");
+  }
+  const patch: Record<string, unknown> = {};
+
+  if (body.name !== undefined) {
+    if (typeof body.name !== "string" || !body.name) {
+      throw new Error("name must be a non-empty string");
+    }
+    patch.name = body.name;
+  }
+  if (body.capacity !== undefined) {
+    if (!Number.isInteger(body.capacity) || (body.capacity as number) <= 0) {
+      throw new Error("capacity must be a positive integer");
+    }
+    patch.capacity = body.capacity;
+  }
+  if (body.frequency !== undefined) {
+    if (body.frequency !== "weekly" && body.frequency !== "monthly") {
+      throw new Error("frequency must be 'weekly' or 'monthly'");
+    }
+    patch.frequency = body.frequency;
+  }
+  if (body.entry_fee !== undefined) {
+    if (typeof body.entry_fee !== "number" || (body.entry_fee as number) < 0) {
+      throw new Error("entry_fee must be a non-negative number");
+    }
+    patch.entry_fee = body.entry_fee;
+  }
+  if (body.start_date !== undefined) {
+    if (typeof body.start_date !== "string" || !body.start_date) {
+      throw new Error("start_date must be a non-empty string date");
+    }
+    patch.start_date = body.start_date;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    throw new Error("At least one field to update must be provided");
+  }
+
+  return { id: body.id as string, patch: patch as {
+    name?: string;
+    capacity?: number;
+    frequency?: "weekly" | "monthly";
+    entry_fee?: number;
+    start_date?: string;
+  } };
+}
+
 export function validateTontineApply(body: Record<string, unknown>) {
   if (!body.tontine_id || typeof body.tontine_id !== "string") {
     throw new Error("tontine_id is required and must be a string");

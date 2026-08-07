@@ -4,6 +4,7 @@ export {
   validatePagination,
   validateKycAction,
   validateTontineGroup,
+  validateTontineUpdate,
   validateTontineMemberAction,
   validateAdminId,
   validateInvitationId,
