@@ -579,6 +579,23 @@ export async function fetchTontines() {
   return (data ?? []).map((t: any) => ({ ...t, member_count: countByTontine.get(t.id) ?? 0 }));
 }
 
+export async function updateTontine(id: string, patch: {
+  name?: string;
+  capacity?: number;
+  frequency?: "weekly" | "monthly";
+  entry_fee?: number;
+  start_date?: string;
+}) {
+  const { data, error } = await supabase
+    .from("tontines")
+    .update(patch)
+    .eq("id", id)
+    .select("*, tontine_types(name, contribution_amount)")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchTontineById(id: string) {
   const { data, error } = await supabase
     .from("tontines")

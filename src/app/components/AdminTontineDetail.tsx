@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Users, CheckCircle, TrendingUp, Eye, Loader2, X } from "lucide-react";
-import { fetchTontineById, fetchTontineMembers, fetchTontineRounds, approveTontineMember, rejectTontineMember } from "../lib/supabase/queries";
+import { ArrowLeft, Users, CheckCircle, TrendingUp, Eye, Loader2, X, Pencil } from "lucide-react";
+import { fetchTontineById, fetchTontineMembers, fetchTontineRounds, approveTontineMember, rejectTontineMember, updateTontine } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
@@ -19,6 +19,15 @@ export default function AdminTontineDetail() {
   const [error, setError] = useState(false);
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState("");
+
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editCapacity, setEditCapacity] = useState("");
+  const [editFrequency, setEditFrequency] = useState<"weekly" | "monthly">("weekly");
+  const [editEntryFee, setEditEntryFee] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const reload = async () => {
     if (!id) return;
@@ -71,6 +80,40 @@ export default function AdminTontineDetail() {
     }
   };
 
+  const startEditing = () => {
+    setSaveError("");
+    setEditName(tontine.name ?? "");
+    setEditCapacity(String(tontine.capacity ?? ""));
+    setEditFrequency((tontine.frequency as "weekly" | "monthly") ?? "weekly");
+    setEditEntryFee(String(tontine.entry_fee ?? ""));
+    setEditStartDate(tontine.start_date ?? "");
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    setSaveError("");
+    if (!id || !editName || !editCapacity || !editStartDate) {
+      setSaveError(fr ? "Veuillez remplir tous les champs obligatoires." : "Please fill in all required fields.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated = await updateTontine(id, {
+        name: editName,
+        capacity: Number(editCapacity),
+        frequency: editFrequency,
+        entry_fee: Number(editEntryFee || 0),
+        start_date: editStartDate,
+      });
+      setTontine(updated);
+      setEditing(false);
+    } catch (err: any) {
+      setSaveError(err?.message || (fr ? "Erreur lors de la mise à jour." : "Error updating tontine."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4 lg:p-6 flex items-center justify-center">
@@ -108,6 +151,9 @@ export default function AdminTontineDetail() {
           <p className="text-sm text-muted-foreground">{tontine.tontine_types?.name ?? ""} · {fr ? "Début" : "Start"}: {tontine.start_date}</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={startEditing} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <Pencil size={13} /> {fr ? "Modifier" : "Edit"}
+          </button>
           {(tontine.status === "active" || tontine.status === "open") && (
             <button onClick={() => navigate(`/admin/tontines/${tontine.id}/participants`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
               <Users size={13} /> {fr ? "Participants" : "Participants"}
@@ -115,6 +161,61 @@ export default function AdminTontineDetail() {
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="bg-card rounded-2xl border border-border p-5 mb-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">{fr ? "Modifier la tontine" : "Edit tontine"}</h3>
+            <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
+              <X size={16} />
+            </button>
+          </div>
+
+          {saveError && (
+            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{saveError}</div>
+          )}
+
+          <div>
+            <label className="text-sm font-medium">{fr ? "Nom" : "Name"}</label>
+            <input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium">{fr ? "Capacité" : "Capacity"}</label>
+              <input type="number" value={editCapacity} onChange={(e) => setEditCapacity(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">{fr ? "Fréquence" : "Frequency"}</label>
+              <select value={editFrequency} onChange={(e) => setEditFrequency(e.target.value as any)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+                <option value="weekly">{fr ? "Hebdomadaire" : "Weekly"}</option>
+                <option value="monthly">{fr ? "Mensuelle" : "Monthly"}</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium">{fr ? "Frais d'entrée (XAF)" : "Entry fee (XAF)"}</label>
+              <input type="number" value={editEntryFee} onChange={(e) => setEditEntryFee(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">{fr ? "Date de début" : "Start date"}</label>
+              <input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setEditing(false)} disabled={saving} className="px-4 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
+              {fr ? "Annuler" : "Cancel"}
+            </button>
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all" style={{ background: "#4CAF68" }}>
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              {fr ? "Enregistrer" : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
