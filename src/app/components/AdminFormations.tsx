@@ -44,7 +44,7 @@ export default function AdminFormations() {
         fetchFormationCategories(),
         fetchFormationCourses(),
         fetchFormationContent(),
-        supabase.from("consultation_requests").select("*, users(email, profiles(first_name, last_name))"),
+        supabase.from("consultation_requests").select("*, users(email, profiles(first_name, last_name)), course:formation_courses(title, title_en)"),
       ]);
       setCategories(cats);
       setCourses(crs);
@@ -334,6 +334,9 @@ function Consultations({ fr, consultations, onSetStatus }: { fr: boolean; consul
                   <StatusBadge status={(request.status ?? "pending") as any} size="sm" />
                 </div>
                 <p className="text-xs text-muted-foreground">{memberName} · {request.project}</p>
+                {request.course && (
+                  <p className="text-xs text-[#6E3A9A] mt-0.5">{fr ? "Concernant" : "Regarding"}: {fr ? request.course.title : request.course.title_en ?? request.course.title}</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-1">{request.need}</p>
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
 import { Award, BookOpen, CheckCircle, ChevronRight, Clock, FileText, GraduationCap, Play, Send, Star, Users, ArrowLeft, Video, Link as LinkIcon } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
@@ -45,7 +45,7 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
           fetchFormationCategories(),
           fetchFormationCourses({ publishedOnly: true }),
           fetchFormationContent(),
-          supabase.from("consultation_requests").select("*"),
+          supabase.from("consultation_requests").select("*, course:formation_courses(title, title_en)"),
           getCurrentUserId().catch(() => null),
         ]);
         setCategories(cats);
@@ -62,7 +62,7 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
   }, []);
 
   const refreshConsultations = async () => {
-    const { data } = await supabase.from("consultation_requests").select("*");
+    const { data } = await supabase.from("consultation_requests").select("*, course:formation_courses(title, title_en)");
     setConsultations(data ?? []);
   };
 
@@ -183,7 +183,7 @@ function CourseDetail({ courses, contents, completions, onEnroll, onToggleComple
   if (!course) return <div className="p-4 lg:p-8 max-w-5xl mx-auto text-center text-muted-foreground">{fr ? "Cours introuvable" : "Course not found"}</div>;
   const items = contents.filter((c: any) => c.course_id === course.id);
   const tabs = [{ key: "overview", label: fr ? "Aperçu" : "Overview" }, { key: "video", label: fr ? "Vidéos" : "Videos" }, { key: "pdf", label: "PDF" }, { key: "external_link", label: fr ? "Liens" : "Links" }];
-  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate("/formations")} className="text-sm text-[#4CAF68] mb-4 hover:underline">← {fr ? "Retour aux formations" : "Back to formations"}</button><div className="bg-card rounded-2xl border border-border overflow-hidden mb-6"><div className="h-40 sm:h-48" style={course.cover_image_path ? { backgroundImage: `url(${course.cover_image_path})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: course.image }} /><div className="p-4 sm:p-6"><div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"><div><h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? course.title : course.title_en}</h1><p className="text-sm text-muted-foreground mt-2 max-w-2xl">{course.description}</p></div><button onClick={() => navigate("/formations/consultation")} className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted w-full sm:w-auto min-h-[44px]">{fr ? "Demander une consultation" : "Request consultation"}</button></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-5 text-sm"><Stat label={fr ? "Durée" : "Duration"} value={course.duration} /><Stat label={fr ? "Leçons" : "Lessons"} value={`${course.lesson_count}`} /><Stat label={fr ? "Niveau" : "Level"} value={course.level} /><Stat label={fr ? "Progression" : "Progress"} value={`${course.progress}%`} /></div></div></div><div className="flex gap-2 mb-5 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">{tabs.map((t: any) => <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium border whitespace-nowrap min-h-[44px] ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground"}`}>{t.label}</button>)}</div>{tab === "overview" ? <div className="bg-card rounded-2xl border border-border p-4 sm:p-6"><h3 className="text-sm sm:text-base" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Ce que vous allez apprendre" : "What you will learn"}</h3><p className="text-sm text-muted-foreground mt-2">{course.description}</p></div> : <ContentList items={items.filter((i: any) => i.type === tab)} fr={fr} courseId={course.id} completions={completions} onToggleComplete={onToggleComplete} />}</div>;
+  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate("/formations")} className="text-sm text-[#4CAF68] mb-4 hover:underline">← {fr ? "Retour aux formations" : "Back to formations"}</button><div className="bg-card rounded-2xl border border-border overflow-hidden mb-6"><div className="h-40 sm:h-48" style={course.cover_image_path ? { backgroundImage: `url(${course.cover_image_path})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: course.image }} /><div className="p-4 sm:p-6"><div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"><div><h1 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? course.title : course.title_en}</h1><p className="text-sm text-muted-foreground mt-2 max-w-2xl">{course.description}</p></div><button onClick={() => navigate("/formations/consultation", { state: { courseId: course.id, courseTitle: fr ? course.title : course.title_en } })} className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted w-full sm:w-auto min-h-[44px]">{fr ? "Demander une consultation" : "Request consultation"}</button></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-5 text-sm"><Stat label={fr ? "Durée" : "Duration"} value={course.duration} /><Stat label={fr ? "Leçons" : "Lessons"} value={`${course.lesson_count}`} /><Stat label={fr ? "Niveau" : "Level"} value={course.level} /><Stat label={fr ? "Progression" : "Progress"} value={`${course.progress}%`} /></div></div></div><div className="flex gap-2 mb-5 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">{tabs.map((t: any) => <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium border whitespace-nowrap min-h-[44px] ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground"}`}>{t.label}</button>)}</div>{tab === "overview" ? <div className="bg-card rounded-2xl border border-border p-4 sm:p-6"><h3 className="text-sm sm:text-base" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Ce que vous allez apprendre" : "What you will learn"}</h3><p className="text-sm text-muted-foreground mt-2">{course.description}</p></div> : <ContentList items={items.filter((i: any) => i.type === tab)} fr={fr} courseId={course.id} completions={completions} onToggleComplete={onToggleComplete} />}</div>;
 }
 
 function ContentList({ items, fr, courseId, completions, onToggleComplete }: { items: any[]; fr: boolean; courseId: string; completions: Set<string>; onToggleComplete: (contentId: string, courseId: string, isComplete: boolean) => void }) {
@@ -235,6 +235,8 @@ function ConsultationRequest({ consultations, onRefresh }: { consultations: any[
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
+  const location = useLocation();
+  const linkedCourse = (location.state as { courseId?: string; courseTitle?: string } | null) ?? null;
   const [type, setType] = useState(consultationTypes[0].fr);
   const [project, setProject] = useState("");
   const [need, setNeed] = useState("");
@@ -247,7 +249,7 @@ function ConsultationRequest({ consultations, onRefresh }: { consultations: any[
     try {
       const userId = await getCurrentUserId();
       const { error } = await supabase.from("consultation_requests").insert({
-        user_id: userId, type, project, need, status: "pending",
+        user_id: userId, type, project, need, status: "pending", course_id: linkedCourse?.courseId ?? null,
       });
       if (error) throw error;
       setSent(true);
@@ -277,6 +279,11 @@ function ConsultationRequest({ consultations, onRefresh }: { consultations: any[
             <button onClick={() => setSent(false)} className="mt-4 px-4 py-2 rounded-xl bg-[#4CAF68] text-white text-sm">{fr ? "Nouvelle demande" : "New request"}</button>
           </div>
         ) : (<>
+        {linkedCourse?.courseTitle && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#F0E8FF] text-[#6E3A9A] text-xs font-medium">
+            {fr ? "Concernant" : "Regarding"}: {linkedCourse.courseTitle}
+          </div>
+        )}
         <div><label className="text-sm font-medium">{fr ? "Type" : "Type"}</label><select value={type} onChange={(e) => setType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">{consultationTypes.map((t) => <option key={t.fr} value={t.fr}>{fr ? t.fr : t.en}</option>)}</select></div>
         <div><label className="text-sm font-medium">{fr ? "Projet" : "Project"}</label><input value={project} onChange={(e) => setProject(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" placeholder={fr ? "Nom de votre projet" : "Project name"} /></div>
         <div><label className="text-sm font-medium">{fr ? "Besoin" : "Need"}</label><textarea value={need} onChange={(e) => setNeed(e.target.value)} rows={4} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" placeholder={fr ? "Décrivez votre besoin..." : "Describe your need..."} /></div>
@@ -285,7 +292,7 @@ function ConsultationRequest({ consultations, onRefresh }: { consultations: any[
         </button>
         </>)}
       </div>
-      <div className="bg-card rounded-2xl border border-border p-6"><h2 className="text-lg font-bold mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Suivi des demandes" : "Request tracking"}</h2><div className="space-y-4">{consultations.length ? consultations.map((r: any) => <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"><div><p className="text-sm font-medium">{r.type}</p><p className="text-xs text-muted-foreground">{r.project}</p></div><StatusBadge status={r.status as any} size="sm" /></div>) : <p className="text-sm text-muted-foreground">{fr ? "Aucune demande pour le moment." : "No requests yet."}</p>}</div></div></div></div>;
+      <div className="bg-card rounded-2xl border border-border p-6"><h2 className="text-lg font-bold mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Suivi des demandes" : "Request tracking"}</h2><div className="space-y-4">{consultations.length ? consultations.map((r: any) => <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"><div><p className="text-sm font-medium">{r.type}</p><p className="text-xs text-muted-foreground">{r.project}{r.course ? ` · ${fr ? r.course.title : r.course.title_en ?? r.course.title}` : ""}</p></div><StatusBadge status={r.status as any} size="sm" /></div>) : <p className="text-sm text-muted-foreground">{fr ? "Aucune demande pour le moment." : "No requests yet."}</p>}</div></div></div></div>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
