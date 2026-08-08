@@ -889,6 +889,17 @@ export async function distributeInvestmentReturn({ portfolio_id, amount, kind }:
   return data;
 }
 
+export async function fetchInvestmentReturnsHistory(portfolioIds: string[]) {
+  if (portfolioIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("investment_returns_history")
+    .select("*")
+    .in("portfolio_id", portfolioIds)
+    .order("distributed_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function fetchAdminInvestmentPortfolio() {
   const { data, error } = await supabase
     .from("investment_portfolio")

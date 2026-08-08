@@ -79,6 +79,16 @@ Deno.serve(async (req) => {
       .single();
     if (txnErr) throw txnErr;
 
+    const distributionNotes = validated.kind === "profit" ? "Investment return distributed" : "Investment loss recorded";
+    const { error: historyErr } = await supabase
+      .from("investment_returns_history")
+      .insert({
+        portfolio_id: entry.id,
+        amount: signedAmount,
+        notes: distributionNotes,
+      });
+    if (historyErr) throw historyErr;
+
     await logAudit(supabase, {
       actorId: caller.id,
       action: validated.kind === "profit" ? "Investment Return Distributed" : "Investment Loss Recorded",

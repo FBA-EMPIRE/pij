@@ -4,8 +4,8 @@ import { ArrowLeft, BarChart3, ChevronDown, ChevronRight, Filter, Heart, Trendin
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
-import { getCurrentUserId } from "../lib/supabase/queries";
-import { formatXAF } from "../lib/format";
+import { getCurrentUserId, fetchInvestmentReturnsHistory } from "../lib/supabase/queries";
+import { formatXAF, parseRoiPercent } from "../lib/format";
 
 interface InvestmentsProps { view?: "marketplace" | "detail" | "portfolio" | "wallet"; }
 
@@ -26,6 +26,7 @@ export default function Investments({ view = "marketplace" }: InvestmentsProps) 
   const { lang } = useAppContext();
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [returnsHistory, setReturnsHistory] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [walletData, setWalletData] = useState({ available: 0, invested: 0, earnings: 0 });
   const [loading, setLoading] = useState(true);
@@ -36,7 +37,7 @@ export default function Investments({ view = "marketplace" }: InvestmentsProps) 
         const userId = await getCurrentUserId();
         const [opps, port, reqs, { data: profile }] = await Promise.all([
           supabase.from("investment_opportunities").select("*"),
-          supabase.from("investment_portfolio").select("*, opportunity:investment_opportunities(title, title_en)").eq("user_id", userId),
+          supabase.from("investment_portfolio").select("*, opportunity:investment_opportunities(title, title_en, roi)").eq("user_id", userId),
           supabase.from("investment_requests").select("*, opportunity:investment_opportunities(title, title_en)").eq("user_id", userId),
           supabase.from("users").select("balance_current, balance_investment").eq("id", userId).single(),
         ]);
@@ -48,6 +49,8 @@ export default function Investments({ view = "marketplace" }: InvestmentsProps) 
           invested: profile?.balance_investment ?? 0,
           earnings: 0,
         });
+        const portfolioIds = (port.data ?? []).map((p: any) => p.id);
+        setReturnsHistory(await fetchInvestmentReturnsHistory(portfolioIds));
       } catch (err) {
         console.error(err);
       } finally {
@@ -57,7 +60,7 @@ export default function Investments({ view = "marketplace" }: InvestmentsProps) 
   }, []);
 
   if (view === "detail") return <InvestmentDetail opportunities={opportunities} />;
-  if (view === "portfolio") return <InvestmentPortfolio portfolio={portfolio} />;
+  if (view === "portfolio") return <InvestmentPortfolio portfolio={portfolio} returnsHistory={returnsHistory} />;
   if (view === "wallet") return <InvestmentWallet walletData={walletData} requests={requests} />;
   return <InvestmentMarketplace opportunities={opportunities} walletData={walletData} />;
 }
@@ -91,14 +94,16 @@ function InvestmentDetail({ opportunities }: { opportunities: any[] }) {
   return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4"><ArrowLeft size={20} className="text-muted-foreground" /></button><div className="bg-card rounded-2xl border border-border overflow-hidden mb-6"><div className="h-44 sm:h-56" style={{ background: opportunity.image }} /><div className="p-4 sm:p-6"><div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4"><div><StatusBadge status={opportunity.status as any} size="sm" /><h1 className="text-xl sm:text-2xl font-bold mt-3" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? opportunity.title : opportunity.title_en}</h1><p className="text-sm text-muted-foreground mt-2 max-w-2xl">{opportunity.description}</p></div><div className="bg-muted/40 rounded-2xl p-4 min-w-40 sm:min-w-56"><p className="text-xs text-muted-foreground">{fr ? "Rendement attendu" : "Expected ROI"}</p><p className="text-2xl sm:text-3xl font-bold text-[#4CAF68]" style={{ fontFamily: "Geist Mono, monospace" }}>{opportunity.roi}</p><p className="text-xs text-muted-foreground mt-1">{opportunity.duration}</p></div></div><div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mt-6"><Stat label={fr ? "Risque" : "Risk"} value={opportunity.risk} /><Stat label={fr ? "Minimum" : "Minimum"} value={formatXAF(opportunity.min_amount)} /><Stat label={fr ? "Maximum" : "Maximum"} value={formatXAF(opportunity.max_amount)} /><Stat label={fr ? "Collecté" : "Raised"} value={`${progress}%`} /></div></div></div><div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><div className="lg:col-span-2 bg-card rounded-2xl border border-border p-4 sm:p-6"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Transparence du projet" : "Project transparency"}</h2><div className="space-y-3">{[fr ? "Projet audité avant publication" : "Audited before publishing", fr ? "Suivi des performances disponible dans le portfolio" : "Performance tracking available in portfolio"].map((t, i) => <div key={i} className="flex items-start gap-3"><div className="w-5 h-5 rounded-full bg-[#E8F5EC] flex items-center justify-center mt-0.5"><Heart size={10} color="#4CAF68" /></div><p className="text-xs sm:text-sm">{t}</p></div>)}</div></div><div className="bg-card rounded-2xl border border-border p-4 sm:p-6"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Investir" : "Invest"}</h2><p className="text-xs text-muted-foreground mb-3">{fr ? "Montant" : "Amount"}</p><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm mb-3" /><p className="text-xs text-muted-foreground mb-4">{fr ? "Minimum" : "Minimum"}: {formatXAF(opportunity.min_amount)} · {fr ? "Maximum" : "Maximum"}: {formatXAF(opportunity.max_amount)}</p><button className="w-full px-4 py-3 rounded-xl text-white font-medium text-sm" style={{ background: "linear-gradient(135deg, #4CAF68, #1F9D55)" }}>{fr ? "Investir maintenant" : "Invest now"}</button></div></div></div>;
 }
 
-function InvestmentPortfolio({ portfolio }: { portfolio: any[] }) {
+function InvestmentPortfolio({ portfolio, returnsHistory }: { portfolio: any[]; returnsHistory: any[] }) {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
   const total = portfolio.reduce((sum: number, p: any) => sum + (p.amount ?? 0), 0);
   const current = portfolio.reduce((sum: number, p: any) => sum + (p.current_value ?? 0), 0);
   const returns = portfolio.reduce((sum: number, p: any) => sum + (p.returns ?? 0), 0);
-  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4"><ArrowLeft size={20} className="text-muted-foreground" /></button><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Portfolio d'investissement" : "Investment portfolio"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Suivez les investissements actifs, terminés et les rendements." : "Track active, completed investments and returns."}</p><div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"><SummaryCard label={fr ? "Total investi" : "Total invested"} value={formatXAF(total)} /><SummaryCard label={fr ? "Valeur actuelle" : "Current value"} value={formatXAF(current)} /><SummaryCard label={fr ? "Rendements" : "Returns"} value={`+${formatXAF(returns)}`} positive /></div><div className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Mes investissements" : "My investments"}</h2><div className="space-y-3">{portfolio.length ? portfolio.map((p: any) => <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-muted/30"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm font-medium truncate">{fr ? p.opportunity?.title : p.opportunity?.title_en ?? p.opportunity?.title}</p><p className="text-[10px] sm:text-xs text-muted-foreground">{fr ? "Depuis" : "Since"} {p.started_at?.slice(0, 10)}</p></div><div className="flex flex-wrap items-center gap-3 sm:gap-4"><Mini label={fr ? "Investi" : "Invested"} value={formatXAF(p.amount)} /><Mini label={fr ? "Valeur" : "Value"} value={formatXAF(p.current_value)} /><Mini label={fr ? "Retour" : "Return"} value={`+${formatXAF(p.returns)}`} /><StatusBadge status={p.status as any} size="sm" /></div></div>) : <p className="text-sm text-muted-foreground text-center py-8">{fr ? "Aucun investissement" : "No investments yet"}</p>}</div></div></div>;
+  const projected = portfolio.reduce((sum: number, p: any) => sum + (p.amount ?? 0) * (parseRoiPercent(p.opportunity?.roi) / 100), 0);
+  const portfolioById = new Map(portfolio.map((p: any) => [p.id, p]));
+  return <div className="p-4 lg:p-8 max-w-5xl mx-auto"><button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-2 sm:mb-4"><ArrowLeft size={20} className="text-muted-foreground" /></button><h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Portfolio d'investissement" : "Investment portfolio"}</h1><p className="text-sm text-muted-foreground mb-6">{fr ? "Suivez les investissements actifs, terminés et les rendements." : "Track active, completed investments and returns."}</p><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"><SummaryCard label={fr ? "Total investi" : "Total invested"} value={formatXAF(total)} /><SummaryCard label={fr ? "Valeur actuelle" : "Current value"} value={formatXAF(current)} /><SummaryCard label={fr ? "Rendements" : "Returns"} value={`+${formatXAF(returns)}`} positive /><SummaryCard label={fr ? "Rendement projeté" : "Projected returns"} value={`+${formatXAF(projected)}`} positive /></div><div className="bg-card rounded-2xl border border-border p-4 sm:p-5 mb-6"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Mes investissements" : "My investments"}</h2><div className="space-y-3">{portfolio.length ? portfolio.map((p: any) => <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-muted/30"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm font-medium truncate">{fr ? p.opportunity?.title : p.opportunity?.title_en ?? p.opportunity?.title}</p><p className="text-[10px] sm:text-xs text-muted-foreground">{fr ? "Depuis" : "Since"} {p.started_at?.slice(0, 10)}</p></div><div className="flex flex-wrap items-center gap-3 sm:gap-4"><Mini label={fr ? "Investi" : "Invested"} value={formatXAF(p.amount)} /><Mini label={fr ? "Valeur" : "Value"} value={formatXAF(p.current_value)} /><Mini label={fr ? "Retour" : "Return"} value={`+${formatXAF(p.returns)}`} /><StatusBadge status={p.status as any} size="sm" /></div></div>) : <p className="text-sm text-muted-foreground text-center py-8">{fr ? "Aucun investissement" : "No investments yet"}</p>}</div></div><div className="bg-card rounded-2xl border border-border p-4 sm:p-5"><h2 className="text-sm sm:text-lg font-bold mb-4">{fr ? "Historique des rendements" : "Returns history"}</h2><div className="space-y-2">{returnsHistory.length ? returnsHistory.map((h: any) => { const p = portfolioById.get(h.portfolio_id); const title = p ? (fr ? p.opportunity?.title : p.opportunity?.title_en ?? p.opportunity?.title) : ""; const positive = Number(h.amount) >= 0; return <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"><div className="flex-1 min-w-0"><p className="text-xs sm:text-sm font-medium truncate">{title || (fr ? "Investissement" : "Investment")}</p><p className="text-[10px] sm:text-xs text-muted-foreground">{h.distributed_at?.slice(0, 10)}{h.notes ? ` · ${h.notes}` : ""}</p></div><span className={`text-xs sm:text-sm font-bold shrink-0 ${positive ? "text-[#1F9D55]" : "text-[#E5484D]"}`} style={{ fontFamily: "Geist Mono, monospace" }}>{positive ? "+" : ""}{formatXAF(Number(h.amount))}</span></div>; }) : <p className="text-sm text-muted-foreground text-center py-8">{fr ? "Aucun rendement distribué pour le moment" : "No returns distributed yet"}</p>}</div></div></div>;
 }
 
 function InvestmentWallet({ walletData, requests }: { walletData: { available: number; invested: number; earnings: number }; requests: any[] }) {
