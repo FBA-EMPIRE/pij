@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, CreditCard, Users, User,
   LogOut, Menu, X, Sun, Moon, ChevronRight,
-  TrendingUp, Settings, BookOpen, Shield
+  TrendingUp, Settings, BookOpen, Shield, Landmark
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
@@ -18,6 +18,7 @@ const navItems = [
   { icon: Users, label: "Tontines", labelEn: "Tontines", path: "/tontines" },
   { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/formations" },
   { icon: TrendingUp, label: "Investissements", labelEn: "Investments", path: "/investissements" },
+  { icon: Landmark, label: "Prêt & Financement", labelEn: "Loans & Financing", path: "/loans" },
   { icon: Settings, label: "Paramètres", labelEn: "Settings", path: "/settings" },
 ];
 

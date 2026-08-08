@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, Users, ShieldCheck, Wallet, TrendingUp,
   FileText, ScrollText, Settings, LogOut, Menu, X,
-  ChevronRight, Sun, Moon, Bell, Shield, BookOpen, UserCog, Activity
+  ChevronRight, Sun, Moon, Bell, Shield, BookOpen, UserCog, Activity, Landmark
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
@@ -35,6 +35,7 @@ const navGroups = [
       { icon: Wallet, label: "Comptes", labelEn: "Accounts", path: "/admin/accounts" },
       { icon: TrendingUp, label: "Tontines", labelEn: "Tontines", path: "/admin/tontines" },
       { icon: TrendingUp, label: "Investissements", labelEn: "Investments", path: "/admin/investissements" },
+      { icon: Landmark, label: "Prêts", labelEn: "Loans", path: "/admin/loans" },
     ],
   },
   {

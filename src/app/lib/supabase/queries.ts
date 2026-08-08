@@ -141,6 +141,40 @@ export async function rejectTransactionRequest({ request_id, reason }: { request
   return data;
 }
 
+export async function createLoan({
+  amount,
+  interest,
+  loan_date,
+  repayment_date,
+}: {
+  amount: number;
+  interest?: number;
+  loan_date: string;
+  repayment_date: string;
+}) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string; loan?: any }>("loans-create", {
+    body: { amount, interest, loan_date, repayment_date },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to submit loan application");
+  return data.loan;
+}
+
+// Returns the caller's own loans, or every member's loans if the caller
+// is an admin (loans-list branches on that server-side).
+export async function fetchLoans() {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string; loans?: any[] }>("loans-list", { body: {} });
+  if (!data?.success) throw new Error(data?.error || "Failed to load loans");
+  return data.loans ?? [];
+}
+
+export async function updateLoan({ loan_id, is_repaid, result }: { loan_id: string; is_repaid?: boolean; result?: string }) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string; loan?: any }>("loans-update", {
+    body: { loan_id, is_repaid, result },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to update loan");
+  return data.loan;
+}
+
 export async function isPhoneRegistered(phone: string): Promise<boolean> {
   const { data, error } = await supabase.rpc("phone_is_registered", { p_phone: phone });
   if (error) throw error;

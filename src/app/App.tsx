@@ -33,8 +33,10 @@ import AdminInviteAccept from "./components/AdminInviteAccept";
 import SuperAdminRoute from "./components/SuperAdminRoute";
 import Formations from "./components/Formations";
 import Investments from "./components/Investments";
+import Loans from "./components/Loans";
 import AdminFormations from "./components/AdminFormations";
 import AdminInvestments from "./components/AdminInvestments";
+import AdminLoans from "./components/AdminLoans";
 import SystemMonitoring from "./components/SystemMonitoring";
 import ProfilePage from "./components/ProfilePage";
 import MemberSettings from "./components/MemberSettings";
@@ -209,6 +211,26 @@ export default function App() {
               <ProtectedRoute >
                 <MemberLayout>
                   <Investments view="detail" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loans"
+            element={
+              <ProtectedRoute >
+                <MemberLayout>
+                  <Loans />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loans/:id"
+            element={
+              <ProtectedRoute >
+                <MemberLayout>
+                  <Loans view="detail" />
                 </MemberLayout>
               </ProtectedRoute>
             }
@@ -391,6 +413,16 @@ export default function App() {
               <ProtectedRoute >
                 <AdminLayout>
                   <AdminInvestments />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/loans"
+            element={
+              <ProtectedRoute >
+                <AdminLayout>
+                  <AdminLoans />
                 </AdminLayout>
               </ProtectedRoute>
             }

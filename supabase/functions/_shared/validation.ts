@@ -162,6 +162,38 @@ export function validateTontineMemberAction(body: Record<string, unknown>) {
   return body as { member_id: string; reason?: string };
 }
 
+export function validateLoanCreate(body: Record<string, unknown>) {
+  if (typeof body.amount !== "number" || body.amount <= 0) {
+    throw new Error("amount is required and must be a positive number");
+  }
+  if (body.interest !== undefined && (typeof body.interest !== "number" || body.interest < 0)) {
+    throw new Error("interest must be a non-negative number if provided");
+  }
+  if (!body.loan_date || typeof body.loan_date !== "string") {
+    throw new Error("loan_date is required and must be a string date");
+  }
+  if (!body.repayment_date || typeof body.repayment_date !== "string") {
+    throw new Error("repayment_date is required and must be a string date");
+  }
+  if (new Date(body.repayment_date as string) < new Date(body.loan_date as string)) {
+    throw new Error("repayment_date must be on or after loan_date");
+  }
+  return body as { amount: number; interest?: number; loan_date: string; repayment_date: string };
+}
+
+export function validateLoanUpdate(body: Record<string, unknown>) {
+  if (!body.loan_id || typeof body.loan_id !== "string") {
+    throw new Error("loan_id is required and must be a string");
+  }
+  if (body.is_repaid !== undefined && typeof body.is_repaid !== "boolean") {
+    throw new Error("is_repaid must be a boolean if provided");
+  }
+  if (body.result !== undefined && typeof body.result !== "string") {
+    throw new Error("result must be a string if provided");
+  }
+  return body as { loan_id: string; is_repaid?: boolean; result?: string };
+}
+
 export function validateInvestmentRequestId(body: Record<string, unknown>) {
   if (!body.request_id || typeof body.request_id !== "string") {
     throw new Error("request_id is required and must be a string");

@@ -13,4 +13,6 @@ export {
   validateInvestmentDistribution,
   validateInvestmentRequestId,
   validateTransactionRequestId,
+  validateLoanCreate,
+  validateLoanUpdate,
 } from "./validation.ts";
