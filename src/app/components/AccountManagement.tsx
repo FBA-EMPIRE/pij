@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Plus, ArrowDownLeft, ArrowUpRight, Check, ChevronsUpDown, Loader2, ArrowLeft } from "lucide-react";
-import { fetchAccountsWithUsers, getCurrentUserId, recordDeposit, recordWithdrawal } from "../lib/supabase/queries";
+import { Plus, ArrowDownLeft, ArrowUpRight, Check, ChevronsUpDown, Loader2, ArrowLeft, X } from "lucide-react";
+import { fetchAccountsWithUsers, getCurrentUserId, recordDeposit, recordWithdrawal, fetchTransactionRequestsWithDetails, approveTransactionRequest, rejectTransactionRequest } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_MAP } from "../constants";
@@ -30,12 +30,48 @@ export default function AccountManagement() {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"accounts" | "deposit" | "withdrawal">("accounts");
+  const [tab, setTab] = useState<"accounts" | "deposit" | "withdrawal" | "requests">("accounts");
+
+  const [requests, setRequests] = useState<any[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [requestsError, setRequestsError] = useState("");
+
+  const loadRequests = () => fetchTransactionRequestsWithDetails().then(setRequests).catch(() => {}).finally(() => setRequestsLoading(false));
 
   useEffect(() => {
     getCurrentUserId().then(setCurrentUserId).catch(() => {});
     fetchAccountsWithUsers().then(setMembers).catch(() => {}).finally(() => setLoading(false));
+    loadRequests();
   }, []);
+
+  const pendingRequests = requests.filter((r) => r.status === "Pending");
+
+  const handleApproveRequest = async (id: string) => {
+    setRequestsError("");
+    setDecidingId(id);
+    try {
+      await approveTransactionRequest({ request_id: id });
+      await Promise.all([loadRequests(), fetchAccountsWithUsers().then(setMembers)]);
+    } catch (err: any) {
+      setRequestsError(err?.message || (fr ? "Erreur lors de l'approbation." : "Error approving request."));
+    } finally {
+      setDecidingId(null);
+    }
+  };
+
+  const handleRejectRequest = async (id: string) => {
+    setRequestsError("");
+    setDecidingId(id);
+    try {
+      await rejectTransactionRequest({ request_id: id });
+      await loadRequests();
+    } catch (err: any) {
+      setRequestsError(err?.message || (fr ? "Erreur lors du rejet." : "Error rejecting request."));
+    } finally {
+      setDecidingId(null);
+    }
+  };
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -109,13 +145,17 @@ export default function AccountManagement() {
           { key: "accounts", label: fr ? "Tous les comptes" : "All accounts" },
           { key: "deposit", label: fr ? "Enregistrer un dépôt" : "Record deposit" },
           { key: "withdrawal", label: fr ? "Enregistrer un retrait" : "Record withdrawal" },
+          { key: "requests", label: fr ? "Demandes des membres" : "Member requests", count: pendingRequests.length },
         ].map((t) => (
           <button
             key={t.key}
             onClick={() => { setTab(t.key as any); reset(); }}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}
           >
             {t.label}
+            {!!t.count && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${tab === t.key ? "bg-white/20" : "bg-amber-50 text-amber-600"}`}>{t.count}</span>
+            )}
           </button>
         ))}
       </div>
@@ -326,6 +366,79 @@ export default function AccountManagement() {
                   </div>
                 </>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "requests" && (
+        <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          {requestsError && (
+            <div className="m-5 mb-0 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{requestsError}</div>
+          )}
+          {requestsLoading ? (
+            <div className="p-8 flex items-center justify-center"><Loader2 className="animate-spin" size={20} /></div>
+          ) : requests.length === 0 ? (
+            <p className="p-8 text-sm text-muted-foreground text-center">{fr ? "Aucune demande" : "No requests"}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-xs text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/20">
+                    <th className="px-5 py-3 text-left">{fr ? "Membre" : "Member"}</th>
+                    <th className="px-5 py-3 text-left">{fr ? "Type" : "Type"}</th>
+                    <th className="px-5 py-3 text-left">{fr ? "Compte" : "Account"}</th>
+                    <th className="px-5 py-3 text-right">{fr ? "Montant" : "Amount"}</th>
+                    <th className="px-5 py-3 text-center">{fr ? "Statut" : "Status"}</th>
+                    <th className="px-5 py-3 text-right">{fr ? "Actions" : "Actions"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map((r: any) => (
+                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-medium">{r.member}</p>
+                        {r.notes && <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.notes}</p>}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`text-sm font-medium ${r.type === "deposit" ? "text-[#1F9D55]" : "text-[#E5484D]"}`}>
+                          {r.type === "deposit" ? (fr ? "Dépôt" : "Deposit") : (fr ? "Retrait" : "Withdrawal")}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-muted-foreground">
+                        {r.account_type === "current" ? (fr ? "Courant" : "Current") : (fr ? "Épargne" : "Savings")}
+                      </td>
+                      <td className="px-5 py-4 text-right text-sm font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{formatXAF(r.amount)}</td>
+                      <td className="px-5 py-4 text-center"><StatusBadge status={r.status as any} size="sm" /></td>
+                      <td className="px-5 py-4 text-right">
+                        {r.status === "Pending" ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleApproveRequest(r.id)}
+                              disabled={decidingId === r.id}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-all"
+                              style={{ background: "#4CAF68" }}
+                            >
+                              {decidingId === r.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                              {fr ? "Approuver" : "Approve"}
+                            </button>
+                            <button
+                              onClick={() => handleRejectRequest(r.id)}
+                              disabled={decidingId === r.id}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-40 transition-all"
+                            >
+                              {decidingId === r.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                              {fr ? "Rejeter" : "Reject"}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

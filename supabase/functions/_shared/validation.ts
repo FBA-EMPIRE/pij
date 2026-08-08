@@ -169,6 +169,16 @@ export function validateInvestmentRequestId(body: Record<string, unknown>) {
   return body as { request_id: string };
 }
 
+export function validateTransactionRequestId(body: Record<string, unknown>) {
+  if (!body.request_id || typeof body.request_id !== "string") {
+    throw new Error("request_id is required and must be a string");
+  }
+  if (body.reason !== undefined && typeof body.reason !== "string") {
+    throw new Error("reason must be a string if provided");
+  }
+  return body as { request_id: string; reason?: string };
+}
+
 export function validateInvestmentAdjustment(body: Record<string, unknown>) {
   if (!body.user_id || typeof body.user_id !== "string") {
     throw new Error("user_id is required and must be a string");

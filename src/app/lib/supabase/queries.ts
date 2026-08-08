@@ -76,6 +76,71 @@ export async function recordWithdrawal({
   });
 }
 
+// Member submits a deposit/withdrawal request (stays "Pending" until an
+// admin approves it via approveTransactionRequest/rejectTransactionRequest --
+// record-deposit/record-withdrawal are admin-only, so a member can't move
+// their own balance directly).
+export async function createTransactionRequest({
+  type,
+  account_type,
+  amount,
+  notes,
+}: {
+  type: "deposit" | "withdrawal";
+  account_type: "savings" | "current";
+  amount: number;
+  notes?: string;
+}) {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from("transaction_requests")
+    .insert({ user_id: userId, type, account_type, amount, notes: notes || null, status: "Pending" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchMyTransactionRequests(userId: string) {
+  const { data, error } = await supabase
+    .from("transaction_requests")
+    .select("*")
+    .eq("user_id", userId)
+    .order("submitted_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Admin view: every pending/decided request with member labels.
+export async function fetchTransactionRequestsWithDetails() {
+  const { data, error } = await supabase
+    .from("transaction_requests")
+    .select("*, users(email, profiles(first_name, last_name))")
+    .order("submitted_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const profile = r.users?.profiles;
+    const member = profile ? `${profile.first_name} ${profile.last_name}`.trim() : (r.users?.email ?? "—");
+    return { ...r, member: member || "—" };
+  });
+}
+
+export async function approveTransactionRequest({ request_id }: { request_id: string }) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string }>("transaction-request-approve", {
+    body: { request_id },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to approve request");
+  return data;
+}
+
+export async function rejectTransactionRequest({ request_id, reason }: { request_id: string; reason?: string }) {
+  const data = await invokeEdgeFunction<{ success: boolean; error?: string }>("transaction-request-reject", {
+    body: { request_id, reason },
+  });
+  if (!data?.success) throw new Error(data?.error || "Failed to reject request");
+  return data;
+}
+
 export async function isPhoneRegistered(phone: string): Promise<boolean> {
   const { data, error } = await supabase.rpc("phone_is_registered", { p_phone: phone });
   if (error) throw error;

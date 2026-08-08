@@ -12,4 +12,5 @@ export {
   validateInvestmentAdjustment,
   validateInvestmentDistribution,
   validateInvestmentRequestId,
+  validateTransactionRequestId,
 } from "./validation.ts";
