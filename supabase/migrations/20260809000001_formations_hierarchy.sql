@@ -4,12 +4,20 @@
 -- so multiple distinct training programs can each have their own set
 -- of categories/courses/content instead of sharing one global catalog.
 --
--- Existing tables are extended (formation_id added), not recreated --
--- formation_categories/formation_courses already exist with real data
--- and are read by both AdminFormations.tsx and the member-facing
--- Formations.tsx; a plain CREATE TABLE with those names would fail
--- outright (relation already exists).
+-- Existing tables (formation_categories/formation_courses) are extended
+-- (formation_id added), not recreated -- they already have real data
+-- and are read by the member-facing Formations.tsx.
+--
+-- A minimal "formations" table (id, title, description, cover_image,
+-- status, created_by, created_at, updated_at -- no title_en/
+-- description_en) was already created directly against this database,
+-- outside of git/this migration history, before this migration ran.
+-- It's empty and unreferenced by anything (formation_categories has no
+-- formation_id yet), so it's safe to drop and recreate with the full
+-- shape this feature needs.
 -- =====================================================================
+
+drop table if exists public.formations cascade;
 
 create table public.formations (
   id uuid primary key default gen_random_uuid(),
