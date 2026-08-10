@@ -35,7 +35,7 @@ const CONFIG: Record<Status, { label: string; labelEn: string; bg: string; text:
 
 const STATUS_ALIASES: Record<string, Status> = {
   not_submitted: "Pending",
-  approved: "Approved", pending: "Pending", rejected: "Rejected",
+  approved: "Approved", pending: "Pending", rejected: "Rejected", cancelled: "Rejected",
   active: "Active", suspended: "Suspended", deactivated: "Suspended", removed: "Rejected",
   paid: "Paid", unpaid: "Unpaid", completed: "Completed",
   open: "Open", closed: "Closed", published: "Published", draft: "Draft", archived: "Archived", scheduled: "Scheduled",

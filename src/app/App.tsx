@@ -34,7 +34,8 @@ import SuperAdminRoute from "./components/SuperAdminRoute";
 import Formations from "./components/Formations";
 import Investments from "./components/Investments";
 import Loans from "./components/Loans";
-import AdminFormations from "./components/AdminFormations";
+import FormationsDashboard from "./components/FormationsDashboard";
+import FormationDetail from "./components/FormationDetail";
 import AdminInvestments from "./components/AdminInvestments";
 import AdminLoans from "./components/AdminLoans";
 import SystemMonitoring from "./components/SystemMonitoring";
@@ -402,7 +403,17 @@ export default function App() {
             element={
               <ProtectedRoute >
                 <AdminLayout>
-                  <AdminFormations />
+                  <FormationsDashboard />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/formations/:id"
+            element={
+              <ProtectedRoute >
+                <AdminLayout>
+                  <FormationDetail />
                 </AdminLayout>
               </ProtectedRoute>
             }

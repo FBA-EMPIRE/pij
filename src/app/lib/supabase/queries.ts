@@ -443,8 +443,71 @@ export async function fetchKycTrend() {
 // Formations
 // ---------------------------------------------------------------------
 
-export async function fetchFormationCategories() {
-  const { data, error } = await supabase.from("formation_categories").select("*").order("created_at");
+export async function fetchFormations() {
+  const { data, error } = await supabase.from("formations").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Formation detail page: the formation row plus its categories/courses/
+// content/consultations, scoped to it -- categories carry formation_id
+// directly; courses/content are scoped transitively through their
+// category/course chain, so they're derived client-side from the ids
+// already fetched here rather than needing a multi-level embedded query.
+export async function fetchFormationDetail(formationId: string) {
+  const [{ data: formation, error: fErr }, categories] = await Promise.all([
+    supabase.from("formations").select("*").eq("id", formationId).single(),
+    fetchFormationCategories(formationId),
+  ]);
+  if (fErr) throw fErr;
+
+  const categoryIds = categories.map((c: any) => c.id);
+  const { data: courses, error: cErr } = categoryIds.length
+    ? await supabase.from("formation_courses").select("*, formation_categories(name, name_en, color)").in("category_id", categoryIds).order("created_at", { ascending: false })
+    : { data: [], error: null };
+  if (cErr) throw cErr;
+
+  const courseIds = (courses ?? []).map((c: any) => c.id);
+  const { data: contents, error: contErr } = courseIds.length
+    ? await supabase.from("formation_content").select("*").in("course_id", courseIds).order("created_at")
+    : { data: [], error: null };
+  if (contErr) throw contErr;
+
+  const { data: consultations, error: consErr } = await supabase
+    .from("consultation_requests")
+    .select("*, users(email, profiles(first_name, last_name)), course:formation_courses(title, title_en)")
+    .order("created_at", { ascending: false });
+  if (consErr) throw consErr;
+
+  const formationConsultations = (consultations ?? []).filter(
+    (r: any) => r.formation_id === formationId || courseIds.includes(r.course_id)
+  );
+
+  return { formation, categories, courses: courses ?? [], contents: contents ?? [], consultations: formationConsultations };
+}
+
+export async function saveFormation(formation: Record<string, unknown>) {
+  const { id, ...fields } = formation as { id?: string; [key: string]: unknown };
+  if (id) {
+    const { data, error } = await supabase.from("formations").update(fields).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  }
+  const createdBy = await getCurrentUserId().catch(() => undefined);
+  const { data, error } = await supabase.from("formations").insert({ ...fields, created_by: createdBy }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFormation(id: string) {
+  const { error } = await supabase.from("formations").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function fetchFormationCategories(formationId?: string) {
+  let query = supabase.from("formation_categories").select("*");
+  if (formationId) query = query.eq("formation_id", formationId);
+  const { data, error } = await query.order("created_at");
   if (error) throw error;
   return data ?? [];
 }
