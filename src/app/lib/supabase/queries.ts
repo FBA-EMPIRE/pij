@@ -838,7 +838,7 @@ export async function fetchMyTontines(userId: string) {
     .from("tontine_members")
     .select("*, tontines(*, tontine_types(name))")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("joined_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
 }

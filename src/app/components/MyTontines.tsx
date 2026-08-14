@@ -13,11 +13,18 @@ export default function MyTontines() {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [myTontines, setMyTontines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     getCurrentUserId().then(uid => {
-      if (uid) fetchMyTontines(uid).then(setMyTontines).finally(() => setLoading(false));
-      else setLoading(false);
+      if (uid) {
+        fetchMyTontines(uid)
+          .then(setMyTontines)
+          .catch((err) => setError(err?.message || (fr ? "Erreur lors du chargement de vos tontines." : "Error loading your tontines.")))
+          .finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
     });
   }, []);
 
@@ -41,6 +48,10 @@ export default function MyTontines() {
           <p className="text-sm text-muted-foreground mt-1">{fr ? "Toutes les tontines auxquelles vous participez." : "All tontines you are participating in."}</p>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
