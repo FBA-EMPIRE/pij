@@ -6,7 +6,7 @@ interface UserProfile {
   id: string;
   email?: string;
   name?: string;
-  role?: "member" | "admin" | "super_admin";
+  role?: "member" | "admin" | "super_admin" | "formateur";
   avatar_url?: string;
   kyc_status?: string;
   [key: string]: any;
@@ -76,7 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
           const { data: adminRole } = await supabase.rpc("current_admin_role");
           if (adminRole) {
-            merged.role = adminRole as "admin" | "super_admin";
+            merged.role = adminRole as "admin" | "super_admin" | "formateur";
           }
         } catch (err) {
           console.error("Failed to resolve admin role:", err);

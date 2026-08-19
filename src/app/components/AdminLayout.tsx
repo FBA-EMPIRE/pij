@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, Users, ShieldCheck, Wallet, TrendingUp,
@@ -74,11 +74,25 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isSuperAdmin = userProfile?.role === "super_admin";
+  const isFormateur = userProfile?.role === "formateur";
 
-  const visibleGroups = navGroups.map((group) => ({
-    ...group,
-    items: group.superOnly && !isSuperAdmin ? [] : group.items,
-  })).filter((g) => g.items.length > 0);
+  const visibleGroups = isFormateur
+    ? [{
+        group: "Analytiques", groupEn: "Analytics", items: [
+          { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/admin/formations" },
+        ],
+      }]
+    : navGroups.map((group) => ({
+        ...group,
+        items: group.superOnly && !isSuperAdmin ? [] : group.items,
+      })).filter((g) => g.items.length > 0);
+
+  // A formateur is restricted to the Formations module — bounce them off any other admin route.
+  useEffect(() => {
+    if (isFormateur && !location.pathname.startsWith("/admin/formations") && location.pathname !== "/admin/profile") {
+      navigate("/admin/formations", { replace: true });
+    }
+  }, [isFormateur, location.pathname, navigate]);
 
   return (
     <div className={`min-h-screen flex ${darkMode ? "dark" : ""}`} style={{ fontFamily: "Inter, sans-serif" }}>
@@ -137,7 +151,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
             <div className="flex-1 min-w-0 text-left">
               <p className="text-xs font-medium text-white truncate">{userProfile?.name ?? "Admin"}</p>
-              <p className="text-xs" style={{ color: "rgba(244,245,247,0.5)" }}>{userProfile?.role === "super_admin" ? "Super Admin" : "Admin"}</p>
+              <p className="text-xs" style={{ color: "rgba(244,245,247,0.5)" }}>
+                {userProfile?.role === "super_admin" ? "Super Admin" : userProfile?.role === "formateur" ? (lang === "fr" ? "Formateur" : "Trainer") : "Admin"}
+              </p>
             </div>
           </button>
           <button

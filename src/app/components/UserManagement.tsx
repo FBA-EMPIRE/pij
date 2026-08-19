@@ -1,19 +1,31 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Search, Eye, Edit, UserX, UserCheck, Loader2, ArrowLeft } from "lucide-react";
+import { Search, Eye, Edit, UserX, UserCheck, Loader2, ArrowLeft, GraduationCap, ShieldOff } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import MemberDetailModal from "./MemberDetailModal";
 import MemberEditModal from "./MemberEditModal";
+import ConfirmAssignFormateur from "./modals/ConfirmAssignFormateur";
 import { useAppContext } from "../context/AppContext";
-import { fetchAccountsWithUsers } from "../lib/supabase/queries";
+import { fetchAccountsWithUsers, fetchAdmins } from "../lib/supabase/queries";
 import { supabase } from "../lib/supabase/client";
 import { formatXAF } from "../lib/format";
 
+const ROLE_BADGE: Record<string, { bg: string; text: string; fr: string; en: string }> = {
+  super_admin: { bg: "#FDECEC", text: "#E5484D", fr: "Super Admin", en: "Super Admin" },
+  admin: { bg: "#E7F1FC", text: "#2E7DD1", fr: "Administrateur", en: "Admin" },
+  formateur: { bg: "#E8F5EC", text: "#1F9D55", fr: "Formateur", en: "Trainer" },
+  kyc_officer: { bg: "#F0E8FF", text: "#6E3A9A", fr: "Agent KYC", en: "KYC Officer" },
+  support_agent: { bg: "#F0E8FF", text: "#6E3A9A", fr: "Support", en: "Support" },
+};
+const MEMBER_BADGE = { bg: "var(--muted)", text: "var(--muted-foreground)", fr: "Membre", en: "Member" };
+
 export default function UserManagement() {
   const navigate = useNavigate();
-  const { lang } = useAppContext();
+  const { lang, userProfile } = useAppContext();
   const fr = lang === "fr";
+  const isSuperAdmin = userProfile?.role === "super_admin";
   const [members, setMembers] = useState<any[]>([]);
+  const [roleByUserId, setRoleByUserId] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [kycFilter, setKycFilter] = useState("all");
@@ -21,10 +33,21 @@ export default function UserManagement() {
   const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
   const [editMemberId, setEditMemberId] = useState<string | null>(null);
   const [suspendingId, setSuspendingId] = useState<string | null>(null);
+  const [formateurTarget, setFormateurTarget] = useState<{ id: string; name: string; action: "assign" | "revoke" } | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; warning: boolean } | null>(null);
 
   const loadMembers = () => {
     setLoading(true);
-    return fetchAccountsWithUsers().then(setMembers).finally(() => setLoading(false));
+    return Promise.all([fetchAccountsWithUsers(), fetchAdmins()])
+      .then(([accountsData, adminsData]) => {
+        setMembers(accountsData);
+        const map: Record<string, string> = {};
+        for (const a of adminsData as any[]) {
+          if (a.roles?.name) map[a.id] = a.roles.name;
+        }
+        setRoleByUserId(map);
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -50,6 +73,23 @@ export default function UserManagement() {
     } finally {
       setSuspendingId(null);
     }
+  };
+
+  const showFeedback = (message: string, warning = false) => {
+    setFeedback({ message, warning });
+    setTimeout(() => setFeedback(null), warning ? 6000 : 3500);
+  };
+
+  const handleFormateurDone = async () => {
+    if (!formateurTarget) return;
+    const { name, action } = formateurTarget;
+    setFormateurTarget(null);
+    await loadMembers();
+    showFeedback(
+      action === "assign"
+        ? (fr ? `✅ ${name} a été assigné comme Formateur` : `✅ ${name} was assigned as Trainer`)
+        : (fr ? `✅ Le rôle Formateur a été révoqué` : `✅ Trainer role revoked`)
+    );
   };
 
   const filtered = members.filter((m) => {
@@ -111,6 +151,7 @@ export default function UserManagement() {
                 <th className="px-5 py-3 text-left">{fr ? "Membre" : "Member"}</th>
                 <th className="px-5 py-3 text-left">{fr ? "Téléphone" : "Phone"}</th>
                 <th className="px-5 py-3 text-left">KYC</th>
+                <th className="px-5 py-3 text-left">{fr ? "Rôle" : "Role"}</th>
                 <th className="px-5 py-3 text-left">{fr ? "Statut" : "Status"}</th>
                 <th className="px-5 py-3 text-right">{fr ? "Épargne" : "Savings"}</th>
                 <th className="px-5 py-3 text-right">{fr ? "Actions" : "Actions"}</th>
@@ -133,6 +174,17 @@ export default function UserManagement() {
                   </td>
                   <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{m.phone}</td>
                   <td className="px-5 py-4"><StatusBadge status={m.kyc as any} size="sm" /></td>
+                  <td className="px-5 py-4">
+                    {(() => {
+                      const role = roleByUserId[m.id];
+                      const badge = role ? ROLE_BADGE[role] ?? MEMBER_BADGE : MEMBER_BADGE;
+                      return (
+                        <span className="px-2.5 py-1 rounded-md text-xs font-medium" style={{ background: badge.bg, color: badge.text }}>
+                          {fr ? badge.fr : badge.en}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-5 py-4"><StatusBadge status={(m.status ?? "active") as any} size="sm" /></td>
                   <td className="px-5 py-4 text-right text-sm font-medium whitespace-nowrap" style={{ fontFamily: "Geist Mono, monospace" }}>
                     {(m.savings ?? 0) > 0 ? formatXAF(m.savings) : <span className="text-muted-foreground">—</span>}
@@ -145,6 +197,25 @@ export default function UserManagement() {
                       <button onClick={() => setEditMemberId(m.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title={fr ? "Modifier" : "Edit"}>
                         <Edit size={14} />
                       </button>
+                      {isSuperAdmin && (
+                        roleByUserId[m.id] === "formateur" ? (
+                          <button
+                            onClick={() => setFormateurTarget({ id: m.id, name: m.name, action: "revoke" })}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-[#E5484D] hover:bg-red-50 transition-all"
+                            title={fr ? "Révoquer le rôle Formateur" : "Revoke Trainer role"}
+                          >
+                            <ShieldOff size={14} />
+                          </button>
+                        ) : !roleByUserId[m.id] ? (
+                          <button
+                            onClick={() => setFormateurTarget({ id: m.id, name: m.name, action: "assign" })}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-[#4CAF68] hover:bg-[#E8F5EC] transition-all"
+                            title={fr ? "Assigner comme Formateur" : "Assign as Trainer"}
+                          >
+                            <GraduationCap size={14} />
+                          </button>
+                        ) : null
+                      )}
                       {m.status === "suspended" ? (
                         <button
                           onClick={() => handleToggleSuspend(m)}
@@ -178,6 +249,27 @@ export default function UserManagement() {
       )}
       {editMemberId && (
         <MemberEditModal memberId={editMemberId} onClose={() => setEditMemberId(null)} onSave={() => { setEditMemberId(null); loadMembers(); }} />
+      )}
+      {formateurTarget && (
+        <ConfirmAssignFormateur
+          userId={formateurTarget.id}
+          userName={formateurTarget.name}
+          currentRoleLabel={fr
+            ? (roleByUserId[formateurTarget.id] ? ROLE_BADGE[roleByUserId[formateurTarget.id]]?.fr ?? MEMBER_BADGE.fr : MEMBER_BADGE.fr)
+            : (roleByUserId[formateurTarget.id] ? ROLE_BADGE[roleByUserId[formateurTarget.id]]?.en ?? MEMBER_BADGE.en : MEMBER_BADGE.en)}
+          action={formateurTarget.action}
+          onClose={() => setFormateurTarget(null)}
+          onDone={handleFormateurDone}
+        />
+      )}
+
+      {feedback && (
+        <div
+          className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg"
+          style={{ background: feedback.warning ? "#E8A317" : "#4CAF68" }}
+        >
+          {feedback.message}
+        </div>
       )}
     </div>
   );

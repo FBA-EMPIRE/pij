@@ -86,6 +86,7 @@ function AdminSettingsPlaceholder() {
 function RoleDashboard() {
   const { userProfile } = useAppContext();
   if (userProfile?.role === "super_admin") return <SuperAdminDashboard />;
+  if (userProfile?.role === "formateur") return <Navigate to="/admin/formations" replace />;
   return <AdminDashboard />;
 }
 

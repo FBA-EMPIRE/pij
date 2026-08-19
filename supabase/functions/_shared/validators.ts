@@ -7,6 +7,7 @@ export {
   validateTontineUpdate,
   validateTontineMemberAction,
   validateAdminId,
+  validateFormateurAction,
   validateInvitationId,
   validateAdminInvite,
   validateInvestmentAdjustment,

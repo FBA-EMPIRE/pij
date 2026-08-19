@@ -244,6 +244,16 @@ export function validateAdminId(body: Record<string, unknown>) {
   return body as { admin_id: string };
 }
 
+export function validateFormateurAction(body: Record<string, unknown>) {
+  if (!body.user_id || typeof body.user_id !== "string") {
+    throw new Error("user_id is required and must be a string");
+  }
+  if (body.action !== "assign" && body.action !== "revoke") {
+    throw new Error("action must be 'assign' or 'revoke'");
+  }
+  return body as { user_id: string; action: "assign" | "revoke" };
+}
+
 export function validateInvitationId(body: Record<string, unknown>) {
   if (!body.invitation_id || typeof body.invitation_id !== "string") {
     throw new Error("invitation_id is required and must be a string");
