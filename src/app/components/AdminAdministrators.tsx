@@ -17,6 +17,7 @@ export default function AdminAdministrators() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", phone: "", role: "admin" as AdminRole });
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [copyFeedbackWarning, setCopyFeedbackWarning] = useState(false);
   const [actionError, setActionError] = useState("");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
@@ -91,12 +92,13 @@ export default function AdminAdministrators() {
       setActionError(data?.error || error?.message || (fr ? "Erreur lors de l'envoi de l'invitation." : "Error sending invitation."));
       return;
     }
+    setCopyFeedbackWarning(!data.emailSent);
     setCopyFeedback(
       data.emailSent
         ? (fr ? "Invitation envoyée par email !" : "Invitation sent by email!")
         : (fr ? "Invitation créée — email non envoyé, copiez le lien." : "Invitation created — email not sent, copy the link instead.")
     );
-    setTimeout(() => setCopyFeedback(""), 3500);
+    setTimeout(() => setCopyFeedback(""), data.emailSent ? 3500 : 8000);
     setInviteForm({ firstName: "", lastName: "", email: "", phone: "", role: "admin" });
     setShowInvite(false);
     await loadData();
@@ -109,12 +111,13 @@ export default function AdminAdministrators() {
       setActionError(data?.error || error?.message || (fr ? "Erreur lors du renvoi." : "Error resending invitation."));
       return;
     }
+    setCopyFeedbackWarning(!data.emailSent);
     setCopyFeedback(
       data.emailSent
         ? (fr ? "Invitation renvoyée par email !" : "Invitation resent by email!")
         : (fr ? "Invitation renvoyée — email non envoyé, copiez le lien." : "Invitation refreshed — email not sent, copy the link instead.")
     );
-    setTimeout(() => setCopyFeedback(""), 3500);
+    setTimeout(() => setCopyFeedback(""), data.emailSent ? 3500 : 8000);
     await loadData();
   };
 
@@ -125,6 +128,7 @@ export default function AdminAdministrators() {
   const copyLink = (token: string) => {
     const link = `${window.location.origin}/admin/invite/${token}`;
     navigator.clipboard.writeText(link).then(() => {
+      setCopyFeedbackWarning(false);
       setCopyFeedback(fr ? "Lien copié !" : "Link copied!");
       setTimeout(() => setCopyFeedback(""), 2000);
     });
@@ -377,7 +381,7 @@ export default function AdminAdministrators() {
 
       {/* Copy feedback toast */}
       {copyFeedback && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg" style={{ background: "#4CAF68" }}>
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg" style={{ background: copyFeedbackWarning ? "#E8A317" : "#4CAF68" }}>
           {copyFeedback}
         </div>
       )}
