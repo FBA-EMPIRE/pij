@@ -261,6 +261,189 @@ export function validateInvitationId(body: Record<string, unknown>) {
   return body as { invitation_id: string };
 }
 
+const FORMATION_STATUSES = ["Draft", "Published", "Archived"] as const;
+type FormationStatus = typeof FORMATION_STATUSES[number];
+
+export function validateFormationCreate(body: Record<string, unknown>) {
+  if (!body.title || typeof body.title !== "string") {
+    throw new Error("title is required and must be a string");
+  }
+  if (body.status !== undefined && !FORMATION_STATUSES.includes(body.status as FormationStatus)) {
+    throw new Error(`status must be one of: ${FORMATION_STATUSES.join(", ")}`);
+  }
+  for (const field of ["title_en", "description", "description_en", "cover_image"]) {
+    if (body[field] !== undefined && typeof body[field] !== "string") {
+      throw new Error(`${field} must be a string if provided`);
+    }
+  }
+  return body as {
+    title: string;
+    title_en?: string;
+    description?: string;
+    description_en?: string;
+    cover_image?: string;
+    status?: FormationStatus;
+  };
+}
+
+export function validateFormationUpdate(body: Record<string, unknown>) {
+  if (!body.id || typeof body.id !== "string") {
+    throw new Error("id is required and must be a string");
+  }
+  const patch: Record<string, unknown> = {};
+  for (const field of ["title", "title_en", "description", "description_en", "cover_image"]) {
+    if (body[field] !== undefined) {
+      if (typeof body[field] !== "string") throw new Error(`${field} must be a string`);
+      patch[field] = body[field];
+    }
+  }
+  if (body.status !== undefined) {
+    if (!FORMATION_STATUSES.includes(body.status as FormationStatus)) {
+      throw new Error(`status must be one of: ${FORMATION_STATUSES.join(", ")}`);
+    }
+    patch.status = body.status;
+  }
+  if (Object.keys(patch).length === 0) {
+    throw new Error("At least one field to update must be provided");
+  }
+  return { id: body.id as string, patch };
+}
+
+export function validateIdBody(body: Record<string, unknown>) {
+  if (!body.id || typeof body.id !== "string") {
+    throw new Error("id is required and must be a string");
+  }
+  return { id: body.id as string };
+}
+
+export function validateCourseCreate(body: Record<string, unknown>) {
+  if (!body.formation_id || typeof body.formation_id !== "string") {
+    throw new Error("formation_id is required and must be a string");
+  }
+  if (!body.category_id || typeof body.category_id !== "string") {
+    throw new Error("category_id is required and must be a string");
+  }
+  if (!body.title || typeof body.title !== "string") {
+    throw new Error("title is required and must be a string");
+  }
+  if (body.status !== undefined && !FORMATION_STATUSES.includes(body.status as FormationStatus)) {
+    throw new Error(`status must be one of: ${FORMATION_STATUSES.join(", ")}`);
+  }
+  if (body.lesson_count !== undefined && (!Number.isInteger(body.lesson_count) || (body.lesson_count as number) < 0)) {
+    throw new Error("lesson_count must be a non-negative integer if provided");
+  }
+  if (body.featured !== undefined && typeof body.featured !== "boolean") {
+    throw new Error("featured must be a boolean if provided");
+  }
+  for (const field of ["title_en", "description", "instructor", "duration", "level", "cover_image_path", "image"]) {
+    if (body[field] !== undefined && typeof body[field] !== "string") {
+      throw new Error(`${field} must be a string if provided`);
+    }
+  }
+  return body as {
+    formation_id: string;
+    category_id: string;
+    title: string;
+    title_en?: string;
+    description?: string;
+    instructor?: string;
+    duration?: string;
+    lesson_count?: number;
+    level?: string;
+    status?: FormationStatus;
+    featured?: boolean;
+    cover_image_path?: string;
+    image?: string;
+  };
+}
+
+export function validateCourseUpdate(body: Record<string, unknown>) {
+  if (!body.id || typeof body.id !== "string") {
+    throw new Error("id is required and must be a string");
+  }
+  const patch: Record<string, unknown> = {};
+  if (body.category_id !== undefined) {
+    if (typeof body.category_id !== "string" || !body.category_id) throw new Error("category_id must be a non-empty string");
+    patch.category_id = body.category_id;
+  }
+  for (const field of ["title", "title_en", "description", "instructor", "duration", "level", "cover_image_path", "image"]) {
+    if (body[field] !== undefined) {
+      if (typeof body[field] !== "string") throw new Error(`${field} must be a string`);
+      patch[field] = body[field];
+    }
+  }
+  if (body.lesson_count !== undefined) {
+    if (!Number.isInteger(body.lesson_count) || (body.lesson_count as number) < 0) {
+      throw new Error("lesson_count must be a non-negative integer");
+    }
+    patch.lesson_count = body.lesson_count;
+  }
+  if (body.featured !== undefined) {
+    if (typeof body.featured !== "boolean") throw new Error("featured must be a boolean");
+    patch.featured = body.featured;
+  }
+  if (body.status !== undefined) {
+    if (!FORMATION_STATUSES.includes(body.status as FormationStatus)) {
+      throw new Error(`status must be one of: ${FORMATION_STATUSES.join(", ")}`);
+    }
+    patch.status = body.status;
+  }
+  if (Object.keys(patch).length === 0) {
+    throw new Error("At least one field to update must be provided");
+  }
+  return { id: body.id as string, patch };
+}
+
+export function validateConsultationCreate(body: Record<string, unknown>) {
+  if (!body.type || typeof body.type !== "string") {
+    throw new Error("type is required and must be a string");
+  }
+  // The task spec calls this field "message"; the live consultation_requests
+  // table calls it "need" -- accept either so both callers work.
+  const need = typeof body.need === "string" ? body.need : typeof body.message === "string" ? body.message : undefined;
+  if (!need) {
+    throw new Error("need (or message) is required and must be a non-empty string");
+  }
+  if (body.project !== undefined && typeof body.project !== "string") {
+    throw new Error("project must be a string if provided");
+  }
+  if (body.formation_id !== undefined && typeof body.formation_id !== "string") {
+    throw new Error("formation_id must be a string if provided");
+  }
+  if (body.course_id !== undefined && typeof body.course_id !== "string") {
+    throw new Error("course_id must be a string if provided");
+  }
+  return {
+    type: body.type as string,
+    need,
+    project: (body.project as string | undefined) ?? "",
+    formation_id: body.formation_id as string | undefined,
+    course_id: body.course_id as string | undefined,
+  };
+}
+
+const CONSULTATION_RESPOND_STATUSES = ["approved", "completed", "cancelled"] as const;
+
+export function validateConsultationRespond(body: Record<string, unknown>) {
+  if (!body.id || typeof body.id !== "string") {
+    throw new Error("id is required and must be a string");
+  }
+  if (!body.response || typeof body.response !== "string") {
+    throw new Error("response is required and must be a string");
+  }
+  if (
+    body.status !== undefined &&
+    !CONSULTATION_RESPOND_STATUSES.includes(body.status as typeof CONSULTATION_RESPOND_STATUSES[number])
+  ) {
+    throw new Error(`status must be one of: ${CONSULTATION_RESPOND_STATUSES.join(", ")}`);
+  }
+  return {
+    id: body.id as string,
+    response: body.response as string,
+    status: (body.status as typeof CONSULTATION_RESPOND_STATUSES[number] | undefined) ?? "completed",
+  };
+}
+
 export function validateAdminInvite(body: Record<string, unknown>) {
   if (!body.firstName || typeof body.firstName !== "string") {
     throw new Error("firstName is required and must be a string");
