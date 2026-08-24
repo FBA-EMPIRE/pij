@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
     if (fetchErr) throw fetchErr;
     if (!existing) throw new Error("Formation not found");
 
-    // formation_categories -> formation_courses -> formation_content all
-    // cascade via ON DELETE CASCADE, so deleting the formation row is enough.
+    // formation_courses -> formation_content cascade via ON DELETE CASCADE,
+    // so deleting the formation row is enough.
     const { error: deleteErr } = await supabase.from("formations").delete().eq("id", id);
     if (deleteErr) throw deleteErr;
 

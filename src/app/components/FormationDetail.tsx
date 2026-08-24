@@ -1,24 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Archive, ArrowLeft, BookOpen, CheckCircle, FileText, Loader2, Pencil, Plus, Trash2, Upload, Video, Link as LinkIcon } from "lucide-react";
+import { Archive, ArrowLeft, CheckCircle, FileText, Loader2, Pencil, Plus, Trash2, Upload, Video, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { FormationForm } from "./FormationsDashboard";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
-import { saveFormationCategory, deleteFormationCategory } from "../lib/supabase/queries";
 import {
   formationsApi, coursesApi, contentsApi, consultationsApi,
-  type Formation, type FormationCategory, type Course,
+  type Formation, type Course,
   type Content as ContentItem, type Consultation, type ConsultationStatus,
 } from "../lib/api/formations";
 
-type TabKey = "categories" | "courses" | "content" | "consultations";
+type TabKey = "courses" | "content" | "consultations";
 type FormMode = "create" | "edit" | null;
 
 interface DetailState {
   formation: Formation;
-  categories: FormationCategory[];
   courses: Course[];
   contents: ContentItem[];
   consultations: Consultation[];
@@ -30,7 +28,7 @@ export default function FormationDetail() {
   const { lang } = useAppContext();
   const fr = lang === "fr";
 
-  const [tab, setTab] = useState<TabKey>("categories");
+  const [tab, setTab] = useState<TabKey>("courses");
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingFormation, setEditingFormation] = useState(false);
@@ -44,9 +42,10 @@ export default function FormationDetail() {
     if (!id) return;
     setLoading(true);
     try {
-      // formations-get returns the formation with its categories -> courses
-      // -> content nested; consultations aren't included there, so they're
-      // fetched separately (also scoped to this formation server-side).
+      // formations-get returns the formation with its courses -> content
+      // nested directly (a formation is its own grouping, no category
+      // layer); consultations aren't included there, so they're fetched
+      // separately (also scoped to this formation server-side).
       const [formationRes, consultationsRes] = await Promise.all([
         formationsApi.get(id),
         consultationsApi.list({ formation_id: id, limit: 100 }),
@@ -55,11 +54,10 @@ export default function FormationDetail() {
       if (!consultationsRes.success || !consultationsRes.data) throw new Error(consultationsRes.error || "Failed to load consultations");
 
       const formation = formationRes.data.formation;
-      const categories = formation.formation_categories ?? [];
-      const courses = categories.flatMap((c) => c.formation_courses ?? []);
+      const courses = formation.formation_courses ?? [];
       const contents = courses.flatMap((c) => c.formation_content ?? []);
 
-      setData({ formation, categories, courses, contents, consultations: consultationsRes.data.consultations });
+      setData({ formation, courses, contents, consultations: consultationsRes.data.consultations });
     } catch (err: any) {
       const message = err?.message || "Failed to load formation";
       setError(message);
@@ -96,10 +94,9 @@ export default function FormationDetail() {
     );
   }
 
-  const { formation, categories, courses, contents, consultations } = data;
+  const { formation, courses, contents, consultations } = data;
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
-    { key: "categories", label: fr ? "Catégories" : "Categories", count: categories.length },
     { key: "courses", label: fr ? "Cours" : "Courses", count: courses.length },
     { key: "content", label: fr ? "Contenus" : "Content", count: contents.length },
     { key: "consultations", label: fr ? "Consultations" : "Consultations", count: consultations.length },
@@ -199,7 +196,7 @@ export default function FormationDetail() {
       )}
 
       <div className="bg-card rounded-2xl border border-border px-5 py-3 mb-6 text-sm text-muted-foreground">
-        {categories.length} {fr ? "Catégories" : "Categories"} · {courses.length} {fr ? "Cours" : "Courses"} · {contents.length} {fr ? "Contenus" : "Content"} · {consultations.length} {fr ? "Demandes" : "Requests"}
+        {courses.length} {fr ? "Cours" : "Courses"} · {contents.length} {fr ? "Contenus" : "Content"} · {consultations.length} {fr ? "Demandes" : "Requests"}
       </div>
 
       <div className="flex gap-2 mb-6 overflow-x-auto">
@@ -219,35 +216,17 @@ export default function FormationDetail() {
         <div className="flex justify-end mb-4">
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>
             <Plus size={16} />
-            {tab === "categories" && (fr ? "Ajouter une Catégorie" : "Add a Category")}
             {tab === "courses" && (fr ? "Ajouter un Cours" : "Add a Course")}
             {tab === "content" && (fr ? "Ajouter un Contenu" : "Add Content")}
           </button>
         </div>
       )}
 
-      {formMode && tab === "categories" && (
-        <CategoryForm
-          fr={fr}
-          mode={formMode}
-          formationId={formation.id}
-          category={categories.find((c) => c.id === editingId)}
-          onCancel={closeForm}
-          onError={(msg: string) => { setError(msg); toast.error(msg); }}
-          onSave={async (fields: any) => {
-            await saveFormationCategory(fields);
-            toast.success(fr ? "Catégorie enregistrée" : "Category saved");
-            await loadAll();
-            closeForm();
-          }}
-        />
-      )}
       {formMode && tab === "courses" && (
         <CourseForm
           fr={fr}
           mode={formMode}
           course={courses.find((c) => c.id === editingId)}
-          categories={categories}
           onCancel={closeForm}
           onError={(msg: string) => { setError(msg); toast.error(msg); }}
           onSave={async (fields: any) => {
@@ -278,30 +257,10 @@ export default function FormationDetail() {
         />
       )}
 
-      {tab === "categories" && (
-        <Categories
-          fr={fr}
-          categories={categories}
-          courses={courses}
-          onEdit={openEdit}
-          onDelete={async (itemId: string) => {
-            try {
-              await deleteFormationCategory(itemId);
-              toast.success(fr ? "Catégorie supprimée" : "Category deleted");
-              await loadAll();
-            } catch (err: any) {
-              const message = err?.message || "Failed to delete category";
-              setError(message);
-              toast.error(message);
-            }
-          }}
-        />
-      )}
       {tab === "courses" && (
         <Courses
           fr={fr}
           courses={courses}
-          categories={categories}
           onEdit={openEdit}
           onDelete={async (itemId: string) => {
             try {
@@ -358,70 +317,30 @@ export default function FormationDetail() {
   );
 }
 
-function Categories({ fr, categories, courses, onEdit, onDelete }: { fr: boolean; categories: FormationCategory[]; courses: Course[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
-  if (categories.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucune catégorie créée pour cette formation" : "No categories created for this formation"}</p>;
-  }
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      {categories.map((cat) => {
-        const courseCount = courses.filter((c) => c.category_id === cat.id).length;
-        return (
-          <div key={cat.id} className="bg-card rounded-2xl border border-border p-5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: `${cat.color}20` }}>
-              <BookOpen size={18} color={cat.color} />
-            </div>
-            <h3 className="text-sm font-semibold">{fr ? cat.name : (cat.name_en || cat.name)}</h3>
-            <p className="text-xs text-muted-foreground mt-2">{cat.description}</p>
-            <p className="text-xs text-muted-foreground mt-2">{courseCount} {fr ? "cours" : "courses"}</p>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => onEdit(cat.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs">{fr ? "Modifier" : "Edit"}</button>
-              <button onClick={() => onDelete(cat.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs text-[#E5484D]">{fr ? "Supprimer" : "Delete"}</button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function Courses({ fr, courses, categories, onEdit, onDelete }: { fr: boolean; courses: Course[]; categories: FormationCategory[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
+function Courses({ fr, courses, onEdit, onDelete }: { fr: boolean; courses: Course[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
   if (courses.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucun cours créé pour cette formation" : "No courses created for this formation"}</p>;
   }
   return (
-    <div className="space-y-6">
-      {categories.map((cat) => {
-        const catCourses = courses.filter((c) => c.category_id === cat.id);
-        if (catCourses.length === 0) return null;
-        return (
-          <div key={cat.id}>
-            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-              <BookOpen size={14} style={{ color: cat.color }} /> {fr ? cat.name : (cat.name_en || cat.name)}
-            </h4>
-            <div className="space-y-3">
-              {catCourses.map((course) => (
-                <div key={course.id} className="bg-card rounded-2xl border border-border p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{course.title}</h3>
-                        <StatusBadge status={course.status as any} size="sm" />
-                      </div>
-                      <p className="text-xs text-muted-foreground">{fr ? "Durée" : "Duration"}: {course.duration}</p>
-                      <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{course.description}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 shrink-0">
-                      <button onClick={() => onEdit(course.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs">{fr ? "Modifier" : "Edit"}</button>
-                      <button onClick={() => onDelete(course.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs text-[#E5484D]">{fr ? "Supprimer" : "Delete"}</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+    <div className="space-y-3">
+      {courses.map((course) => (
+        <div key={course.id} className="bg-card rounded-2xl border border-border p-5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{course.title}</h3>
+                <StatusBadge status={course.status as any} size="sm" />
+              </div>
+              <p className="text-xs text-muted-foreground">{fr ? "Durée" : "Duration"}: {course.duration}</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{course.description}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <button onClick={() => onEdit(course.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs">{fr ? "Modifier" : "Edit"}</button>
+              <button onClick={() => onDelete(course.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs text-[#E5484D]">{fr ? "Supprimer" : "Delete"}</button>
             </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -583,45 +502,7 @@ function Consultations({ fr, consultations, onRespond }: { fr: boolean; consulta
   );
 }
 
-function CategoryForm({ fr, mode, formationId, category, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; formationId: string; category?: FormationCategory; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
-  const [saving, setSaving] = useState(false);
-  return (
-    <form
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const data = new FormData(event.currentTarget);
-        setSaving(true);
-        try {
-          await onSave({
-            id: category?.id,
-            formation_id: formationId,
-            name: String(data.get("name") || ""),
-            name_en: String(data.get("name_en") || data.get("name") || ""),
-            description: String(data.get("description") || ""),
-            color: String(data.get("color") || "#4CAF68"),
-            status: "Active",
-          });
-        } catch (err: any) {
-          onError(err?.message || "Failed to save category");
-        } finally {
-          setSaving(false);
-        }
-      }}
-      className="mb-6 bg-card rounded-2xl border border-border p-5 space-y-4"
-    >
-      <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{mode === "create" ? (fr ? "Créer une catégorie" : "Create category") : (fr ? "Modifier la catégorie" : "Edit category")}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field name="name" label={fr ? "Nom" : "Name"} defaultValue={category?.name} />
-        <Field name="name_en" label={fr ? "Nom anglais" : "English name"} defaultValue={category?.name_en ?? ""} />
-        <Field name="color" label={fr ? "Couleur" : "Color"} defaultValue={category?.color ?? "#4CAF68"} />
-        <Field name="description" label="Description" defaultValue={category?.description ?? ""} />
-      </div>
-      <FormActions fr={fr} onCancel={onCancel} saving={saving} />
-    </form>
-  );
-}
-
-function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; course?: Course; categories: FormationCategory[]; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
+function CourseForm({ fr, mode, course, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; course?: Course; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
   const [saving, setSaving] = useState(false);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
@@ -636,7 +517,6 @@ function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }:
           if (coverFile) coverImagePath = await uploadCoverImage(coverFile);
           await onSave({
             id: course?.id,
-            category_id: String(data.get("category_id") || categories[0]?.id || ""),
             title: String(data.get("title") || ""),
             title_en: String(data.get("title_en") || data.get("title") || ""),
             description: String(data.get("description") || ""),
@@ -661,7 +541,6 @@ function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }:
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field name="title" label={fr ? "Titre" : "Title"} defaultValue={course?.title} />
         <Field name="title_en" label={fr ? "Titre anglais" : "English title"} defaultValue={course?.title_en ?? ""} />
-        <SelectField name="category_id" label={fr ? "Catégorie" : "Category"} defaultValue={course?.category_id} options={categories.map((c) => ({ value: c.id, label: c.name }))} />
         <Field name="instructor" label={fr ? "Formateur" : "Instructor"} defaultValue={course?.instructor ?? ""} />
         <Field name="duration" label={fr ? "Durée" : "Duration"} defaultValue={course?.duration ?? ""} />
         <Field name="lesson_count" label={fr ? "Nombre de leçons" : "Lessons"} type="number" defaultValue={String(course?.lesson_count ?? 1)} />

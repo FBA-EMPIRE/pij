@@ -320,9 +320,6 @@ export function validateCourseCreate(body: Record<string, unknown>) {
   if (!body.formation_id || typeof body.formation_id !== "string") {
     throw new Error("formation_id is required and must be a string");
   }
-  if (!body.category_id || typeof body.category_id !== "string") {
-    throw new Error("category_id is required and must be a string");
-  }
   if (!body.title || typeof body.title !== "string") {
     throw new Error("title is required and must be a string");
   }
@@ -342,7 +339,6 @@ export function validateCourseCreate(body: Record<string, unknown>) {
   }
   return body as {
     formation_id: string;
-    category_id: string;
     title: string;
     title_en?: string;
     description?: string;
@@ -362,10 +358,6 @@ export function validateCourseUpdate(body: Record<string, unknown>) {
     throw new Error("id is required and must be a string");
   }
   const patch: Record<string, unknown> = {};
-  if (body.category_id !== undefined) {
-    if (typeof body.category_id !== "string" || !body.category_id) throw new Error("category_id must be a non-empty string");
-    patch.category_id = body.category_id;
-  }
   for (const field of ["title", "title_en", "description", "instructor", "duration", "level", "cover_image_path", "image"]) {
     if (body[field] !== undefined) {
       if (typeof body[field] !== "string") throw new Error(`${field} must be a string`);

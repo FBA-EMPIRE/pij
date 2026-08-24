@@ -1,6 +1,6 @@
 import { getServiceClient, extractUserId } from "../_shared/supabase-client.ts";
 import { validateCourseUpdate } from "../_shared/validators.ts";
-import { canManageCourse, canManageFormation } from "../_shared/role-check.ts";
+import { canManageCourse } from "../_shared/role-check.ts";
 import { logAudit } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -29,21 +29,6 @@ Deno.serve(async (req) => {
     }
 
     const supabase = getServiceClient();
-
-    if (patch.category_id) {
-      const { data: category, error: categoryErr } = await supabase
-        .from("formation_categories")
-        .select("id, formation_id")
-        .eq("id", patch.category_id)
-        .maybeSingle();
-      if (categoryErr) throw categoryErr;
-      if (!category) throw new Error("category_id not found");
-      // Moving a course must also be authorized against its destination
-      // formation, not just its current one.
-      if (!(await canManageFormation(authHeader, category.formation_id, userId))) {
-        throw new Error("Not authorized to move this course into that category");
-      }
-    }
 
     const { data: course, error } = await supabase
       .from("formation_courses")

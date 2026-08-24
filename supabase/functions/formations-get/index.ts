@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     const { data: formation, error } = await supabase
       .from("formations")
       .select(
-        "*, creator:admins(first_name, last_name, email), formation_categories(*, formation_courses(*, formation_content(*)))",
+        "*, creator:admins(first_name, last_name, email), formation_courses(*, formation_content(*))",
       )
       .eq("id", id)
       .maybeSingle();

@@ -2,11 +2,11 @@
 //
 // Field names below match what the deployed Edge Functions actually
 // return (the live Postgres schema: formations.created_by, the
-// formations -> formation_categories -> formation_courses ->
-// formation_content hierarchy, and consultation_requests with
-// need/admin_notes) -- not the flatter trainer_id/is_paid/order_index/
-// content_type shape originally sketched for this module, which doesn't
-// exist in the database.
+// formations -> formation_courses -> formation_content hierarchy, and
+// consultation_requests with need/admin_notes) -- not the flatter
+// trainer_id/is_paid/order_index/content_type shape originally sketched
+// for this module, which doesn't exist in the database. A formation is
+// its own grouping now, so formation_categories no longer exists either.
 import { supabase, supabaseUrl, supabaseAnonKey } from "../supabase/client";
 
 const FUNCTIONS_URL = `${supabaseUrl}/functions/v1`;
@@ -81,23 +81,12 @@ export interface Formation {
   created_at: string;
   updated_at: string;
   creator?: { first_name: string; last_name: string; email: string } | null;
-  formation_categories?: FormationCategory[];
-}
-
-export interface FormationCategory {
-  id: string;
-  formation_id: string;
-  name: string;
-  name_en?: string | null;
-  description?: string | null;
-  color: string;
-  status: string;
   formation_courses?: Course[];
 }
 
 export interface Course {
   id: string;
-  category_id: string;
+  formation_id: string;
   title: string;
   title_en?: string | null;
   description?: string | null;
@@ -208,7 +197,6 @@ export const formationsApi = {
 
 export interface CourseCreateInput {
   formation_id: string;
-  category_id: string;
   title: string;
   title_en?: string;
   description?: string;
@@ -223,7 +211,6 @@ export interface CourseCreateInput {
 }
 
 export interface CourseUpdateInput {
-  category_id?: string;
   title?: string;
   title_en?: string;
   description?: string;

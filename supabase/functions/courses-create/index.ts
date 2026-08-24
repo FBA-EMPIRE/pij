@@ -30,21 +30,8 @@ Deno.serve(async (req) => {
 
     const supabase = getServiceClient();
 
-    // formation_courses hangs off formation_categories, not formations
-    // directly -- confirm the given category actually belongs to the
-    // given formation so a course can't be filed under someone else's tree.
-    const { data: category, error: categoryErr } = await supabase
-      .from("formation_categories")
-      .select("id, formation_id")
-      .eq("id", validated.category_id)
-      .maybeSingle();
-    if (categoryErr) throw categoryErr;
-    if (!category || category.formation_id !== validated.formation_id) {
-      throw new Error("category_id does not belong to formation_id");
-    }
-
     const insertPayload: Record<string, unknown> = {
-      category_id: validated.category_id,
+      formation_id: validated.formation_id,
       title: validated.title,
     };
     for (const field of ["title_en", "description", "instructor", "duration", "level", "status", "featured", "cover_image_path", "image", "lesson_count"] as const) {

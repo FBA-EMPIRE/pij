@@ -77,11 +77,11 @@ export async function canManageCourse(
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("formation_courses")
-    .select("id, formation_categories(formation_id, formations(created_by))")
+    .select("id, formations(created_by)")
     .eq("id", courseId)
     .maybeSingle();
   if (error) throw error;
   // deno-lint-ignore no-explicit-any
-  const createdBy = (data as any)?.formation_categories?.formations?.created_by;
+  const createdBy = (data as any)?.formations?.created_by;
   return !!createdBy && createdBy === userId;
 }
