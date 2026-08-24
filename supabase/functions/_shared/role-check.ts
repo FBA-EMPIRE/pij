@@ -44,6 +44,14 @@ export async function isAdmin(_authHeader: string | null, userId: string): Promi
   return hasElevatedAccess(await getAdminInfo(userId));
 }
 
+// Returns the caller's exact role name ('admin' | 'super_admin' |
+// 'formateur' | ...) rather than a yes/no check, for callers that need
+// to store or branch on the specific role (e.g. announcements.author_type).
+export async function getCallerRole(userId: string): Promise<string | null> {
+  const admin = await getAdminInfo(userId);
+  return admin && admin.isActive ? admin.role : null;
+}
+
 export async function canManageFormation(
   _authHeader: string | null,
   formationId: string,

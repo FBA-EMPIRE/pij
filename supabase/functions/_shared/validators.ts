@@ -23,4 +23,7 @@ export {
   validateCourseUpdate,
   validateConsultationCreate,
   validateConsultationRespond,
+  validateAnnouncementCreate,
+  validateAnnouncementDelete,
+  validateAnnouncementBulkCreate,
 } from "./validation.ts";

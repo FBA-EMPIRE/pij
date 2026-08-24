@@ -460,3 +460,48 @@ export function validateAdminInvite(body: Record<string, unknown>) {
     role: "admin" | "super_admin";
   };
 }
+
+const ANNOUNCEMENT_TYPES = ["formation", "tontine", "investment", "general"] as const;
+export type AnnouncementType = typeof ANNOUNCEMENT_TYPES[number];
+
+export function validateAnnouncementCreate(body: Record<string, unknown>) {
+  if (!body.title || typeof body.title !== "string") {
+    throw new Error("title is required and must be a string");
+  }
+  if (!ANNOUNCEMENT_TYPES.includes(body.type as AnnouncementType)) {
+    throw new Error(`type must be one of: ${ANNOUNCEMENT_TYPES.join(", ")}`);
+  }
+  if (body.description !== undefined && body.description !== null && typeof body.description !== "string") {
+    throw new Error("description must be a string if provided");
+  }
+  if (body.reference_id !== undefined && body.reference_id !== null && typeof body.reference_id !== "string") {
+    throw new Error("reference_id must be a string if provided");
+  }
+  if (body.expires_at !== undefined && body.expires_at !== null && typeof body.expires_at !== "string") {
+    throw new Error("expires_at must be a string date if provided");
+  }
+  if (body.type === "formation" && !body.reference_id) {
+    throw new Error("reference_id is required when type is 'formation'");
+  }
+  return {
+    title: body.title as string,
+    description: (body.description as string | undefined) ?? "",
+    type: body.type as AnnouncementType,
+    reference_id: (body.reference_id as string | null | undefined) ?? null,
+    expires_at: (body.expires_at as string | null | undefined) ?? null,
+  };
+}
+
+export function validateAnnouncementDelete(body: Record<string, unknown>) {
+  if (!body.announcement_id || typeof body.announcement_id !== "string") {
+    throw new Error("announcement_id is required and must be a string");
+  }
+  return { announcement_id: body.announcement_id as string };
+}
+
+export function validateAnnouncementBulkCreate(body: Record<string, unknown>) {
+  if (!Array.isArray(body.items) || body.items.length === 0) {
+    throw new Error("items must be a non-empty array");
+  }
+  return { items: body.items as Record<string, unknown>[] };
+}
