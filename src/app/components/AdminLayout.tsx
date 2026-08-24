@@ -78,8 +78,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const visibleGroups = isFormateur
     ? [{
-        group: "Analytiques", groupEn: "Analytics", items: [
-          { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/admin/formations" },
+        group: "Formation", groupEn: "Training", items: [
+          { icon: BookOpen, label: "Mes Formations", labelEn: "My Formations", path: "/admin/formations" },
         ],
       }]
     : navGroups.map((group) => ({
