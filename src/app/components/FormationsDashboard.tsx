@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, BookOpen, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
-import { fetchFormations, saveFormation } from "../lib/supabase/queries";
+import { formationsApi, type Formation } from "../lib/api/formations";
 
 export default function FormationsDashboard() {
   const navigate = useNavigate();
-  const { lang } = useAppContext();
+  const { lang, userProfile } = useAppContext();
   const fr = lang === "fr";
-  const [formations, setFormations] = useState<any[]>([]);
+  const isFormateur = userProfile?.role === "formateur";
+  const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -19,9 +21,17 @@ export default function FormationsDashboard() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      setFormations(await fetchFormations());
+      // Trainers only ever manage what they created; admins/super_admins see everything.
+      const res = await formationsApi.list({
+        trainer_id: isFormateur ? userProfile?.id : undefined,
+        limit: 100,
+      });
+      if (!res.success || !res.data) throw new Error(res.error || "Failed to load formations");
+      setFormations(res.data.formations);
     } catch (err: any) {
-      setError(err?.message || "Failed to load formations");
+      const message = err?.message || "Failed to load formations";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -93,9 +103,11 @@ export default function FormationsDashboard() {
           fr={fr}
           mode="create"
           onCancel={() => setShowCreate(false)}
-          onError={setError}
+          onError={(msg: string) => { setError(msg); toast.error(msg); }}
           onSave={async (fields: any) => {
-            await saveFormation(fields);
+            const res = await formationsApi.create(fields);
+            if (!res.success) throw new Error(res.error || "Failed to create formation");
+            toast.success(fr ? "Formation créée" : "Formation created");
             await loadAll();
             setShowCreate(false);
           }}

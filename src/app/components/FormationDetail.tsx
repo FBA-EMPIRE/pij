@@ -1,20 +1,28 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Archive, ArrowLeft, BookOpen, CheckCircle, FileText, Loader2, Pencil, Plus, Trash2, Upload, Video, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { FormationForm } from "./FormationsDashboard";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { saveFormationCategory, deleteFormationCategory } from "../lib/supabase/queries";
 import {
-  fetchFormationDetail, saveFormation, deleteFormation,
-  saveFormationCategory, deleteFormationCategory,
-  saveFormationCourse, deleteFormationCourse,
-  saveFormationContent, deleteFormationContent,
-  uploadFormationAsset,
-} from "../lib/supabase/queries";
+  formationsApi, coursesApi, contentsApi, consultationsApi,
+  type Formation, type FormationCategory, type Course,
+  type Content as ContentItem, type Consultation, type ConsultationStatus,
+} from "../lib/api/formations";
 
 type TabKey = "categories" | "courses" | "content" | "consultations";
 type FormMode = "create" | "edit" | null;
+
+interface DetailState {
+  formation: Formation;
+  categories: FormationCategory[];
+  courses: Course[];
+  contents: ContentItem[];
+  consultations: Consultation[];
+}
 
 export default function FormationDetail() {
   const { id } = useParams();
@@ -28,7 +36,7 @@ export default function FormationDetail() {
   const [editingFormation, setEditingFormation] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const [data, setData] = useState<{ formation: any; categories: any[]; courses: any[]; contents: any[]; consultations: any[] } | null>(null);
+  const [data, setData] = useState<DetailState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -36,9 +44,26 @@ export default function FormationDetail() {
     if (!id) return;
     setLoading(true);
     try {
-      setData(await fetchFormationDetail(id));
+      // formations-get returns the formation with its categories -> courses
+      // -> content nested; consultations aren't included there, so they're
+      // fetched separately (also scoped to this formation server-side).
+      const [formationRes, consultationsRes] = await Promise.all([
+        formationsApi.get(id),
+        consultationsApi.list({ formation_id: id, limit: 100 }),
+      ]);
+      if (!formationRes.success || !formationRes.data) throw new Error(formationRes.error || "Formation not found");
+      if (!consultationsRes.success || !consultationsRes.data) throw new Error(consultationsRes.error || "Failed to load consultations");
+
+      const formation = formationRes.data.formation;
+      const categories = formation.formation_categories ?? [];
+      const courses = categories.flatMap((c) => c.formation_courses ?? []);
+      const contents = courses.flatMap((c) => c.formation_content ?? []);
+
+      setData({ formation, categories, courses, contents, consultations: consultationsRes.data.consultations });
     } catch (err: any) {
-      setError(err?.message || "Failed to load formation");
+      const message = err?.message || "Failed to load formation";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -66,7 +91,7 @@ export default function FormationDetail() {
         <button onClick={() => navigate("/admin/formations")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft size={16} /> {fr ? "Retour aux Formations" : "Back to Formations"}
         </button>
-        <p className="text-muted-foreground">{fr ? "Formation introuvable" : "Formation not found"}</p>
+        <p className="text-muted-foreground">{error || (fr ? "Formation introuvable" : "Formation not found")}</p>
       </div>
     );
   }
@@ -80,19 +105,31 @@ export default function FormationDetail() {
     { key: "consultations", label: fr ? "Consultations" : "Consultations", count: consultations.length },
   ];
 
-  const handleSetStatus = async (status: string) => {
+  const handleSetStatus = async (status: "Draft" | "Published" | "Archived") => {
     setError("");
-    try { await saveFormation({ id: formation.id, status }); await loadAll(); }
-    catch (err: any) { setError(err?.message || "Failed to update formation"); }
+    try {
+      const res = await formationsApi.update(formation.id, { status });
+      if (!res.success) throw new Error(res.error || "Failed to update formation");
+      toast.success(fr ? "Statut mis à jour" : "Status updated");
+      await loadAll();
+    } catch (err: any) {
+      const message = err?.message || "Failed to update formation";
+      setError(message);
+      toast.error(message);
+    }
   };
 
   const handleDelete = async () => {
     setError("");
     try {
-      await deleteFormation(formation.id);
+      const res = await formationsApi.remove(formation.id);
+      if (!res.success) throw new Error(res.error || "Failed to delete formation");
+      toast.success(fr ? "Formation supprimée" : "Formation deleted");
       navigate("/admin/formations");
     } catch (err: any) {
-      setError(err?.message || "Failed to delete formation");
+      const message = err?.message || "Failed to delete formation";
+      setError(message);
+      toast.error(message);
       setConfirmingDelete(false);
     }
   };
@@ -149,9 +186,12 @@ export default function FormationDetail() {
           mode="edit"
           formation={formation}
           onCancel={() => setEditingFormation(false)}
-          onError={setError}
+          onError={(msg: string) => { setError(msg); toast.error(msg); }}
           onSave={async (fields: any) => {
-            await saveFormation(fields);
+            const { id: fid, ...patch } = fields;
+            const res = await formationsApi.update(fid, patch);
+            if (!res.success) throw new Error(res.error || "Failed to update formation");
+            toast.success(fr ? "Formation mise à jour" : "Formation updated");
             await loadAll();
             setEditingFormation(false);
           }}
@@ -193,8 +233,13 @@ export default function FormationDetail() {
           formationId={formation.id}
           category={categories.find((c) => c.id === editingId)}
           onCancel={closeForm}
-          onError={setError}
-          onSave={async (fields: any) => { await saveFormationCategory(fields); await loadAll(); closeForm(); }}
+          onError={(msg: string) => { setError(msg); toast.error(msg); }}
+          onSave={async (fields: any) => {
+            await saveFormationCategory(fields);
+            toast.success(fr ? "Catégorie enregistrée" : "Category saved");
+            await loadAll();
+            closeForm();
+          }}
         />
       )}
       {formMode && tab === "courses" && (
@@ -204,19 +249,32 @@ export default function FormationDetail() {
           course={courses.find((c) => c.id === editingId)}
           categories={categories}
           onCancel={closeForm}
-          onError={setError}
-          onSave={async (fields: any) => { await saveFormationCourse(fields); await loadAll(); closeForm(); }}
+          onError={(msg: string) => { setError(msg); toast.error(msg); }}
+          onSave={async (fields: any) => {
+            const { id: courseId, ...patch } = fields;
+            const res = courseId
+              ? await coursesApi.update(courseId, patch)
+              : await coursesApi.create({ formation_id: formation.id, ...patch });
+            if (!res.success) throw new Error(res.error || "Failed to save course");
+            toast.success(fr ? "Cours enregistré" : "Course saved");
+            await loadAll();
+            closeForm();
+          }}
         />
       )}
-      {formMode && tab === "content" && (
+      {formMode === "create" && tab === "content" && (
         <ContentForm
           fr={fr}
-          mode={formMode}
-          item={contents.find((c) => c.id === editingId)}
           courses={courses}
           onCancel={closeForm}
-          onError={setError}
-          onSave={async (fields: any) => { await saveFormationContent(fields); await loadAll(); closeForm(); }}
+          onError={(msg: string) => { setError(msg); toast.error(msg); }}
+          onSave={async (fields: any) => {
+            const res = await contentsApi.upload(fields);
+            if (!res.success) throw new Error(res.error || "Failed to upload content");
+            toast.success(fr ? "Contenu ajouté" : "Content added");
+            await loadAll();
+            closeForm();
+          }}
         />
       )}
 
@@ -227,8 +285,15 @@ export default function FormationDetail() {
           courses={courses}
           onEdit={openEdit}
           onDelete={async (itemId: string) => {
-            try { await deleteFormationCategory(itemId); await loadAll(); }
-            catch (err: any) { setError(err?.message || "Failed to delete category"); }
+            try {
+              await deleteFormationCategory(itemId);
+              toast.success(fr ? "Catégorie supprimée" : "Category deleted");
+              await loadAll();
+            } catch (err: any) {
+              const message = err?.message || "Failed to delete category";
+              setError(message);
+              toast.error(message);
+            }
           }}
         />
       )}
@@ -239,8 +304,16 @@ export default function FormationDetail() {
           categories={categories}
           onEdit={openEdit}
           onDelete={async (itemId: string) => {
-            try { await deleteFormationCourse(itemId); await loadAll(); }
-            catch (err: any) { setError(err?.message || "Failed to delete course"); }
+            try {
+              const res = await coursesApi.remove(itemId);
+              if (!res.success) throw new Error(res.error || "Failed to delete course");
+              toast.success(fr ? "Cours supprimé" : "Course deleted");
+              await loadAll();
+            } catch (err: any) {
+              const message = err?.message || "Failed to delete course";
+              setError(message);
+              toast.error(message);
+            }
           }}
         />
       )}
@@ -249,10 +322,17 @@ export default function FormationDetail() {
           fr={fr}
           contents={contents}
           courses={courses}
-          onEdit={openEdit}
           onDelete={async (itemId: string) => {
-            try { await deleteFormationContent(itemId); await loadAll(); }
-            catch (err: any) { setError(err?.message || "Failed to delete content"); }
+            try {
+              const res = await contentsApi.remove(itemId);
+              if (!res.success) throw new Error(res.error || "Failed to delete content");
+              toast.success(fr ? "Contenu supprimé" : "Content deleted");
+              await loadAll();
+            } catch (err: any) {
+              const message = err?.message || "Failed to delete content";
+              setError(message);
+              toast.error(message);
+            }
           }}
         />
       )}
@@ -260,12 +340,17 @@ export default function FormationDetail() {
         <Consultations
           fr={fr}
           consultations={consultations}
-          onUpdate={async (itemId: string, fields: Record<string, unknown>) => {
+          onRespond={async (itemId: string, response: string, status: ConsultationStatus) => {
             try {
-              const { error: updErr } = await supabase.from("consultation_requests").update(fields).eq("id", itemId);
-              if (updErr) throw updErr;
+              const res = await consultationsApi.respond(itemId, response, status);
+              if (!res.success) throw new Error(res.error || "Failed to respond");
+              toast.success(fr ? "Réponse envoyée" : "Response sent");
               await loadAll();
-            } catch (err: any) { setError(err?.message || "Failed to update request"); }
+            } catch (err: any) {
+              const message = err?.message || "Failed to respond";
+              setError(message);
+              toast.error(message);
+            }
           }}
         />
       )}
@@ -273,14 +358,14 @@ export default function FormationDetail() {
   );
 }
 
-function Categories({ fr, categories, courses, onEdit, onDelete }: { fr: boolean; categories: any[]; courses: any[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
+function Categories({ fr, categories, courses, onEdit, onDelete }: { fr: boolean; categories: FormationCategory[]; courses: Course[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
   if (categories.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucune catégorie créée pour cette formation" : "No categories created for this formation"}</p>;
   }
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      {categories.map((cat: any) => {
-        const courseCount = courses.filter((c: any) => c.category_id === cat.id).length;
+      {categories.map((cat) => {
+        const courseCount = courses.filter((c) => c.category_id === cat.id).length;
         return (
           <div key={cat.id} className="bg-card rounded-2xl border border-border p-5">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: `${cat.color}20` }}>
@@ -300,14 +385,14 @@ function Categories({ fr, categories, courses, onEdit, onDelete }: { fr: boolean
   );
 }
 
-function Courses({ fr, courses, categories, onEdit, onDelete }: { fr: boolean; courses: any[]; categories: any[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
+function Courses({ fr, courses, categories, onEdit, onDelete }: { fr: boolean; courses: Course[]; categories: FormationCategory[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
   if (courses.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucun cours créé pour cette formation" : "No courses created for this formation"}</p>;
   }
   return (
     <div className="space-y-6">
-      {categories.map((cat: any) => {
-        const catCourses = courses.filter((c: any) => c.category_id === cat.id);
+      {categories.map((cat) => {
+        const catCourses = courses.filter((c) => c.category_id === cat.id);
         if (catCourses.length === 0) return null;
         return (
           <div key={cat.id}>
@@ -315,7 +400,7 @@ function Courses({ fr, courses, categories, onEdit, onDelete }: { fr: boolean; c
               <BookOpen size={14} style={{ color: cat.color }} /> {fr ? cat.name : (cat.name_en || cat.name)}
             </h4>
             <div className="space-y-3">
-              {catCourses.map((course: any) => (
+              {catCourses.map((course) => (
                 <div key={course.id} className="bg-card rounded-2xl border border-border p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -341,21 +426,21 @@ function Courses({ fr, courses, categories, onEdit, onDelete }: { fr: boolean; c
   );
 }
 
-function Content({ fr, contents, courses, onEdit, onDelete }: { fr: boolean; contents: any[]; courses: any[]; onEdit: (id: string) => void; onDelete: (id: string) => void }) {
+function Content({ fr, contents, courses, onDelete }: { fr: boolean; contents: ContentItem[]; courses: Course[]; onDelete: (id: string) => void }) {
   const icon = (type: string) => (type === "video" ? Video : type === "external_link" ? LinkIcon : FileText);
   if (contents.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucun contenu créé pour cette formation" : "No content created for this formation"}</p>;
   }
   return (
     <div className="space-y-6">
-      {courses.map((course: any) => {
-        const items = contents.filter((c: any) => c.course_id === course.id);
+      {courses.map((course) => {
+        const items = contents.filter((c) => c.course_id === course.id);
         if (items.length === 0) return null;
         return (
           <div key={course.id}>
             <h4 className="text-sm font-semibold mb-2">{course.title}</h4>
             <div className="space-y-2">
-              {items.map((item: any) => {
+              {items.map((item) => {
                 const Icon = icon(item.type);
                 return (
                   <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
@@ -366,7 +451,6 @@ function Content({ fr, contents, courses, onEdit, onDelete }: { fr: boolean; con
                       <p className="text-sm font-medium truncate">{item.title}</p>
                       <p className="text-xs text-muted-foreground truncate">{item.format} · {item.duration}</p>
                     </div>
-                    <button onClick={() => onEdit(item.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs shrink-0">{fr ? "Modifier" : "Edit"}</button>
                     <button onClick={() => onDelete(item.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs text-[#E5484D] shrink-0">{fr ? "Supprimer" : "Delete"}</button>
                   </div>
                 );
@@ -379,21 +463,32 @@ function Content({ fr, contents, courses, onEdit, onDelete }: { fr: boolean; con
   );
 }
 
-function Consultations({ fr, consultations, onUpdate }: { fr: boolean; consultations: any[]; onUpdate: (id: string, fields: Record<string, unknown>) => void }) {
+// consultations-respond is the only write endpoint available for requests --
+// it always sets admin_notes + status together, so the previous one-click
+// Approve/Complete/Cancel/Note actions are merged into a single "respond"
+// form that collects both at once.
+function Consultations({ fr, consultations, onRespond }: { fr: boolean; consultations: Consultation[]; onRespond: (id: string, response: string, status: ConsultationStatus) => void }) {
   const [statusFilter, setStatusFilter] = useState("all");
-  const [noteDraftId, setNoteDraftId] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState("");
+  const [respondDraftId, setRespondDraftId] = useState<string | null>(null);
+  const [responseText, setResponseText] = useState("");
+  const [responseStatus, setResponseStatus] = useState<ConsultationStatus>("approved");
 
   const counts = {
-    pending: consultations.filter((c: any) => c.status === "pending").length,
-    approved: consultations.filter((c: any) => c.status === "approved").length,
-    completed: consultations.filter((c: any) => c.status === "completed").length,
+    pending: consultations.filter((c) => c.status === "pending").length,
+    approved: consultations.filter((c) => c.status === "approved").length,
+    completed: consultations.filter((c) => c.status === "completed").length,
   };
-  const filtered = statusFilter === "all" ? consultations : consultations.filter((c: any) => c.status === statusFilter);
+  const filtered = statusFilter === "all" ? consultations : consultations.filter((c) => c.status === statusFilter);
 
   if (consultations.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucune demande de consultation pour cette formation" : "No consultation requests for this formation"}</p>;
   }
+
+  const openResponder = (request: Consultation, defaultStatus: ConsultationStatus) => {
+    setRespondDraftId(request.id);
+    setResponseText(request.admin_notes ?? "");
+    setResponseStatus(defaultStatus);
+  };
 
   return (
     <div>
@@ -410,7 +505,7 @@ function Consultations({ fr, consultations, onUpdate }: { fr: boolean; consultat
         </select>
       </div>
       <div className="space-y-4">
-        {filtered.map((request: any) => {
+        {filtered.map((request) => {
           const profile = request.users?.profiles;
           const memberName = profile ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() : (request.users?.email ?? "—");
           return (
@@ -428,31 +523,55 @@ function Consultations({ fr, consultations, onUpdate }: { fr: boolean; consultat
                   )}
                   <p className="text-xs text-muted-foreground mt-1">{request.need}</p>
                   {request.admin_notes && (
-                    <p className="text-xs text-muted-foreground mt-1 italic">{fr ? "Note" : "Note"}: {request.admin_notes}</p>
+                    <p className="text-xs text-muted-foreground mt-1 italic">{fr ? "Réponse" : "Response"}: {request.admin_notes}</p>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
                   {request.status === "pending" && (
-                    <>
-                      <button onClick={() => onUpdate(request.id, { status: "approved" })} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>{fr ? "Approuver" : "Approve"}</button>
-                      <button onClick={() => onUpdate(request.id, { status: "cancelled" })} className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-[#E5484D] text-xs">{fr ? "Rejeter" : "Reject"}</button>
-                    </>
+                    <button onClick={() => openResponder(request, "approved")} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>{fr ? "Approuver" : "Approve"}</button>
                   )}
                   {request.status === "approved" && (
-                    <>
-                      <button onClick={() => onUpdate(request.id, { status: "completed" })} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>{fr ? "Compléter" : "Complete"}</button>
-                      <button onClick={() => onUpdate(request.id, { status: "cancelled" })} className="px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground">{fr ? "Annuler" : "Cancel"}</button>
-                    </>
+                    <button onClick={() => openResponder(request, "completed")} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>{fr ? "Compléter" : "Complete"}</button>
                   )}
-                  <button onClick={() => { setNoteDraftId(request.id); setNoteText(request.admin_notes ?? ""); }} className="px-3 py-1.5 rounded-lg border border-border text-xs">{fr ? "Ajouter Note" : "Add Note"}</button>
+                  {(request.status === "pending" || request.status === "approved") && (
+                    <button onClick={() => openResponder(request, "cancelled")} className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-[#E5484D] text-xs">{fr ? "Rejeter" : "Reject"}</button>
+                  )}
+                  <button onClick={() => openResponder(request, request.status)} className="px-3 py-1.5 rounded-lg border border-border text-xs">{fr ? "Répondre" : "Respond"}</button>
                 </div>
               </div>
-              {noteDraftId === request.id && (
-                <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                  <input value={noteText} onChange={(e) => setNoteText(e.target.value)} className="flex-1 px-3 py-2 rounded-xl border border-border bg-input-background text-sm" placeholder={fr ? "Note interne..." : "Internal note..."} />
-                  <div className="flex gap-2">
-                    <button onClick={() => { onUpdate(request.id, { admin_notes: noteText }); setNoteDraftId(null); }} className="px-3 py-2 rounded-xl text-white text-xs" style={{ background: "#4CAF68" }}>{fr ? "Enregistrer" : "Save"}</button>
-                    <button onClick={() => setNoteDraftId(null)} className="px-3 py-2 rounded-xl border border-border text-xs">{fr ? "Annuler" : "Cancel"}</button>
+              {respondDraftId === request.id && (
+                <div className="mt-4 space-y-2">
+                  <textarea
+                    value={responseText}
+                    onChange={(e) => setResponseText(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-input-background text-sm resize-none"
+                    placeholder={fr ? "Votre réponse..." : "Your response..."}
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                      value={responseStatus}
+                      onChange={(e) => setResponseStatus(e.target.value as ConsultationStatus)}
+                      className="px-3 py-2 rounded-xl border border-border bg-input-background text-sm"
+                    >
+                      <option value="approved">{fr ? "Approuvée" : "Approved"}</option>
+                      <option value="completed">{fr ? "Complétée" : "Completed"}</option>
+                      <option value="cancelled">{fr ? "Annulée" : "Cancelled"}</option>
+                    </select>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (!responseText.trim()) return;
+                          onRespond(request.id, responseText, responseStatus);
+                          setRespondDraftId(null);
+                        }}
+                        className="px-3 py-2 rounded-xl text-white text-xs"
+                        style={{ background: "#4CAF68" }}
+                      >
+                        {fr ? "Envoyer" : "Send"}
+                      </button>
+                      <button onClick={() => setRespondDraftId(null)} className="px-3 py-2 rounded-xl border border-border text-xs">{fr ? "Annuler" : "Cancel"}</button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -464,7 +583,7 @@ function Consultations({ fr, consultations, onUpdate }: { fr: boolean; consultat
   );
 }
 
-function CategoryForm({ fr, mode, formationId, category, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; formationId: string; category?: any; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
+function CategoryForm({ fr, mode, formationId, category, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; formationId: string; category?: FormationCategory; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
   const [saving, setSaving] = useState(false);
   return (
     <form
@@ -493,16 +612,16 @@ function CategoryForm({ fr, mode, formationId, category, onSave, onCancel, onErr
       <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{mode === "create" ? (fr ? "Créer une catégorie" : "Create category") : (fr ? "Modifier la catégorie" : "Edit category")}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field name="name" label={fr ? "Nom" : "Name"} defaultValue={category?.name} />
-        <Field name="name_en" label={fr ? "Nom anglais" : "English name"} defaultValue={category?.name_en} />
+        <Field name="name_en" label={fr ? "Nom anglais" : "English name"} defaultValue={category?.name_en ?? ""} />
         <Field name="color" label={fr ? "Couleur" : "Color"} defaultValue={category?.color ?? "#4CAF68"} />
-        <Field name="description" label="Description" defaultValue={category?.description} />
+        <Field name="description" label="Description" defaultValue={category?.description ?? ""} />
       </div>
       <FormActions fr={fr} onCancel={onCancel} saving={saving} />
     </form>
   );
 }
 
-function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; course?: any; categories: any[]; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
+function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; course?: Course; categories: FormationCategory[]; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
   const [saving, setSaving] = useState(false);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
@@ -513,11 +632,11 @@ function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }:
         const data = new FormData(event.currentTarget);
         setSaving(true);
         try {
-          let coverImagePath = course?.cover_image_path;
-          if (coverFile) coverImagePath = await uploadFormationAsset(coverFile, "covers");
+          let coverImagePath = course?.cover_image_path ?? undefined;
+          if (coverFile) coverImagePath = await uploadCoverImage(coverFile);
           await onSave({
             id: course?.id,
-            category_id: String(data.get("category_id") || categories[0]?.id || null) || null,
+            category_id: String(data.get("category_id") || categories[0]?.id || ""),
             title: String(data.get("title") || ""),
             title_en: String(data.get("title_en") || data.get("title") || ""),
             description: String(data.get("description") || ""),
@@ -541,15 +660,15 @@ function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }:
       <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{mode === "create" ? (fr ? "Créer un cours" : "Create course") : (fr ? "Modifier le cours" : "Edit course")}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field name="title" label={fr ? "Titre" : "Title"} defaultValue={course?.title} />
-        <Field name="title_en" label={fr ? "Titre anglais" : "English title"} defaultValue={course?.title_en} />
-        <SelectField name="category_id" label={fr ? "Catégorie" : "Category"} defaultValue={course?.category_id} options={categories.map((c: any) => ({ value: c.id, label: c.name }))} />
-        <Field name="instructor" label={fr ? "Formateur" : "Instructor"} defaultValue={course?.instructor} />
-        <Field name="duration" label={fr ? "Durée" : "Duration"} defaultValue={course?.duration} />
+        <Field name="title_en" label={fr ? "Titre anglais" : "English title"} defaultValue={course?.title_en ?? ""} />
+        <SelectField name="category_id" label={fr ? "Catégorie" : "Category"} defaultValue={course?.category_id} options={categories.map((c) => ({ value: c.id, label: c.name }))} />
+        <Field name="instructor" label={fr ? "Formateur" : "Instructor"} defaultValue={course?.instructor ?? ""} />
+        <Field name="duration" label={fr ? "Durée" : "Duration"} defaultValue={course?.duration ?? ""} />
         <Field name="lesson_count" label={fr ? "Nombre de leçons" : "Lessons"} type="number" defaultValue={String(course?.lesson_count ?? 1)} />
-        <Field name="level" label={fr ? "Niveau" : "Level"} defaultValue={course?.level} />
+        <Field name="level" label={fr ? "Niveau" : "Level"} defaultValue={course?.level ?? ""} />
         <SelectField name="status" label="Status" defaultValue={course?.status} options={["Draft", "Published", "Archived"].map((s) => ({ value: s, label: s }))} />
       </div>
-      <TextareaField name="description" label={fr ? "Description" : "Description"} defaultValue={course?.description} />
+      <TextareaField name="description" label={fr ? "Description" : "Description"} defaultValue={course?.description ?? ""} />
       <div>
         <label className="text-sm font-medium flex items-center gap-2"><Upload size={14} /> {fr ? "Image de couverture" : "Cover image"}</label>
         <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-[#E8F5EC] dark:file:bg-[#1A3326] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-[#1F9D55] dark:file:text-[#4CAF68]" />
@@ -564,9 +683,20 @@ function CourseForm({ fr, mode, course, categories, onSave, onCancel, onError }:
   );
 }
 
-function ContentForm({ fr, mode, item, courses, onSave, onCancel, onError }: { fr: boolean; mode: Exclude<FormMode, null>; item?: any; courses: any[]; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
+// Cover images aren't handled by an Edge Function (only course/formation
+// documents go through contents-upload) -- upload straight to the
+// formation-assets bucket like before, RLS still allows it for admins/trainers.
+async function uploadCoverImage(file: File): Promise<string> {
+  const ext = file.name.split(".").pop();
+  const path = `covers/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("formation-assets").upload(path, file);
+  if (error) throw error;
+  return supabase.storage.from("formation-assets").getPublicUrl(path).data.publicUrl;
+}
+
+function ContentForm({ fr, courses, onSave, onCancel, onError }: { fr: boolean; courses: Course[]; onSave: (c: any) => void; onCancel: () => void; onError: (m: string) => void }) {
   const [saving, setSaving] = useState(false);
-  const [type, setType] = useState(item?.type ?? "video");
+  const [type, setType] = useState<"video" | "pdf" | "external_link">("video");
   const [file, setFile] = useState<File | null>(null);
 
   return (
@@ -576,26 +706,17 @@ function ContentForm({ fr, mode, item, courses, onSave, onCancel, onError }: { f
         const data = new FormData(event.currentTarget);
         setSaving(true);
         try {
-          let storagePath = item?.storage_path;
-          let fileName = item?.file_name;
-          let fileSize = item?.file_size;
-          if (file && (type === "video" || type === "pdf")) {
-            storagePath = await uploadFormationAsset(file, "content");
-            fileName = file.name;
-            fileSize = formatFileSize(file.size);
+          const title = String(data.get("title") || "");
+          const duration = String(data.get("duration") || "");
+          const course_id = String(data.get("course_id") || courses[0]?.id || "");
+          if (type === "external_link") {
+            const external_url = String(data.get("external_url") || "");
+            if (!external_url) throw new Error(fr ? "URL externe requise" : "External URL is required");
+            await onSave({ course_id, title, duration, external_url });
+          } else {
+            if (!file) throw new Error(fr ? "Fichier requis" : "File is required");
+            await onSave({ course_id, title, duration, file });
           }
-          await onSave({
-            id: item?.id,
-            course_id: String(data.get("course_id") || courses[0]?.id || ""),
-            type,
-            title: String(data.get("title") || ""),
-            duration: String(data.get("duration") || "10 min"),
-            format: type === "video" ? "MP4" : type === "pdf" ? "PDF" : "Link",
-            file_name: fileName ?? null,
-            file_size: fileSize ?? null,
-            storage_path: type === "external_link" ? null : (storagePath ?? null),
-            external_url: type === "external_link" ? String(data.get("external_url") || "") : null,
-          });
         } catch (err: any) {
           onError(err?.message || "Failed to save content");
         } finally {
@@ -604,22 +725,22 @@ function ContentForm({ fr, mode, item, courses, onSave, onCancel, onError }: { f
       }}
       className="mb-6 bg-card rounded-2xl border border-border p-5 space-y-4"
     >
-      <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{mode === "create" ? (fr ? "Ajouter un contenu" : "Add content") : (fr ? "Modifier le contenu" : "Edit content")}</h3>
+      <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Ajouter un contenu" : "Add content"}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <SelectField name="course_id" label={fr ? "Cours lié" : "Linked course"} defaultValue={item?.course_id} options={courses.map((c: any) => ({ value: c.id, label: c.title }))} />
+        <SelectField name="course_id" label={fr ? "Cours lié" : "Linked course"} options={courses.map((c) => ({ value: c.id, label: c.title }))} />
         <div>
           <label className="text-sm font-medium">Type</label>
-          <select value={type} onChange={(e) => setType(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
+          <select value={type} onChange={(e) => setType(e.target.value as typeof type)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40">
             <option value="video">{fr ? "Vidéo" : "Video"}</option>
             <option value="pdf">PDF</option>
             <option value="external_link">{fr ? "Lien externe" : "External link"}</option>
           </select>
         </div>
-        <Field name="title" label={fr ? "Titre" : "Title"} defaultValue={item?.title} />
-        <Field name="duration" label={fr ? "Durée / taille" : "Duration / size"} defaultValue={item?.duration} />
+        <Field name="title" label={fr ? "Titre" : "Title"} />
+        <Field name="duration" label={fr ? "Durée / taille" : "Duration / size"} />
       </div>
       {type === "external_link" ? (
-        <Field name="external_url" label={fr ? "URL externe" : "External URL"} defaultValue={item?.external_url} />
+        <Field name="external_url" label={fr ? "URL externe" : "External URL"} />
       ) : (
         <div>
           <label className="text-sm font-medium flex items-center gap-2"><Upload size={14} /> {fr ? `Fichier (${type === "video" ? "MP4" : "PDF"})` : `File (${type === "video" ? "MP4" : "PDF"})`}</label>
@@ -629,7 +750,7 @@ function ContentForm({ fr, mode, item, courses, onSave, onCancel, onError }: { f
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-[#E8F5EC] dark:file:bg-[#1A3326] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-[#1F9D55] dark:file:text-[#4CAF68]"
           />
-          {item?.file_name && !file && <p className="text-xs text-muted-foreground mt-1">{fr ? "Fichier actuel" : "Current file"}: {item.file_name}</p>}
+          <p className="text-xs text-muted-foreground mt-1">{fr ? "Taille maximale : 10 Mo" : "Maximum size: 10MB"}</p>
         </div>
       )}
       <FormActions fr={fr} onCancel={onCancel} saving={saving} />
@@ -664,12 +785,6 @@ function SelectField({ name, label, defaultValue, options }: { name: string; lab
       </select>
     </div>
   );
-}
-
-function formatFileSize(size: number) {
-  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  if (size >= 1024) return `${Math.round(size / 1024)} KB`;
-  return `${size} B`;
 }
 
 function FormActions({ fr, onCancel, saving }: { fr: boolean; onCancel: () => void; saving: boolean }) {
