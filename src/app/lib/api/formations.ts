@@ -82,6 +82,8 @@ export interface Formation {
   updated_at: string;
   creator?: { first_name: string; last_name: string; email: string } | null;
   formation_courses?: Course[];
+  // Only present on formations-list rows (a flattened count, not the full list).
+  course_count?: number;
 }
 
 export interface Course {

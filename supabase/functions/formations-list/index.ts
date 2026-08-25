@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
     let query = supabase
       .from("formations")
-      .select("*, creator:admins(first_name, last_name, email)", { count: "exact" });
+      .select("*, creator:admins(first_name, last_name, email), formation_courses(count)", { count: "exact" });
 
     if (admin) {
       // Admins/super_admins see everything; an explicit status filter narrows it.
@@ -59,8 +59,17 @@ Deno.serve(async (req) => {
       .range(from, to);
     if (error) throw error;
 
+    // formation_courses(count) comes back as an embedded aggregate array
+    // ([{ count: N }]) -- flatten it into a plain course_count field.
+    const formations = (data ?? []).map((f) => {
+      // deno-lint-ignore no-explicit-any
+      const row = f as any;
+      const { formation_courses, ...rest } = row;
+      return { ...rest, course_count: formation_courses?.[0]?.count ?? 0 };
+    });
+
     return new Response(
-      JSON.stringify({ success: true, formations: data ?? [], total: count ?? 0, page, limit }),
+      JSON.stringify({ success: true, formations, total: count ?? 0, page, limit }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
