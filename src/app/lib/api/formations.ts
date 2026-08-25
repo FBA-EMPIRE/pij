@@ -77,6 +77,8 @@ export interface Formation {
   description_en?: string | null;
   cover_image?: string | null;
   status: FormationStatus;
+  is_paid: boolean;
+  price: number;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -152,6 +154,8 @@ export interface FormationCreateInput {
   description_en?: string;
   cover_image?: string;
   status?: FormationStatus;
+  is_paid?: boolean;
+  price?: number;
 }
 
 export interface FormationUpdateInput {
@@ -161,6 +165,8 @@ export interface FormationUpdateInput {
   description_en?: string;
   cover_image?: string;
   status?: FormationStatus;
+  is_paid?: boolean;
+  price?: number;
 }
 
 export interface FormationListParams {

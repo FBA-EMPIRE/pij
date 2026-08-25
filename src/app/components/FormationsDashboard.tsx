@@ -205,6 +205,7 @@ export default function FormationsDashboard() {
 
 function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr: boolean; mode: "create" | "edit"; formation?: any; onSave: (f: any) => void; onCancel: () => void; onError: (m: string) => void }) {
   const [saving, setSaving] = useState(false);
+  const [isPaid, setIsPaid] = useState(!!formation?.is_paid);
   return (
     <form
       onSubmit={async (event) => {
@@ -212,6 +213,10 @@ function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr:
         const data = new FormData(event.currentTarget);
         setSaving(true);
         try {
+          const price = Number(data.get("price") || 0);
+          if (isPaid && !(price > 0)) {
+            throw new Error(fr ? "Le prix doit être supérieur à 0 pour une formation payante." : "Price must be greater than 0 for a paid formation.");
+          }
           await onSave({
             id: formation?.id,
             title: String(data.get("title") || ""),
@@ -219,6 +224,8 @@ function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr:
             description: String(data.get("description") || ""),
             description_en: String(data.get("description_en") || data.get("description") || ""),
             status: String(data.get("status") || "Draft"),
+            is_paid: isPaid,
+            price: isPaid ? price : 0,
           });
         } catch (err: any) {
           onError(err?.message || "Failed to save formation");
@@ -248,7 +255,23 @@ function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr:
             <option value="Archived">{fr ? "Archivée" : "Archived"}</option>
           </select>
         </div>
+        <div>
+          <label className="text-sm font-medium">{fr ? "Prix (XAF)" : "Price (XAF)"}</label>
+          <input
+            name="price"
+            type="number"
+            min={0}
+            step="0.01"
+            disabled={!isPaid}
+            defaultValue={formation?.price ?? 0}
+            className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 disabled:opacity-50"
+          />
+        </div>
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={isPaid} onChange={(e) => setIsPaid(e.target.checked)} className="rounded border-border accent-[#4CAF68]" />
+        {fr ? "Formation payante" : "Paid formation"}
+      </label>
       <div>
         <label className="text-sm font-medium">Description</label>
         <textarea name="description" defaultValue={formation?.description} rows={3} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" />

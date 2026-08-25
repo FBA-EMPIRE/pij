@@ -37,6 +37,8 @@ Deno.serve(async (req) => {
         description_en: validated.description_en ?? null,
         cover_image: validated.cover_image ?? null,
         status: validated.status ?? "Draft",
+        is_paid: validated.is_paid ?? false,
+        price: validated.price ?? 0,
         created_by: userId,
       })
       .select()

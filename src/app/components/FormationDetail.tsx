@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Archive, ArrowLeft, CheckCircle, FileText, Loader2, Pencil, Plus, Trash2, Upload, Video, Link as LinkIcon } from "lucide-react";
+import { Archive, ArrowLeft, CheckCircle, FileText, Loader2, Pencil, Plus, Trash2, Upload, Video, Link as LinkIcon, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { FormationForm } from "./FormationsDashboard";
@@ -12,7 +12,7 @@ import {
   type Content as ContentItem, type Consultation, type ConsultationStatus,
 } from "../lib/api/formations";
 
-type TabKey = "courses" | "content" | "consultations";
+type TabKey = "courses" | "content" | "consultations" | "settings";
 type FormMode = "create" | "edit" | null;
 
 interface DetailState {
@@ -31,7 +31,6 @@ export default function FormationDetail() {
   const [tab, setTab] = useState<TabKey>("courses");
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingFormation, setEditingFormation] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const [data, setData] = useState<DetailState | null>(null);
@@ -96,10 +95,11 @@ export default function FormationDetail() {
 
   const { formation, courses, contents, consultations } = data;
 
-  const tabs: { key: TabKey; label: string; count: number }[] = [
+  const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: "courses", label: fr ? "Cours" : "Courses", count: courses.length },
     { key: "content", label: fr ? "Contenus" : "Content", count: contents.length },
     { key: "consultations", label: fr ? "Consultations" : "Consultations", count: consultations.length },
+    { key: "settings", label: fr ? "Paramètres" : "Settings" },
   ];
 
   const handleSetStatus = async (status: "Draft" | "Published" | "Archived") => {
@@ -150,7 +150,7 @@ export default function FormationDetail() {
           <p className="text-sm text-muted-foreground max-w-2xl">{fr ? formation.description : (formation.description_en || formation.description)}</p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
-          <button onClick={() => setEditingFormation(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground">
+          <button onClick={() => setTab("settings")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground">
             <Pencil size={13} /> {fr ? "Modifier" : "Edit"}
           </button>
           {formation.status !== "Published" && (
@@ -177,26 +177,11 @@ export default function FormationDetail() {
         </div>
       </div>
 
-      {editingFormation && (
-        <FormationForm
-          fr={fr}
-          mode="edit"
-          formation={formation}
-          onCancel={() => setEditingFormation(false)}
-          onError={(msg: string) => { setError(msg); toast.error(msg); }}
-          onSave={async (fields: any) => {
-            const { id: fid, ...patch } = fields;
-            const res = await formationsApi.update(fid, patch);
-            if (!res.success) throw new Error(res.error || "Failed to update formation");
-            toast.success(fr ? "Formation mise à jour" : "Formation updated");
-            await loadAll();
-            setEditingFormation(false);
-          }}
-        />
-      )}
-
       <div className="bg-card rounded-2xl border border-border px-5 py-3 mb-6 text-sm text-muted-foreground">
         {courses.length} {fr ? "Cours" : "Courses"} · {contents.length} {fr ? "Contenus" : "Content"} · {consultations.length} {fr ? "Demandes" : "Requests"}
+        {formation.is_paid && (
+          <> · <span className="text-[#4CAF68] font-medium">{formation.price.toLocaleString(fr ? "fr-FR" : "en-US")} XAF</span></>
+        )}
       </div>
 
       <div className="flex gap-2 mb-6 overflow-x-auto">
@@ -207,54 +192,64 @@ export default function FormationDetail() {
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border whitespace-nowrap ${tab === t.key ? "bg-[#4CAF68] text-white border-[#4CAF68]" : "bg-card border-border text-muted-foreground"}`}
           >
             {t.label}
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${tab === t.key ? "bg-white/20" : "bg-muted"}`}>{t.count}</span>
+            {t.count !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${tab === t.key ? "bg-white/20" : "bg-muted"}`}>{t.count}</span>
+            )}
           </button>
         ))}
       </div>
 
-      {tab !== "consultations" && !formMode && (
+      {tab !== "consultations" && tab !== "settings" && !formMode && (
         <div className="flex justify-end mb-4">
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>
             <Plus size={16} />
-            {tab === "courses" && (fr ? "Ajouter un Cours" : "Add a Course")}
-            {tab === "content" && (fr ? "Ajouter un Contenu" : "Add Content")}
+            {tab === "courses" && (fr ? "Ajouter un cours" : "Add a course")}
+            {tab === "content" && (fr ? "Ajouter un fichier" : "Add a file")}
           </button>
         </div>
       )}
 
       {formMode && tab === "courses" && (
-        <CourseForm
-          fr={fr}
-          mode={formMode}
-          course={courses.find((c) => c.id === editingId)}
-          onCancel={closeForm}
-          onError={(msg: string) => { setError(msg); toast.error(msg); }}
-          onSave={async (fields: any) => {
-            const { id: courseId, ...patch } = fields;
-            const res = courseId
-              ? await coursesApi.update(courseId, patch)
-              : await coursesApi.create({ formation_id: formation.id, ...patch });
-            if (!res.success) throw new Error(res.error || "Failed to save course");
-            toast.success(fr ? "Cours enregistré" : "Course saved");
-            await loadAll();
-            closeForm();
-          }}
-        />
+        <Modal
+          title={formMode === "create" ? (fr ? "Créer un cours" : "Create course") : (fr ? "Modifier le cours" : "Edit course")}
+          onClose={closeForm}
+          maxWidth="max-w-2xl"
+        >
+          <CourseForm
+            fr={fr}
+            mode={formMode}
+            course={courses.find((c) => c.id === editingId)}
+            onCancel={closeForm}
+            onError={(msg: string) => { setError(msg); toast.error(msg); }}
+            onSave={async (fields: any) => {
+              const { id: courseId, ...patch } = fields;
+              const res = courseId
+                ? await coursesApi.update(courseId, patch)
+                : await coursesApi.create({ formation_id: formation.id, ...patch });
+              if (!res.success) throw new Error(res.error || "Failed to save course");
+              toast.success(fr ? "Cours enregistré" : "Course saved");
+              await loadAll();
+              closeForm();
+            }}
+          />
+        </Modal>
       )}
       {formMode === "create" && tab === "content" && (
-        <ContentForm
-          fr={fr}
-          courses={courses}
-          onCancel={closeForm}
-          onError={(msg: string) => { setError(msg); toast.error(msg); }}
-          onSave={async (fields: any) => {
-            const res = await contentsApi.upload(fields);
-            if (!res.success) throw new Error(res.error || "Failed to upload content");
-            toast.success(fr ? "Contenu ajouté" : "Content added");
-            await loadAll();
-            closeForm();
-          }}
-        />
+        <Modal title={fr ? "Ajouter un fichier" : "Add a file"} onClose={closeForm} maxWidth="max-w-lg">
+          <ContentForm
+            fr={fr}
+            courses={courses}
+            onCancel={closeForm}
+            onError={(msg: string) => { setError(msg); toast.error(msg); }}
+            onSave={async (fields: any) => {
+              const res = await contentsApi.upload(fields);
+              if (!res.success) throw new Error(res.error || "Failed to upload content");
+              toast.success(fr ? "Contenu ajouté" : "Content added");
+              await loadAll();
+              closeForm();
+            }}
+          />
+        </Modal>
       )}
 
       {tab === "courses" && (
@@ -313,6 +308,41 @@ export default function FormationDetail() {
           }}
         />
       )}
+      {tab === "settings" && (
+        <FormationForm
+          fr={fr}
+          mode="edit"
+          formation={formation}
+          onCancel={() => setTab("courses")}
+          onError={(msg: string) => { setError(msg); toast.error(msg); }}
+          onSave={async (fields: any) => {
+            const { id: fid, ...patch } = fields;
+            const res = await formationsApi.update(fid, patch);
+            if (!res.success) throw new Error(res.error || "Failed to update formation");
+            toast.success(fr ? "Formation mise à jour" : "Formation updated");
+            await loadAll();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Shared modal chrome for "add"/"edit" forms opened on top of a tab
+// (course create/edit, content upload, consultation response) --
+// matches the confirm-dialog pattern already used elsewhere in the app.
+function Modal({ title, onClose, children, maxWidth = "max-w-lg" }: { title: string; onClose: () => void; children: React.ReactNode; maxWidth?: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
+      <div className={`bg-card rounded-2xl border border-border w-full ${maxWidth} shadow-2xl my-8`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h3 className="text-base" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-all">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
     </div>
   );
 }
@@ -361,6 +391,7 @@ function Content({ fr, contents, courses, onDelete }: { fr: boolean; contents: C
             <div className="space-y-2">
               {items.map((item) => {
                 const Icon = icon(item.type);
+                const href = item.external_url || item.storage_path || undefined;
                 return (
                   <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
                     <div className="w-9 h-9 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] flex items-center justify-center shrink-0">
@@ -368,8 +399,18 @@ function Content({ fr, contents, courses, onDelete }: { fr: boolean; contents: C
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{item.format} · {item.duration}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.type} · {item.format} · {item.duration}</p>
                     </div>
+                    {href && (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground shrink-0"
+                      >
+                        <Download size={12} /> {fr ? "Télécharger" : "Download"}
+                      </a>
+                    )}
                     <button onClick={() => onDelete(item.id)} className="px-3 py-1.5 rounded-lg border border-border text-xs text-[#E5484D] shrink-0">{fr ? "Supprimer" : "Delete"}</button>
                   </div>
                 );
@@ -384,8 +425,8 @@ function Content({ fr, contents, courses, onDelete }: { fr: boolean; contents: C
 
 // consultations-respond is the only write endpoint available for requests --
 // it always sets admin_notes + status together, so the previous one-click
-// Approve/Complete/Cancel/Note actions are merged into a single "respond"
-// form that collects both at once.
+// Approve/Complete/Cancel/Note actions are merged into a single "Répondre"
+// modal that collects both at once.
 function Consultations({ fr, consultations, onRespond }: { fr: boolean; consultations: Consultation[]; onRespond: (id: string, response: string, status: ConsultationStatus) => void }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [respondDraftId, setRespondDraftId] = useState<string | null>(null);
@@ -398,6 +439,7 @@ function Consultations({ fr, consultations, onRespond }: { fr: boolean; consulta
     completed: consultations.filter((c) => c.status === "completed").length,
   };
   const filtered = statusFilter === "all" ? consultations : consultations.filter((c) => c.status === statusFilter);
+  const activeRequest = consultations.find((c) => c.id === respondDraftId) ?? null;
 
   if (consultations.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucune demande de consultation pour cette formation" : "No consultation requests for this formation"}</p>;
@@ -446,58 +488,64 @@ function Consultations({ fr, consultations, onRespond }: { fr: boolean; consulta
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
-                  {request.status === "pending" && (
-                    <button onClick={() => openResponder(request, "approved")} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>{fr ? "Approuver" : "Approve"}</button>
-                  )}
-                  {request.status === "approved" && (
-                    <button onClick={() => openResponder(request, "completed")} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>{fr ? "Compléter" : "Complete"}</button>
-                  )}
-                  {(request.status === "pending" || request.status === "approved") && (
-                    <button onClick={() => openResponder(request, "cancelled")} className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-[#E5484D] text-xs">{fr ? "Rejeter" : "Reject"}</button>
-                  )}
-                  <button onClick={() => openResponder(request, request.status)} className="px-3 py-1.5 rounded-lg border border-border text-xs">{fr ? "Répondre" : "Respond"}</button>
+                  <button onClick={() => openResponder(request, request.status === "pending" ? "approved" : request.status === "approved" ? "completed" : request.status)} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>
+                    {fr ? "Répondre" : "Respond"}
+                  </button>
                 </div>
               </div>
-              {respondDraftId === request.id && (
-                <div className="mt-4 space-y-2">
-                  <textarea
-                    value={responseText}
-                    onChange={(e) => setResponseText(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-input-background text-sm resize-none"
-                    placeholder={fr ? "Votre réponse..." : "Your response..."}
-                  />
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <select
-                      value={responseStatus}
-                      onChange={(e) => setResponseStatus(e.target.value as ConsultationStatus)}
-                      className="px-3 py-2 rounded-xl border border-border bg-input-background text-sm"
-                    >
-                      <option value="approved">{fr ? "Approuvée" : "Approved"}</option>
-                      <option value="completed">{fr ? "Complétée" : "Completed"}</option>
-                      <option value="cancelled">{fr ? "Annulée" : "Cancelled"}</option>
-                    </select>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          if (!responseText.trim()) return;
-                          onRespond(request.id, responseText, responseStatus);
-                          setRespondDraftId(null);
-                        }}
-                        className="px-3 py-2 rounded-xl text-white text-xs"
-                        style={{ background: "#4CAF68" }}
-                      >
-                        {fr ? "Envoyer" : "Send"}
-                      </button>
-                      <button onClick={() => setRespondDraftId(null)} className="px-3 py-2 rounded-xl border border-border text-xs">{fr ? "Annuler" : "Cancel"}</button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
       </div>
+
+      {activeRequest && (
+        <Modal title={fr ? "Répondre à la demande" : "Respond to request"} onClose={() => setRespondDraftId(null)} maxWidth="max-w-lg">
+          <div className="space-y-3">
+            <div className="text-xs text-muted-foreground bg-muted/30 rounded-xl p-3">
+              <p className="font-medium text-foreground">{activeRequest.users?.email}</p>
+              <p className="mt-1">{activeRequest.need}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">{fr ? "Réponse" : "Response"}</label>
+              <textarea
+                value={responseText}
+                onChange={(e) => setResponseText(e.target.value)}
+                rows={4}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+                placeholder={fr ? "Votre réponse..." : "Your response..."}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">{fr ? "Statut" : "Status"}</label>
+              <select
+                value={responseStatus}
+                onChange={(e) => setResponseStatus(e.target.value as ConsultationStatus)}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
+              >
+                <option value="approved">{fr ? "Approuvée" : "Approved"}</option>
+                <option value="completed">{fr ? "Complétée" : "Completed"}</option>
+                <option value="cancelled">{fr ? "Annulée" : "Cancelled"}</option>
+              </select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (!responseText.trim()) return;
+                  onRespond(activeRequest.id, responseText, responseStatus);
+                  setRespondDraftId(null);
+                }}
+                className="px-5 py-2.5 rounded-xl text-white text-sm font-medium"
+                style={{ background: "#4CAF68" }}
+              >
+                {fr ? "Envoyer" : "Send"}
+              </button>
+              <button onClick={() => setRespondDraftId(null)} className="px-5 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground">
+                {fr ? "Annuler" : "Cancel"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -535,9 +583,8 @@ function CourseForm({ fr, mode, course, onSave, onCancel, onError }: { fr: boole
           setSaving(false);
         }
       }}
-      className="mb-6 bg-card rounded-2xl border border-border p-5 space-y-4"
+      className="space-y-4"
     >
-      <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{mode === "create" ? (fr ? "Créer un cours" : "Create course") : (fr ? "Modifier le cours" : "Edit course")}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field name="title" label={fr ? "Titre" : "Title"} defaultValue={course?.title} />
         <Field name="title_en" label={fr ? "Titre anglais" : "English title"} defaultValue={course?.title_en ?? ""} />
@@ -557,7 +604,7 @@ function CourseForm({ fr, mode, course, onSave, onCancel, onError }: { fr: boole
         <input type="checkbox" name="featured" defaultChecked={course?.featured} className="rounded border-border accent-[#4CAF68]" />
         {fr ? "Mettre en avant" : "Featured"}
       </label>
-      <FormActions fr={fr} onCancel={onCancel} saving={saving} />
+      <FormActions fr={fr} onCancel={onCancel} saving={saving} mode={mode} />
     </form>
   );
 }
@@ -602,9 +649,8 @@ function ContentForm({ fr, courses, onSave, onCancel, onError }: { fr: boolean; 
           setSaving(false);
         }
       }}
-      className="mb-6 bg-card rounded-2xl border border-border p-5 space-y-4"
+      className="space-y-4"
     >
-      <h3 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{fr ? "Ajouter un contenu" : "Add content"}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SelectField name="course_id" label={fr ? "Cours lié" : "Linked course"} options={courses.map((c) => ({ value: c.id, label: c.title }))} />
         <div>
@@ -632,7 +678,7 @@ function ContentForm({ fr, courses, onSave, onCancel, onError }: { fr: boolean; 
           <p className="text-xs text-muted-foreground mt-1">{fr ? "Taille maximale : 10 Mo" : "Maximum size: 10MB"}</p>
         </div>
       )}
-      <FormActions fr={fr} onCancel={onCancel} saving={saving} />
+      <FormActions fr={fr} onCancel={onCancel} saving={saving} mode="create" />
     </form>
   );
 }
@@ -666,12 +712,14 @@ function SelectField({ name, label, defaultValue, options }: { name: string; lab
   );
 }
 
-function FormActions({ fr, onCancel, saving }: { fr: boolean; onCancel: () => void; saving: boolean }) {
+function FormActions({ fr, onCancel, saving, mode }: { fr: boolean; onCancel: () => void; saving: boolean; mode: "create" | "edit" }) {
   return (
     <div className="flex flex-col sm:flex-row gap-3 pt-2">
       <button type="button" onClick={onCancel} className="px-5 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground">{fr ? "Annuler" : "Cancel"}</button>
       <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50" style={{ background: "#4CAF68" }}>
-        {saving ? (fr ? "Enregistrement..." : "Saving...") : (fr ? "Enregistrer" : "Save")}
+        {saving
+          ? (fr ? "Enregistrement..." : "Saving...")
+          : mode === "create" ? (fr ? "Ajouter" : "Add") : (fr ? "Enregistrer" : "Save")}
       </button>
     </div>
   );

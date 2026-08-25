@@ -264,6 +264,22 @@ export function validateInvitationId(body: Record<string, unknown>) {
 const FORMATION_STATUSES = ["Draft", "Published", "Archived"] as const;
 type FormationStatus = typeof FORMATION_STATUSES[number];
 
+function validatePricing(body: Record<string, unknown>): { is_paid?: boolean; price?: number } {
+  const result: { is_paid?: boolean; price?: number } = {};
+  if (body.is_paid !== undefined) {
+    if (typeof body.is_paid !== "boolean") throw new Error("is_paid must be a boolean");
+    result.is_paid = body.is_paid;
+  }
+  if (body.price !== undefined) {
+    if (typeof body.price !== "number" || body.price < 0) throw new Error("price must be a non-negative number");
+    result.price = body.price;
+  }
+  if ((result.is_paid ?? body.is_paid) === true && !((result.price ?? body.price) as number > 0)) {
+    throw new Error("price must be greater than 0 when is_paid is true");
+  }
+  return result;
+}
+
 export function validateFormationCreate(body: Record<string, unknown>) {
   if (!body.title || typeof body.title !== "string") {
     throw new Error("title is required and must be a string");
@@ -276,13 +292,19 @@ export function validateFormationCreate(body: Record<string, unknown>) {
       throw new Error(`${field} must be a string if provided`);
     }
   }
-  return body as {
+  const pricing = validatePricing(body);
+  return {
+    ...body,
+    ...pricing,
+  } as {
     title: string;
     title_en?: string;
     description?: string;
     description_en?: string;
     cover_image?: string;
     status?: FormationStatus;
+    is_paid?: boolean;
+    price?: number;
   };
 }
 
@@ -302,6 +324,20 @@ export function validateFormationUpdate(body: Record<string, unknown>) {
       throw new Error(`status must be one of: ${FORMATION_STATUSES.join(", ")}`);
     }
     patch.status = body.status;
+  }
+  if (body.is_paid !== undefined) {
+    if (typeof body.is_paid !== "boolean") throw new Error("is_paid must be a boolean");
+    patch.is_paid = body.is_paid;
+  }
+  if (body.price !== undefined) {
+    if (typeof body.price !== "number" || body.price < 0) throw new Error("price must be a non-negative number");
+    patch.price = body.price;
+  }
+  // Only enforced when both are patched together -- if is_paid alone is
+  // flipped to true, the formations_price_when_paid DB constraint is the
+  // backstop against an existing price of 0.
+  if (patch.is_paid === true && body.price !== undefined && !((patch.price as number) > 0)) {
+    throw new Error("price must be greater than 0 when is_paid is true");
   }
   if (Object.keys(patch).length === 0) {
     throw new Error("At least one field to update must be provided");
