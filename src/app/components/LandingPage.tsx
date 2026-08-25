@@ -2,13 +2,33 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   ArrowRight, Shield, TrendingUp, Users, Zap, Globe, ChevronDown, ChevronUp,
-  CheckCircle, Star, Sun, Moon
+  CheckCircle, Star, Sun, Moon, Loader2, Megaphone
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import heroBgImage from "../../../images/background 1.jpeg";
 import { useAppContext } from "../context/AppContext";
 import { fetchDashboardStats } from "../lib/supabase/queries";
 import { formatXAF } from "../lib/format";
+import { announcementsApi, type Announcement, type AnnouncementType } from "../lib/api/announcements";
+
+const ANNOUNCEMENT_TYPE_STYLES: Record<AnnouncementType, { bg: string; text: string; labelFr: string; labelEn: string }> = {
+  formation: { bg: "bg-[#E8F5EC] dark:bg-[#1A3326]", text: "text-[#1F9D55] dark:text-[#4CAF68]", labelFr: "Formation", labelEn: "Formation" },
+  tontine: { bg: "bg-[#F0E8FF] dark:bg-[#2A1B3D]", text: "text-[#6E3A9A] dark:text-[#9B6FCA]", labelFr: "Tontine", labelEn: "Tontine" },
+  investment: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-600 dark:text-blue-400", labelFr: "Investissement", labelEn: "Investment" },
+  general: { bg: "bg-gray-100 dark:bg-gray-800", text: "text-gray-500 dark:text-gray-400", labelFr: "Général", labelEn: "General" },
+};
+
+// Every one of these lives behind ProtectedRoute -- an anonymous visitor
+// clicking through gets bounced to /login like any other protected link.
+// There's no per-formation public route (member Formations.tsx only
+// keys by course id, not formation id), so this links to the general
+// section rather than a specific entity.
+const ANNOUNCEMENT_TYPE_LINK: Record<AnnouncementType, string | null> = {
+  formation: "/formations",
+  tontine: "/marketplace",
+  investment: "/investissements",
+  general: null,
+};
 
 const FEATURES = [
   { icon: Shield, title: "KYC Sécurisé", titleEn: "Secure KYC", desc: "Vérification d'identité numérique rapide et sécurisée pour accéder à tous les services PIJ.", descEn: "Fast, secure digital identity verification to access all PIJ services." },
@@ -45,9 +65,20 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const fr = lang === "fr";
   const [stats, setStats] = useState({ memberCount: 0, tontineCount: 0, totalSavings: 0 });
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats().then(setStats).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    announcementsApi.list({ limit: 5 })
+      .then((res) => {
+        if (res.success && res.data) setAnnouncements(res.data.data);
+      })
+      .catch(console.error)
+      .finally(() => setAnnouncementsLoading(false));
   }, []);
 
   return (
@@ -59,6 +90,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
             <PIJLogo variant="full" size="md" theme={darkMode ? "dark" : "light"} />
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+              <a href="#announcements" className="hover:text-foreground transition-colors">{fr ? "Annonces" : "Announcements"}</a>
               <a href="#features" className="hover:text-foreground transition-colors">{fr ? "Fonctionnalités" : "Features"}</a>
               <a href="#how" className="hover:text-foreground transition-colors">{fr ? "Comment ça marche" : "How it works"}</a>
               <a href="#testimonials" className="hover:text-foreground transition-colors">{fr ? "Témoignages" : "Testimonials"}</a>
@@ -127,6 +159,64 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Announcements */}
+        <section id="announcements" className="py-20">
+          <div className="max-w-7xl mx-auto px-4 lg:px-8">
+            <div className="text-center mb-14">
+              <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Annonces" : "Announcements"}</h2>
+              <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
+                {fr ? "Les dernières nouvelles du programme : formations, tontines et investissements." : "The latest program news: formations, tontines and investments."}
+              </p>
+            </div>
+            {announcementsLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="animate-spin text-muted-foreground" size={24} />
+              </div>
+            ) : announcements.length === 0 ? (
+              <div className="text-center py-10">
+                <Megaphone size={28} className="mx-auto mb-3 text-muted-foreground" />
+                <p className="text-muted-foreground">{fr ? "Aucune annonce pour le moment" : "No announcements yet"}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {announcements.map((a) => {
+                  const style = ANNOUNCEMENT_TYPE_STYLES[a.type];
+                  const linkTo = ANNOUNCEMENT_TYPE_LINK[a.type];
+                  return (
+                    <div key={a.id} className="p-5 rounded-2xl border border-border bg-card hover:border-[#4CAF68]/40 transition-all">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+                          {fr ? style.labelFr : style.labelEn}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(a.published_at).toLocaleDateString(fr ? "fr-FR" : "en-US", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                      <h3 className="mb-1.5" style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 600 }}>{a.title}</h3>
+                      {a.description && (
+                        <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3">{a.description}</p>
+                      )}
+                      {a.reference && (
+                        <p className="text-xs text-[#6E3A9A] mb-3">{fr ? a.reference.title : (a.reference.title_en || a.reference.title)}</p>
+                      )}
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground truncate">
+                          {fr ? "Par" : "By"} {a.author.name || a.author.email || (fr ? "Équipe PIJ" : "PIJ Team")}
+                        </p>
+                        {linkTo && (
+                          <button onClick={() => navigate(linkTo)} className="shrink-0 flex items-center gap-1 text-xs text-[#4CAF68] font-medium hover:underline">
+                            {fr ? "En savoir plus" : "Learn more"} <ArrowRight size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
 
