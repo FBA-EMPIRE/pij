@@ -4,16 +4,17 @@ import { Archive, ArrowLeft, CheckCircle, Loader2, Pencil, Plus, Trash2 } from "
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { FormationForm } from "./FormationsDashboard";
-import { Modal } from "./formations/Modal";
 import CourseForm from "./formations/CourseForm";
 import CourseCard from "./formations/CourseCard";
 import ContentUpload from "./formations/ContentUpload";
 import ContentItem from "./formations/ContentItem";
+import ConsultationCard from "./formations/ConsultationCard";
+import ConsultationResponse from "./formations/ConsultationResponse";
 import { useAppContext } from "../context/AppContext";
 import {
   formationsApi, coursesApi, contentsApi, consultationsApi,
   type Formation, type Course,
-  type Content as ContentItemType, type Consultation, type ConsultationStatus,
+  type Content as ContentItemType, type Consultation,
 } from "../lib/api/formations";
 
 type TabKey = "courses" | "content" | "consultations" | "settings";
@@ -168,19 +169,6 @@ export default function FormationDetail() {
     }
   };
 
-  const handleRespond = async (itemId: string, response: string, status: ConsultationStatus) => {
-    try {
-      const res = await consultationsApi.respond(itemId, response, status);
-      if (!res.success) throw new Error(res.error || "Failed to respond");
-      toast.success(fr ? "Réponse envoyée" : "Response sent");
-      await loadAll();
-    } catch (err: any) {
-      const message = err?.message || "Failed to respond";
-      setError(message);
-      toast.error(message);
-    }
-  };
-
   return (
     <div className="p-4 lg:p-6">
       <button onClick={() => navigate(basePath)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
@@ -325,7 +313,7 @@ export default function FormationDetail() {
         )
       )}
       {tab === "consultations" && (
-        <Consultations fr={fr} consultations={consultations} onRespond={handleRespond} />
+        <Consultations fr={fr} formationId={formation.id} consultations={consultations} onChanged={loadAll} />
       )}
       {tab === "settings" && (
         <FormationForm
@@ -347,15 +335,9 @@ export default function FormationDetail() {
   );
 }
 
-// consultations-respond is the only write endpoint available for requests --
-// it always sets admin_notes + status together, so the previous one-click
-// Approve/Complete/Cancel/Note actions are merged into a single "Répondre"
-// modal that collects both at once.
-function Consultations({ fr, consultations, onRespond }: { fr: boolean; consultations: Consultation[]; onRespond: (id: string, response: string, status: ConsultationStatus) => void }) {
+function Consultations({ fr, formationId, consultations, onChanged }: { fr: boolean; formationId: string; consultations: Consultation[]; onChanged: () => Promise<void> }) {
   const [statusFilter, setStatusFilter] = useState("all");
-  const [respondDraftId, setRespondDraftId] = useState<string | null>(null);
-  const [responseText, setResponseText] = useState("");
-  const [responseStatus, setResponseStatus] = useState<ConsultationStatus>("approved");
+  const [respondId, setRespondId] = useState<string | null>(null);
 
   const counts = {
     pending: consultations.filter((c) => c.status === "pending").length,
@@ -363,112 +345,38 @@ function Consultations({ fr, consultations, onRespond }: { fr: boolean; consulta
     completed: consultations.filter((c) => c.status === "completed").length,
   };
   const filtered = statusFilter === "all" ? consultations : consultations.filter((c) => c.status === statusFilter);
-  const activeRequest = consultations.find((c) => c.id === respondDraftId) ?? null;
 
   if (consultations.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-10">{fr ? "Aucune demande de consultation pour cette formation" : "No consultation requests for this formation"}</p>;
   }
 
-  const openResponder = (request: Consultation, defaultStatus: ConsultationStatus) => {
-    setRespondDraftId(request.id);
-    setResponseText(request.admin_notes ?? "");
-    setResponseStatus(defaultStatus);
-  };
-
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <p className="text-sm text-muted-foreground">
-          {counts.pending} {fr ? "En attente" : "Pending"} · {counts.approved} {fr ? "Approuvées" : "Approved"} · {counts.completed} {fr ? "Complétées" : "Completed"}
+          {counts.pending} {fr ? "En attente" : "Pending"} · {counts.approved} {fr ? "Répondues" : "Responded"} · {counts.completed} {fr ? "Résolues" : "Resolved"}
         </p>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-xl border border-border bg-input-background text-sm">
           <option value="all">{fr ? "Tous les statuts" : "All statuses"}</option>
           <option value="pending">{fr ? "En attente" : "Pending"}</option>
-          <option value="approved">{fr ? "Approuvée" : "Approved"}</option>
-          <option value="completed">{fr ? "Complétée" : "Completed"}</option>
-          <option value="cancelled">{fr ? "Annulée" : "Cancelled"}</option>
+          <option value="approved">{fr ? "Répondu" : "Responded"}</option>
+          <option value="completed">{fr ? "Résolu" : "Resolved"}</option>
+          <option value="cancelled">{fr ? "Fermé" : "Closed"}</option>
         </select>
       </div>
       <div className="space-y-4">
-        {filtered.map((request) => {
-          const profile = request.users?.profiles;
-          const memberName = profile ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() : (request.users?.email ?? "—");
-          return (
-            <div key={request.id} className="bg-card rounded-2xl border border-border p-5">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-sm font-semibold">{memberName}</h3>
-                    <StatusBadge status={(request.status ?? "pending") as any} size="sm" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">{request.users?.email}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{fr ? "Demandé le" : "Requested"}: {request.created_at?.slice(0, 10)}</p>
-                  {request.course && (
-                    <p className="text-xs text-[#6E3A9A] mt-0.5">{fr ? "Concernant" : "Regarding"}: {fr ? request.course.title : (request.course.title_en || request.course.title)}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">{request.need}</p>
-                  {request.admin_notes && (
-                    <p className="text-xs text-muted-foreground mt-1 italic">{fr ? "Réponse" : "Response"}: {request.admin_notes}</p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2 shrink-0">
-                  <button onClick={() => openResponder(request, request.status === "pending" ? "approved" : request.status === "approved" ? "completed" : request.status)} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: "#4CAF68" }}>
-                    {fr ? "Répondre" : "Respond"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {filtered.map((request) => (
+          <ConsultationCard key={request.id} consultation={request} onRespond={() => setRespondId(request.id)} />
+        ))}
       </div>
 
-      {activeRequest && (
-        <Modal title={fr ? "Répondre à la demande" : "Respond to request"} onClose={() => setRespondDraftId(null)} maxWidth="max-w-lg">
-          <div className="space-y-3">
-            <div className="text-xs text-muted-foreground bg-muted/30 rounded-xl p-3">
-              <p className="font-medium text-foreground">{activeRequest.users?.email}</p>
-              <p className="mt-1">{activeRequest.need}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium">{fr ? "Réponse" : "Response"}</label>
-              <textarea
-                value={responseText}
-                onChange={(e) => setResponseText(e.target.value)}
-                rows={4}
-                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
-                placeholder={fr ? "Votre réponse..." : "Your response..."}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">{fr ? "Statut" : "Status"}</label>
-              <select
-                value={responseStatus}
-                onChange={(e) => setResponseStatus(e.target.value as ConsultationStatus)}
-                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40"
-              >
-                <option value="approved">{fr ? "Approuvée" : "Approved"}</option>
-                <option value="completed">{fr ? "Complétée" : "Completed"}</option>
-                <option value="cancelled">{fr ? "Annulée" : "Cancelled"}</option>
-              </select>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => {
-                  if (!responseText.trim()) return;
-                  onRespond(activeRequest.id, responseText, responseStatus);
-                  setRespondDraftId(null);
-                }}
-                className="px-5 py-2.5 rounded-xl text-white text-sm font-medium"
-                style={{ background: "#4CAF68" }}
-              >
-                {fr ? "Envoyer" : "Send"}
-              </button>
-              <button onClick={() => setRespondDraftId(null)} className="px-5 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground">
-                {fr ? "Annuler" : "Cancel"}
-              </button>
-            </div>
-          </div>
-        </Modal>
+      {respondId && (
+        <ConsultationResponse
+          consultationId={respondId}
+          formationId={formationId}
+          onCancel={() => setRespondId(null)}
+          onSuccess={async () => { await onChanged(); setRespondId(null); }}
+        />
       )}
     </div>
   );
