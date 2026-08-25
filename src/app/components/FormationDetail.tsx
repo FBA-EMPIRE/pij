@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { Archive, ArrowLeft, CheckCircle, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
@@ -29,8 +29,13 @@ interface DetailState {
 export default function FormationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { lang } = useAppContext();
   const fr = lang === "fr";
+  // Mounted at both /admin/formations/:id (admins) and
+  // /trainer/formations/:id (trainers) -- "back" must return to whichever
+  // list page this instance was actually reached from.
+  const basePath = location.pathname.startsWith("/trainer") ? "/trainer/formations" : "/admin/formations";
 
   const [tab, setTab] = useState<TabKey>("courses");
   const [formMode, setFormMode] = useState<FormMode>(null);
@@ -91,7 +96,7 @@ export default function FormationDetail() {
   if (!data?.formation) {
     return (
       <div className="p-4 lg:p-6">
-        <button onClick={() => navigate("/admin/formations")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
+        <button onClick={() => navigate(basePath)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft size={16} /> {fr ? "Retour aux Formations" : "Back to Formations"}
         </button>
         <p className="text-muted-foreground">{error || (fr ? "Formation introuvable" : "Formation not found")}</p>
@@ -128,7 +133,7 @@ export default function FormationDetail() {
       const res = await formationsApi.remove(formation.id);
       if (!res.success) throw new Error(res.error || "Failed to delete formation");
       toast.success(fr ? "Formation supprimée" : "Formation deleted");
-      navigate("/admin/formations");
+      navigate(basePath);
     } catch (err: any) {
       const message = err?.message || "Failed to delete formation";
       setError(message);
@@ -178,7 +183,7 @@ export default function FormationDetail() {
 
   return (
     <div className="p-4 lg:p-6">
-      <button onClick={() => navigate("/admin/formations")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
+      <button onClick={() => navigate(basePath)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
         <ArrowLeft size={16} /> {fr ? "Retour aux Formations" : "Back to Formations"}
       </button>
 

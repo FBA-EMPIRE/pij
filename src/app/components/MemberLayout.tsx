@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, CreditCard, Users, User,
   LogOut, Menu, X, Sun, Moon, ChevronRight,
-  TrendingUp, Settings, BookOpen, Shield, Landmark
+  TrendingUp, Settings, BookOpen, Shield, Landmark, GraduationCap
 } from "lucide-react";
 import { PIJLogo } from "./PIJLogo";
 import { useAppContext } from "../context/AppContext";
@@ -81,6 +81,23 @@ export function MemberLayout({ children }: MemberLayoutProps) {
                 </Link>
               );
             })}
+            {userProfile?.role === "formateur" && (
+              <div className="pt-3 mt-3 border-t border-sidebar-border">
+                <Link
+                  to="/trainer/formations"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm transition-all duration-150 ${
+                    location.pathname.startsWith("/trainer/formations")
+                      ? "bg-[#4CAF68]/15 text-[#4CAF68] font-medium"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  }`}
+                >
+                  <GraduationCap size={18} />
+                  {lang === "fr" ? "Mes Formations" : "My Formations"}
+                  {location.pathname.startsWith("/trainer/formations") && <ChevronRight size={14} className="ml-auto" />}
+                </Link>
+              </div>
+            )}
             {(userProfile?.role === "admin" || userProfile?.role === "super_admin") && (
               <div className="pt-3 mt-3 border-t border-sidebar-border">
                 <Link

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { ArrowLeft, BookOpen, CheckCircle, FileText, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
@@ -8,9 +8,14 @@ import { formationsApi, type Formation } from "../lib/api/formations";
 
 export default function FormationsDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { lang, userProfile } = useAppContext();
   const fr = lang === "fr";
   const isFormateur = userProfile?.role === "formateur";
+  // Mounted at both /admin/formations (admins) and /trainer/formations
+  // (trainers, who never see the admin portal at all) -- link targets
+  // must follow whichever base the page is actually running under.
+  const basePath = location.pathname.startsWith("/trainer") ? "/trainer/formations" : "/admin/formations";
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -185,7 +190,7 @@ export default function FormationsDashboard() {
                   )}
                 </div>
               </div>
-              <button onClick={() => navigate(`/admin/formations/${formation.id}`)} className="text-left w-full">
+              <button onClick={() => navigate(`${basePath}/${formation.id}`)} className="text-left w-full">
                 <h3 className="text-sm font-semibold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? formation.title : (formation.title_en || formation.title)}</h3>
                 <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{fr ? formation.description : (formation.description_en || formation.description)}</p>
                 <div className="flex items-center justify-between mt-3">

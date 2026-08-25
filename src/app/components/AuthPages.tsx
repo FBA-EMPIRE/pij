@@ -123,13 +123,12 @@ export function LoginPage() {
     }
 
     // Route by role right away instead of waiting on AppContext's async
-    // profile fetch to catch up -- formateurs land in their formations
-    // workspace, admins/super_admins in the admin portal, everyone else
-    // in the member dashboard.
+    // profile fetch to catch up. A formateur is a regular member with one
+    // extra permission, not an admin -- they land in the same member
+    // dashboard as everyone else, plus a "Mes Formations" sidebar entry.
     const { data: role } = await supabase.rpc("current_admin_role");
     setLoading(false);
-    if (role === "formateur") navigate("/admin/formations");
-    else if (role === "admin" || role === "super_admin") navigate("/admin/dashboard");
+    if (role === "admin" || role === "super_admin") navigate("/admin/dashboard");
     else navigate("/dashboard");
   };
 
