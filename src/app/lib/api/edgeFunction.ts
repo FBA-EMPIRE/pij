@@ -46,14 +46,32 @@ export async function invokeEdgeFunction<T>(
       requestBody = JSON.stringify(body);
     }
 
-    const res = await fetch(url, { method, headers, body: requestBody });
+    let res: Response;
+    try {
+      res = await fetch(url, { method, headers, body: requestBody });
+    } catch (fetchErr) {
+      // The browser's own "Failed to fetch" / "NetworkError" -- thrown
+      // before any HTTP response exists, so res.status is never seen.
+      // Almost always means: the function isn't deployed at this project
+      // (a 404 from Supabase's gateway carries no CORS headers, which the
+      // browser reports as this same generic failure), a CORS mismatch,
+      // or no network/DNS reachability. Logged with the exact URL so it's
+      // immediately checkable in the Network tab or via a manual curl.
+      console.error(`[invokeEdgeFunction] ${method} ${url} failed before a response was received`, fetchErr);
+      throw fetchErr;
+    }
+
     const json = await res.json().catch(() => null);
 
     if (!res.ok || !json?.success) {
-      return { success: false, error: json?.error || `Request failed (${res.status})` };
+      const message = json?.error || `Request failed (${res.status})`;
+      console.error(`[invokeEdgeFunction] ${method} ${url} -> ${res.status}`, { message, body: json });
+      return { success: false, error: message };
     }
     return { success: true, data: json as T };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Network error" };
+    const message = err instanceof Error ? err.message : "Network error";
+    console.error(`[invokeEdgeFunction] ${name} threw:`, err);
+    return { success: false, error: message };
   }
 }
