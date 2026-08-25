@@ -116,12 +116,21 @@ export function LoginPage() {
     }
     setLoading(true);
     const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (signInErr) {
+      setLoading(false);
       setError(friendlyAuthError(signInErr.message, fr));
       return;
     }
-    navigate("/dashboard");
+
+    // Route by role right away instead of waiting on AppContext's async
+    // profile fetch to catch up -- formateurs land in their formations
+    // workspace, admins/super_admins in the admin portal, everyone else
+    // in the member dashboard.
+    const { data: role } = await supabase.rpc("current_admin_role");
+    setLoading(false);
+    if (role === "formateur") navigate("/admin/formations");
+    else if (role === "admin" || role === "super_admin") navigate("/admin/dashboard");
+    else navigate("/dashboard");
   };
 
   return (
@@ -187,12 +196,6 @@ export function LoginPage() {
           {fr ? "Pas encore membre ?" : "Not a member yet?"}{" "}
           <button onClick={() => navigate("/register")} className="text-[#4CAF68] font-medium hover:underline">
             {fr ? "S'inscrire" : "Sign up"}
-          </button>
-        </p>
-        <p className="text-center text-xs text-muted-foreground/60 mt-4">
-          {fr ? "Accès admin ?" : "Admin access?"}{" "}
-          <button onClick={() => navigate("/admin/dashboard")} className="text-[#6E3A9A] hover:underline">
-            {fr ? "Portail Admin →" : "Admin Portal →"}
           </button>
         </p>
       </div>
