@@ -8,6 +8,7 @@ export {
   validateTontineMemberAction,
   validateAdminId,
   validateFormateurAction,
+  validateFormateurRequestReview,
   validateInvitationId,
   validateAdminInvite,
   validateInvestmentAdjustment,

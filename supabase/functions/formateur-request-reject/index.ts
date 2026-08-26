@@ -1,7 +1,6 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
-import { validateFormateurAction } from "../_shared/validators.ts";
+import { validateFormateurRequestReview } from "../_shared/validators.ts";
 import { getCallerAdmin, requireSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
-import { assignFormateurRole, revokeFormateurRole } from "../_shared/formateur.ts";
 import { createNotification } from "../_shared/notifications.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -25,24 +24,31 @@ Deno.serve(async (req) => {
     requireSuperAdmin(caller);
 
     const body = await req.json();
-    const { user_id, action } = validateFormateurAction(body);
+    const { request_id, admin_notes } = validateFormateurRequestReview(body);
 
-    if (action === "assign") {
-      await assignFormateurRole(supabase, user_id);
-      await createNotification(supabase, {
-        userId: user_id, type: "role_change",
-        title: "Vous avez été promu Formateur",
-        message: "Un administrateur vous a promu Formateur. Déconnectez-vous puis reconnectez-vous pour accéder à votre espace Formateur.",
-      });
-      await logAudit(supabase, {
-        actorId: caller.id, action: "Formateur Assigned", entityType: "user", entityId: user_id,
-      });
-    } else {
-      await revokeFormateurRole(supabase, user_id);
-      await logAudit(supabase, {
-        actorId: caller.id, action: "Formateur Revoked", entityType: "user", entityId: user_id,
-      });
-    }
+    const { data: request, error } = await supabase
+      .from("formateur_requests").select("id, user_id, status").eq("id", request_id).maybeSingle();
+    if (error) throw error;
+    if (!request) throw new Error("Request not found");
+    if ((request as any).status !== "pending") throw new Error("Request is not pending");
+
+    await supabase.from("formateur_requests").update({
+      status: "rejected", admin_notes: admin_notes ?? null,
+      reviewed_by: caller.id, reviewed_at: new Date().toISOString(),
+    }).eq("id", request_id);
+
+    await createNotification(supabase, {
+      userId: (request as any).user_id, type: "role_change",
+      title: "Votre demande de formateur a été refusée",
+      message: admin_notes
+        ? `Votre demande pour devenir Formateur a été refusée. Motif : ${admin_notes}`
+        : "Votre demande pour devenir Formateur a été refusée.",
+    });
+
+    await logAudit(supabase, {
+      actorId: caller.id, action: "Formateur Request Rejected", entityType: "formateur_request",
+      entityId: request_id, metadata: { user_id: (request as any).user_id },
+    });
 
     return new Response(
       JSON.stringify({ success: true }),
