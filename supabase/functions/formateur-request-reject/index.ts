@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     await logAudit(supabase, {
       actorId: caller.id, action: "Formateur Request Rejected", entityType: "formateur_request",
-      entityId: request_id, metadata: { user_id: (request as any).user_id },
+      entityId: request_id, metadata: { user_id: (request as any).user_id, admin_notes: admin_notes ?? null },
     });
 
     return new Response(
