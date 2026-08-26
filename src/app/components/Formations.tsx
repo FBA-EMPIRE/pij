@@ -5,7 +5,7 @@ import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
 import {
-  getCurrentUserId, fetchFormationCategories, fetchFormationCourses, fetchFormationContent,
+  getCurrentUserId, fetchFormations, fetchFormationCourses, fetchFormationContent,
   fetchMyEnrollments, fetchMyCompletions, ensureEnrolled, markContentComplete, unmarkContentComplete,
 } from "../lib/supabase/queries";
 
@@ -20,7 +20,7 @@ const consultationTypes = [
 
 export default function Formations({ view = "dashboard" }: FormationsProps) {
   const { lang } = useAppContext();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [formations, setFormations] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [contents, setContents] = useState<any[]>([]);
   const [consultations, setConsultations] = useState<any[]>([]);
@@ -41,14 +41,14 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
   useEffect(() => {
     (async () => {
       try {
-        const [cats, crs, conts, consults, uid] = await Promise.all([
-          fetchFormationCategories(),
+        const [allFormations, crs, conts, consults, uid] = await Promise.all([
+          fetchFormations(),
           fetchFormationCourses({ publishedOnly: true }),
           fetchFormationContent(),
           supabase.from("consultation_requests").select("*, course:formation_courses(title, title_en)"),
           getCurrentUserId().catch(() => null),
         ]);
-        setCategories(cats);
+        setFormations(allFormations.filter((f: any) => f.status === "Published"));
         setContents(conts);
         setConsultations(consults.data ?? []);
         setUserId(uid);
@@ -87,10 +87,10 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
   if (view === "course") return <CourseDetail courses={courses} contents={contents} completions={completions} onEnroll={handleEnroll} onToggleComplete={handleToggleComplete} />;
   if (view === "learning") return <MyLearning courses={courses} />;
   if (view === "consultation") return <ConsultationRequest consultations={consultations} onRefresh={refreshConsultations} />;
-  return <FormationDashboard categories={categories} courses={courses} />;
+  return <FormationDashboard formations={formations} courses={courses} />;
 }
 
-function FormationDashboard({ categories, courses }: { categories: any[]; courses: any[] }) {
+function FormationDashboard({ formations, courses }: { formations: any[]; courses: any[] }) {
   const { lang } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
@@ -135,14 +135,14 @@ function FormationDashboard({ categories, courses }: { categories: any[]; course
       )}
 
       <section className="mb-8">
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold text-[#4CAF68]" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Catégories" : "Categories"}</h2><span className="text-xs text-muted-foreground">{fr ? "Découverte en 1 clic" : "Discover in 1 click"}</span></div>
+        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold text-[#4CAF68]" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Formations" : "Formations"}</h2><span className="text-xs text-muted-foreground">{fr ? "Découverte en 1 clic" : "Discover in 1 click"}</span></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {categories.length ? categories.map((cat: any) => (
-            <button key={cat.id} onClick={() => navigate(`/formations/courses/${courses.find((c: any) => c.category_id === cat.id)?.id ?? ""}`)} className="bg-card rounded-2xl border border-border p-5 text-left hover:border-[#4CAF68]/40 transition-all">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: `${cat.color}20` }}><BookOpen size={18} color={cat.color} /></div>
-              <p className="font-semibold text-sm">{fr ? cat.name : cat.name_en}</p><p className="text-xs text-muted-foreground mt-1">{cat.description}</p>
+          {formations.length ? formations.map((formation: any) => (
+            <button key={formation.id} onClick={() => navigate(`/formations/courses/${courses.find((c: any) => c.formation_id === formation.id)?.id ?? ""}`)} className="bg-card rounded-2xl border border-border p-5 text-left hover:border-[#4CAF68]/40 transition-all">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-[#4CAF68]/15"><BookOpen size={18} color="#4CAF68" /></div>
+              <p className="font-semibold text-sm">{fr ? formation.title : (formation.title_en || formation.title)}</p><p className="text-xs text-muted-foreground mt-1">{fr ? formation.description : (formation.description_en || formation.description)}</p>
             </button>
-          )) : <p className="text-sm text-muted-foreground col-span-full text-center py-8">{fr ? "Aucune catégorie disponible" : "No categories available"}</p>}
+          )) : <p className="text-sm text-muted-foreground col-span-full text-center py-8">{fr ? "Aucune formation disponible" : "No formations available"}</p>}
         </div>
       </section>
 

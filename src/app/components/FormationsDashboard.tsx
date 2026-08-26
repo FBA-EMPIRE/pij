@@ -1,27 +1,43 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { ArrowLeft, BookOpen, Loader2, Plus } from "lucide-react";
+import { useLocation, useNavigate } from "react-router";
+import { ArrowLeft, BookOpen, CheckCircle, FileText, Loader2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
-import { fetchFormations, saveFormation } from "../lib/supabase/queries";
+import { formationsApi, type Formation } from "../lib/api/formations";
 
 export default function FormationsDashboard() {
   const navigate = useNavigate();
-  const { lang } = useAppContext();
+  const location = useLocation();
+  const { lang, userProfile } = useAppContext();
   const fr = lang === "fr";
-  const [formations, setFormations] = useState<any[]>([]);
+  const isFormateur = userProfile?.role === "formateur";
+  // Mounted at both /admin/formations (admins) and /trainer/formations
+  // (trainers, who never see the admin portal at all) -- link targets
+  // must follow whichever base the page is actually running under.
+  const basePath = location.pathname.startsWith("/trainer") ? "/trainer/formations" : "/admin/formations";
+  const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      setFormations(await fetchFormations());
+      // Trainers only ever manage what they created; admins/super_admins see everything.
+      const res = await formationsApi.list({
+        trainer_id: isFormateur ? userProfile?.id : undefined,
+        limit: 100,
+      });
+      if (!res.success || !res.data) throw new Error(res.error || "Failed to load formations");
+      setFormations(res.data.formations);
     } catch (err: any) {
-      setError(err?.message || "Failed to load formations");
+      const message = err?.message || "Failed to load formations";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -30,6 +46,21 @@ export default function FormationsDashboard() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await formationsApi.remove(id);
+      if (!res.success) throw new Error(res.error || "Failed to delete formation");
+      toast.success(fr ? "Formation supprimée" : "Formation deleted");
+      await loadAll();
+    } catch (err: any) {
+      const message = err?.message || "Failed to delete formation";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
 
   const filtered = formations.filter((f: any) => {
     const matchesSearch = !search || f.title.toLowerCase().includes(search.toLowerCase());
@@ -41,7 +72,6 @@ export default function FormationsDashboard() {
     total: formations.length,
     published: formations.filter((f: any) => f.status === "Published").length,
     draft: formations.filter((f: any) => f.status === "Draft").length,
-    archived: formations.filter((f: any) => f.status === "Archived").length,
   };
 
   if (loading) {
@@ -58,15 +88,28 @@ export default function FormationsDashboard() {
         <ArrowLeft size={20} className="text-muted-foreground" />
       </button>
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>{fr ? "Gestion des Formations" : "Formation Management"}</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {counts.total} {fr ? "au total" : "total"} · {counts.published} {fr ? "publiées" : "published"} · {counts.draft} {fr ? "brouillons" : "drafts"} · {counts.archived} {fr ? "archivées" : "archived"}
-          </p>
-        </div>
+        <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>
+          {isFormateur ? (fr ? "Mes Formations" : "My Formations") : (fr ? "Gestion des Formations" : "Formation Management")}
+        </h2>
         <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium shrink-0" style={{ background: "#4CAF68" }}>
-          <Plus size={16} /> {fr ? "Créer une Formation" : "Create a Formation"}
+          <Plus size={16} /> {fr ? "Créer une formation" : "Create a formation"}
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[
+          { label: fr ? "Total formations" : "Total formations", value: counts.total, icon: BookOpen },
+          { label: fr ? "Publiées" : "Published", value: counts.published, icon: CheckCircle },
+          { label: fr ? "Brouillons" : "Drafts", value: counts.draft, icon: FileText },
+        ].map((s) => (
+          <div key={s.label} className="bg-card rounded-2xl border border-border p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">{s.label}</p>
+              <s.icon size={18} color="#4CAF68" />
+            </div>
+            <p className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "Geist Mono, monospace" }}>{s.value}</p>
+          </div>
+        ))}
       </div>
 
       {error && (
@@ -93,9 +136,11 @@ export default function FormationsDashboard() {
           fr={fr}
           mode="create"
           onCancel={() => setShowCreate(false)}
-          onError={setError}
+          onError={(msg: string) => { setError(msg); toast.error(msg); }}
           onSave={async (fields: any) => {
-            await saveFormation(fields);
+            const res = await formationsApi.create(fields);
+            if (!res.success) throw new Error(res.error || "Failed to create formation");
+            toast.success(fr ? "Formation créée" : "Formation created");
             await loadAll();
             setShowCreate(false);
           }}
@@ -107,32 +152,55 @@ export default function FormationsDashboard() {
           <BookOpen size={32} className="mx-auto mb-3 text-muted-foreground" />
           <p className="font-medium">{fr ? "Aucune formation créée" : "No formations yet"}</p>
           <p className="text-sm text-muted-foreground mt-1 mb-4">
-            {fr ? 'Cliquez sur "Créer une Formation" pour commencer.' : 'Click "Create a Formation" to get started.'}
+            {fr ? 'Cliquez sur "Créer une formation" pour commencer.' : 'Click "Create a formation" to get started.'}
           </p>
           {!showCreate && (
             <button onClick={() => setShowCreate(true)} className="px-4 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "#4CAF68" }}>
-              {fr ? "Créer une Formation" : "Create a Formation"}
+              {fr ? "Créer une formation" : "Create a formation"}
             </button>
           )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((formation: any) => (
-            <button
-              key={formation.id}
-              onClick={() => navigate(`/admin/formations/${formation.id}`)}
-              className="text-left bg-card rounded-2xl border border-border p-5 hover:border-[#4CAF68]/40 transition-all"
-            >
+            <div key={formation.id} className="bg-card rounded-2xl border border-border p-5 hover:border-[#4CAF68]/40 transition-all">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="w-10 h-10 rounded-xl bg-[#E8F5EC] dark:bg-[#1A3326] flex items-center justify-center shrink-0">
                   <BookOpen size={18} color="#4CAF68" />
                 </div>
-                <StatusBadge status={formation.status as any} size="sm" />
+                <div className="flex items-center gap-1.5">
+                  <StatusBadge status={formation.status as any} size="sm" />
+                  {confirmDeleteId === formation.id ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleDelete(formation.id)} className="text-[10px] px-1.5 py-1 rounded-md text-white font-medium" style={{ background: "#E5484D" }}>
+                        {fr ? "Oui" : "Yes"}
+                      </button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] px-1.5 py-1 rounded-md border border-border">
+                        {fr ? "Non" : "No"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(formation.id)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-[#E5484D] hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      aria-label={fr ? "Supprimer" : "Delete"}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <h3 className="text-sm font-semibold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? formation.title : (formation.title_en || formation.title)}</h3>
-              <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{fr ? formation.description : (formation.description_en || formation.description)}</p>
-              <p className="text-[10px] text-muted-foreground mt-3">{fr ? "Créée le" : "Created"} {formation.created_at?.slice(0, 10)}</p>
-            </button>
+              <button onClick={() => navigate(`${basePath}/${formation.id}`)} className="text-left w-full">
+                <h3 className="text-sm font-semibold" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? formation.title : (formation.title_en || formation.title)}</h3>
+                <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{fr ? formation.description : (formation.description_en || formation.description)}</p>
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-[10px] text-muted-foreground">{fr ? "Créée le" : "Created"} {formation.created_at?.slice(0, 10)}</p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <BookOpen size={10} /> {formation.course_count ?? 0} {fr ? "cours" : "courses"}
+                  </p>
+                </div>
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -142,6 +210,7 @@ export default function FormationsDashboard() {
 
 function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr: boolean; mode: "create" | "edit"; formation?: any; onSave: (f: any) => void; onCancel: () => void; onError: (m: string) => void }) {
   const [saving, setSaving] = useState(false);
+  const [isPaid, setIsPaid] = useState(!!formation?.is_paid);
   return (
     <form
       onSubmit={async (event) => {
@@ -149,6 +218,10 @@ function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr:
         const data = new FormData(event.currentTarget);
         setSaving(true);
         try {
+          const price = Number(data.get("price") || 0);
+          if (isPaid && !(price > 0)) {
+            throw new Error(fr ? "Le prix doit être supérieur à 0 pour une formation payante." : "Price must be greater than 0 for a paid formation.");
+          }
           await onSave({
             id: formation?.id,
             title: String(data.get("title") || ""),
@@ -156,6 +229,8 @@ function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr:
             description: String(data.get("description") || ""),
             description_en: String(data.get("description_en") || data.get("description") || ""),
             status: String(data.get("status") || "Draft"),
+            is_paid: isPaid,
+            price: isPaid ? price : 0,
           });
         } catch (err: any) {
           onError(err?.message || "Failed to save formation");
@@ -185,7 +260,23 @@ function FormationForm({ fr, mode, formation, onSave, onCancel, onError }: { fr:
             <option value="Archived">{fr ? "Archivée" : "Archived"}</option>
           </select>
         </div>
+        <div>
+          <label className="text-sm font-medium">{fr ? "Prix (XAF)" : "Price (XAF)"}</label>
+          <input
+            name="price"
+            type="number"
+            min={0}
+            step="0.01"
+            disabled={!isPaid}
+            defaultValue={formation?.price ?? 0}
+            className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 disabled:opacity-50"
+          />
+        </div>
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={isPaid} onChange={(e) => setIsPaid(e.target.checked)} className="rounded border-border accent-[#4CAF68]" />
+        {fr ? "Formation payante" : "Paid formation"}
+      </label>
       <div>
         <label className="text-sm font-medium">Description</label>
         <textarea name="description" defaultValue={formation?.description} rows={3} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" />

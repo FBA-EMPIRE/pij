@@ -31,6 +31,7 @@ import AdminNotifications from "./components/AdminNotifications";
 import AdminAdministrators from "./components/AdminAdministrators";
 import AdminInviteAccept from "./components/AdminInviteAccept";
 import SuperAdminRoute from "./components/SuperAdminRoute";
+import RoleGuard from "./components/RoleGuard";
 import Formations from "./components/Formations";
 import Investments from "./components/Investments";
 import Loans from "./components/Loans";
@@ -86,7 +87,6 @@ function AdminSettingsPlaceholder() {
 function RoleDashboard() {
   const { userProfile } = useAppContext();
   if (userProfile?.role === "super_admin") return <SuperAdminDashboard />;
-  if (userProfile?.role === "formateur") return <Navigate to="/admin/formations" replace />;
   return <AdminDashboard />;
 }
 
@@ -308,14 +308,48 @@ export default function App() {
             }
           />
 
-          {/* Admin portal */}
+          {/* Trainer workspace -- a formateur is a regular member with one
+              extra permission, so this renders inside MemberLayout (same
+              sidebar as everyone else) rather than the admin portal.
+              Admins can also reach it directly; regular members can't. */}
+          <Route
+            path="/trainer/formations"
+            element={
+              <ProtectedRoute >
+                <RoleGuard allow={["formateur", "admin", "super_admin"]}>
+                  <MemberLayout>
+                    <FormationsDashboard />
+                  </MemberLayout>
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trainer/formations/:id"
+            element={
+              <ProtectedRoute >
+                <RoleGuard allow={["formateur", "admin", "super_admin"]}>
+                  <MemberLayout>
+                    <FormationDetail />
+                  </MemberLayout>
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin portal -- admins/super_admins only; every route below is
+              wrapped in RoleGuard so a formateur or regular member hitting
+              one of these URLs directly gets bounced, not just hidden from
+              the nav. */}
           <Route
             path="/admin/dashboard"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <RoleDashboard />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <RoleDashboard />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -323,9 +357,11 @@ export default function App() {
             path="/admin/users"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <UserManagement />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <UserManagement />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -333,9 +369,11 @@ export default function App() {
             path="/admin/kyc"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <KYCReview />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <KYCReview />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -343,9 +381,11 @@ export default function App() {
             path="/admin/accounts"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AccountManagement />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AccountManagement />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -353,9 +393,11 @@ export default function App() {
             path="/admin/tontines"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminTontines />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminTontines />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -363,9 +405,11 @@ export default function App() {
             path="/admin/tontines/:id"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminTontineDetail />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminTontineDetail />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -373,9 +417,11 @@ export default function App() {
             path="/admin/tontines/:id/participants"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminTontineParticipants />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminTontineParticipants />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -383,9 +429,11 @@ export default function App() {
             path="/admin/tontine-types"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminTontineTypes />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminTontineTypes />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -393,9 +441,11 @@ export default function App() {
             path="/admin/tontines/archives"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminTontineArchives />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminTontineArchives />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -403,9 +453,11 @@ export default function App() {
             path="/admin/formations"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <FormationsDashboard />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <FormationsDashboard />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -413,9 +465,11 @@ export default function App() {
             path="/admin/formations/:id"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <FormationDetail />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <FormationDetail />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -423,9 +477,11 @@ export default function App() {
             path="/admin/investissements"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminInvestments />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminInvestments />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -433,9 +489,11 @@ export default function App() {
             path="/admin/loans"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminLoans />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminLoans />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -443,9 +501,11 @@ export default function App() {
             path="/admin/reports"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminReports />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminReports />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -453,11 +513,13 @@ export default function App() {
             path="/admin/admins"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <SuperAdminRoute>
-                    <AdminAdministrators />
-                  </SuperAdminRoute>
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <SuperAdminRoute>
+                      <AdminAdministrators />
+                    </SuperAdminRoute>
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -465,11 +527,13 @@ export default function App() {
             path="/admin/audit"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <SuperAdminRoute>
-                    <AuditLogs />
-                  </SuperAdminRoute>
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <SuperAdminRoute>
+                      <AuditLogs />
+                    </SuperAdminRoute>
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -477,9 +541,11 @@ export default function App() {
             path="/admin/notifications"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminNotifications />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminNotifications />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -487,9 +553,11 @@ export default function App() {
             path="/admin/profile"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <AdminProfile />
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <AdminProfile />
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -497,11 +565,13 @@ export default function App() {
             path="/admin/monitoring"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <SuperAdminRoute>
-                    <SystemMonitoring />
-                  </SuperAdminRoute>
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <SuperAdminRoute>
+                      <SystemMonitoring />
+                    </SuperAdminRoute>
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />
@@ -509,11 +579,13 @@ export default function App() {
             path="/admin/settings"
             element={
               <ProtectedRoute >
-                <AdminLayout>
-                  <SuperAdminRoute>
-                    <AdminSettingsPlaceholder />
-                  </SuperAdminRoute>
-                </AdminLayout>
+                <RoleGuard allow={["admin", "super_admin"]}>
+                  <AdminLayout>
+                    <SuperAdminRoute>
+                      <AdminSettingsPlaceholder />
+                    </SuperAdminRoute>
+                  </AdminLayout>
+                </RoleGuard>
               </ProtectedRoute>
             }
           />

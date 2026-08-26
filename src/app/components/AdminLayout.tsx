@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard, Users, ShieldCheck, Wallet, TrendingUp,
@@ -74,25 +74,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isSuperAdmin = userProfile?.role === "super_admin";
-  const isFormateur = userProfile?.role === "formateur";
 
-  const visibleGroups = isFormateur
-    ? [{
-        group: "Analytiques", groupEn: "Analytics", items: [
-          { icon: BookOpen, label: "Formations", labelEn: "Formations", path: "/admin/formations" },
-        ],
-      }]
-    : navGroups.map((group) => ({
-        ...group,
-        items: group.superOnly && !isSuperAdmin ? [] : group.items,
-      })).filter((g) => g.items.length > 0);
-
-  // A formateur is restricted to the Formations module — bounce them off any other admin route.
-  useEffect(() => {
-    if (isFormateur && !location.pathname.startsWith("/admin/formations") && location.pathname !== "/admin/profile") {
-      navigate("/admin/formations", { replace: true });
-    }
-  }, [isFormateur, location.pathname, navigate]);
+  // Only admins/super_admins ever reach this layout now -- a RoleGuard
+  // wrapping every /admin/* route in App.tsx keeps formateurs and regular
+  // members out before AdminLayout even renders.
+  const visibleGroups = navGroups.map((group) => ({
+    ...group,
+    items: group.superOnly && !isSuperAdmin ? [] : group.items,
+  })).filter((g) => g.items.length > 0);
 
   return (
     <div className={`min-h-screen flex ${darkMode ? "dark" : ""}`} style={{ fontFamily: "Inter, sans-serif" }}>
