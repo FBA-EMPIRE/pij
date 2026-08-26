@@ -1,9 +1,10 @@
 import { Shield, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useAppContext } from "../context/AppContext";
+import type { AdminRole } from "../types";
 
 interface RoleGuardProps {
-  allow: string[];
+  allow: AdminRole[];
   fallbackPath?: string;
   children: React.ReactNode;
 }
@@ -19,7 +20,7 @@ export default function RoleGuard({ allow, fallbackPath = "/dashboard", children
 
   if (profileLoading) return null;
 
-  if (!userProfile || !allow.includes(userProfile.role ?? "")) {
+  if (!userProfile || !(allow as string[]).includes(userProfile.role ?? "")) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <div className="max-w-sm text-center">
