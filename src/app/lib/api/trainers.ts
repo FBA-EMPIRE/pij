@@ -1,4 +1,5 @@
 import { supabase } from "../supabase/client";
+import { invokeEdgeFunction } from "./edgeFunction";
 import type { FormateurRequest } from "../../types";
 
 export interface FormateurActionResult {
@@ -34,14 +35,26 @@ export const trainerService = {
   assign: (userId: string) => callAssignFormateur(userId, "assign"),
   revoke: (userId: string) => callAssignFormateur(userId, "revoke"),
 
-  // Client submits their own request directly (RLS-permitted insert, no
-  // Edge Function needed -- same pattern as consultation_requests).
-  submitRequest: async (message: string): Promise<FormateurActionResult> => {
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) return { success: false, error: "Not authenticated" };
-    const { error } = await supabase.from("formateur_requests").insert({ user_id: userId, message });
-    if (error) return { success: false, error: error.message };
+  // Goes through the formateur-request-submit Edge Function (not a direct
+  // RLS insert like the old message-only version) because it now also
+  // coordinates uploading 1-3 supporting documents and writing their rows
+  // -- see corrective_implementation_plan.md Phase 3.
+  submitRequest: async (params: {
+    name: string;
+    email: string;
+    category: string;
+    message?: string;
+    files: File[];
+  }): Promise<FormateurActionResult> => {
+    const form = new FormData();
+    form.set("name", params.name);
+    form.set("email", params.email);
+    form.set("category", params.category);
+    if (params.message) form.set("message", params.message);
+    for (const file of params.files) form.append("files", file);
+
+    const result = await invokeEdgeFunction<{ request: FormateurRequest }>("formateur-request-submit", { body: form });
+    if (!result.success) return { success: false, error: result.error || "Unknown error" };
     return { success: true };
   },
 

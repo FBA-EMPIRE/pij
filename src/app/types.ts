@@ -7,6 +7,9 @@ export type FormateurRequestStatus = "pending" | "approved" | "rejected";
 export interface FormateurRequest {
   id: string;
   user_id: string;
+  applicant_name: string;
+  applicant_email: string;
+  category: string;
   message: string;
   status: FormateurRequestStatus;
   admin_notes: string | null;
@@ -14,6 +17,15 @@ export interface FormateurRequest {
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FormateurRequestDocument {
+  id: string;
+  request_id: string;
+  storage_path: string;
+  file_name: string;
+  file_size: string | null;
+  created_at: string;
 }
 
 export interface Admin {

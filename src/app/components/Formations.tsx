@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
-import { Award, BookOpen, CheckCircle, ChevronRight, Clock, FileText, GraduationCap, Play, Send, Star, Users, ArrowLeft, Video, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
+import { Award, BookOpen, CheckCircle, ChevronRight, Clock, FileText, GraduationCap, Play, Send, Star, Users, ArrowLeft, Video, Link as LinkIcon, Upload, X } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { supabase } from "../lib/supabase/client";
+import { trainerService } from "../lib/api/trainers";
+import type { FormateurRequest } from "../types";
 import {
   getCurrentUserId, fetchFormations, fetchFormationCourses, fetchFormationContent,
   fetchMyEnrollments, fetchMyCompletions, ensureEnrolled, markContentComplete, unmarkContentComplete,
 } from "../lib/supabase/queries";
 
-interface FormationsProps { view?: "dashboard" | "course" | "learning" | "consultation"; }
+interface FormationsProps { view?: "dashboard" | "course" | "learning" | "consultation" | "trainer"; }
 
 const consultationTypes = [
   { fr: "Mentorat", en: "Mentorship" },
@@ -87,13 +90,15 @@ export default function Formations({ view = "dashboard" }: FormationsProps) {
   if (view === "course") return <CourseDetail courses={courses} contents={contents} completions={completions} onEnroll={handleEnroll} onToggleComplete={handleToggleComplete} />;
   if (view === "learning") return <MyLearning courses={courses} />;
   if (view === "consultation") return <ConsultationRequest consultations={consultations} onRefresh={refreshConsultations} />;
+  if (view === "trainer") return <BecomeTrainerRequest />;
   return <FormationDashboard formations={formations} courses={courses} />;
 }
 
 function FormationDashboard({ formations, courses }: { formations: any[]; courses: any[] }) {
-  const { lang } = useAppContext();
+  const { lang, userProfile } = useAppContext();
   const fr = lang === "fr";
   const navigate = useNavigate();
+  const isAlreadyStaff = userProfile?.role === "formateur" || userProfile?.role === "admin" || userProfile?.role === "super_admin";
   const inProgress = courses.filter((c: any) => c.progress > 0 && c.progress < 100);
   const completed = courses.filter((c: any) => c.progress === 100);
   const avgProgress = courses.length ? Math.round(courses.reduce((s: number, c: any) => s + (c.progress ?? 0), 0) / courses.length) : 0;
@@ -114,6 +119,9 @@ function FormationDashboard({ formations, courses }: { formations: any[]; course
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <button onClick={() => navigate("/formations/courses/course-entreprendre")} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm hover:opacity-90 min-h-[44px]" style={{ background: "linear-gradient(135deg, #4CAF68, #1F9D55)" }}><Play size={16} />{fr ? "Continuer" : "Continue"}</button>
             <button onClick={() => navigate("/formations/consultation")} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border text-sm font-medium hover:bg-muted min-h-[44px]"><Users size={16} />{fr ? "Demander conseil" : "Request guidance"}</button>
+            {!isAlreadyStaff && (
+              <button onClick={() => navigate("/formations/trainer")} className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border text-sm font-medium hover:bg-muted min-h-[44px]"><GraduationCap size={16} />{fr ? "Devenir Formateur" : "Become a Trainer"}</button>
+            )}
           </div>
         </div>
       </div>
@@ -293,6 +301,208 @@ function ConsultationRequest({ consultations, onRefresh }: { consultations: any[
         </>)}
       </div>
       <div className="bg-card rounded-2xl border border-border p-6"><h2 className="text-lg font-bold mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Suivi des demandes" : "Request tracking"}</h2><div className="space-y-4">{consultations.length ? consultations.map((r: any) => <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30"><div><p className="text-sm font-medium">{r.type}</p><p className="text-xs text-muted-foreground">{r.project}{r.course ? ` · ${fr ? r.course.title : r.course.title_en ?? r.course.title}` : ""}</p></div><StatusBadge status={r.status as any} size="sm" /></div>) : <p className="text-sm text-muted-foreground">{fr ? "Aucune demande pour le moment." : "No requests yet."}</p>}</div></div></div></div>;
+}
+
+const ALLOWED_DOC_TYPES: Record<string, string> = {
+  "application/pdf": "PDF",
+  "image/png": "PNG",
+  "image/jpeg": "JPEG",
+};
+const MAX_DOC_BYTES = 10 * 1024 * 1024;
+const MAX_DOC_FILES = 3;
+
+function BecomeTrainerRequest() {
+  const { lang, userProfile } = useAppContext();
+  const fr = lang === "fr";
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const [requests, setRequests] = useState<FormateurRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [name, setName] = useState(userProfile?.name ?? "");
+  const [email, setEmail] = useState(userProfile?.email ?? "");
+  const [category, setCategory] = useState("");
+  const [message, setMessage] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const loadRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const data = await trainerService.myRequests();
+      setRequests(data);
+    } catch (err) {
+      console.error("Failed to load trainer requests:", err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  const mostRecent = requests[0];
+  const hasPending = mostRecent?.status === "pending";
+
+  const addFiles = (picked: FileList | File[] | null) => {
+    setError("");
+    if (!picked) return;
+    const incoming = Array.from(picked);
+    if (files.length + incoming.length > MAX_DOC_FILES) {
+      setError(fr ? `Vous pouvez joindre au maximum ${MAX_DOC_FILES} documents.` : `You can attach at most ${MAX_DOC_FILES} documents.`);
+      return;
+    }
+    for (const f of incoming) {
+      if (!ALLOWED_DOC_TYPES[f.type]) {
+        setError(fr ? "Type de fichier non autorisé. Formats acceptés : PDF, PNG, JPEG." : "File type not allowed. Accepted formats: PDF, PNG, JPEG.");
+        return;
+      }
+      if (f.size > MAX_DOC_BYTES) {
+        setError(fr ? `"${f.name}" dépasse la taille maximale de 10 Mo.` : `"${f.name}" exceeds the 10MB size limit.`);
+        return;
+      }
+    }
+    setFiles((prev) => [...prev, ...incoming]);
+  };
+
+  const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!name.trim() || !email.trim() || !category.trim()) {
+      setError(fr ? "Veuillez remplir tous les champs obligatoires." : "Please fill in all required fields.");
+      return;
+    }
+    if (files.length < 1) {
+      setError(fr ? "Veuillez joindre au moins 1 document justificatif." : "Please attach at least 1 supporting document.");
+      return;
+    }
+    setSending(true);
+    try {
+      const result = await trainerService.submitRequest({ name: name.trim(), email: email.trim(), category: category.trim(), message: message.trim() || undefined, files });
+      if (!result.success) {
+        setError(result.error || (fr ? "Une erreur est survenue." : "An error occurred."));
+        toast.error(result.error || (fr ? "Une erreur est survenue." : "An error occurred."));
+        return;
+      }
+      toast.success(fr ? "Candidature envoyée !" : "Application submitted!");
+      setCategory("");
+      setMessage("");
+      setFiles([]);
+      await loadRequests();
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+      <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-muted transition-colors inline-flex items-center mb-3">
+        <ArrowLeft size={20} className="text-muted-foreground" />
+      </button>
+      <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Devenir Formateur" : "Become a Trainer"}</h1>
+      <p className="text-sm text-muted-foreground mb-6">
+        {fr ? "Soumettez votre candidature pour devenir Formateur sur la plateforme PIJ." : "Submit your application to become a Trainer on the PIJ platform."}
+      </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-card rounded-2xl border border-border p-4 sm:p-6">
+          {loadingRequests ? (
+            <p className="text-sm text-muted-foreground text-center py-8">{fr ? "Chargement..." : "Loading..."}</p>
+          ) : hasPending ? (
+            <div className="text-center py-8">
+              <Clock size={48} className="mx-auto text-amber-500 mb-3" />
+              <p className="font-medium text-lg">{fr ? "Candidature en attente" : "Application pending"}</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+                {fr ? "Votre candidature est en cours d'examen par un administrateur. Vous serez notifié dès qu'une décision sera prise." : "Your application is under review by an administrator. You'll be notified as soon as a decision is made."}
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
+              )}
+              <div>
+                <label className="text-sm font-medium">{fr ? "Nom" : "Name"}</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">{fr ? "Adresse e-mail" : "Email address"}</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">{fr ? "Catégorie de formations" : "Category of trainings"}</label>
+                <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={fr ? "ex. Développement Web, Marketing digital..." : "e.g. Web Development, Digital Marketing..."} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">{fr ? "Message (optionnel)" : "Message (optional)"}</label>
+                <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">{fr ? "Documents justificatifs" : "Supporting documents"}</label>
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+                  onClick={() => inputRef.current?.click()}
+                  className={`mt-1.5 flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${dragging ? "border-[#4CAF68] bg-[#4CAF68]/5" : "border-border"}`}
+                >
+                  <Upload size={22} className="text-muted-foreground" />
+                  <p className="text-sm text-center">{fr ? "Glissez-déposez ou cliquez pour parcourir" : "Drag and drop or click to browse"}</p>
+                  <p className="text-xs text-muted-foreground">PDF, PNG, JPEG · {fr ? "10 Mo max" : "Max 10MB"} · {fr ? `1 à ${MAX_DOC_FILES} fichiers` : `1 to ${MAX_DOC_FILES} files`}</p>
+                  <input ref={inputRef} type="file" multiple accept={Object.keys(ALLOWED_DOC_TYPES).join(",")} className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+                </div>
+                {files.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {files.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 text-sm">
+                        <FileText size={14} className="text-muted-foreground shrink-0" />
+                        <span className="flex-1 truncate">{f.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+                        <button type="button" onClick={() => removeFile(i)} className="shrink-0 text-[#E5484D] hover:opacity-70">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" disabled={sending} className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-medium text-sm disabled:opacity-50" style={{ background: "linear-gradient(135deg, #4CAF68, #1F9D55)" }}>
+                {sending ? <span className="animate-spin">⟳</span> : <Send size={16} />}{sending ? (fr ? "Envoi..." : "Sending...") : (fr ? "Envoyer la candidature" : "Submit application")}
+              </button>
+            </form>
+          )}
+        </div>
+
+        <div className="bg-card rounded-2xl border border-border p-6">
+          <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "DM Sans, sans-serif" }}>{fr ? "Suivi des candidatures" : "Application tracking"}</h2>
+          <div className="space-y-4">
+            {requests.length ? requests.map((r) => (
+              <div key={r.id} className="p-3 rounded-xl bg-muted/30">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{r.category}</p>
+                    <p className="text-xs text-muted-foreground">{r.created_at.split("T")[0]}</p>
+                  </div>
+                  <StatusBadge status={r.status as any} size="sm" />
+                </div>
+                {r.status === "rejected" && r.admin_notes && (
+                  <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+                    {fr ? "Motif : " : "Reason: "}{r.admin_notes}
+                  </p>
+                )}
+              </div>
+            )) : <p className="text-sm text-muted-foreground">{fr ? "Aucune candidature pour le moment." : "No applications yet."}</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
