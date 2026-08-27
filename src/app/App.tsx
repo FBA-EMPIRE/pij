@@ -178,6 +178,16 @@ export default function App() {
             }
           />
           <Route
+            path="/formations/trainer"
+            element={
+              <ProtectedRoute >
+                <MemberLayout>
+                  <Formations view="trainer" />
+                </MemberLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/investissements"
             element={
               <ProtectedRoute >
