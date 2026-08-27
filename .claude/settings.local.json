@@ -35,7 +35,9 @@
       "Bash(npx --yes vercel whoami)",
       "Bash(npx tsc *)",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(node -e \"console.log\\(require\\('./node_modules/typescript/package.json'\\).bin\\)\")"
+      "Bash(node -e \"console.log\\(require\\('./node_modules/typescript/package.json'\\).bin\\)\")",
+      "Bash(xargs -I{} sh -c 'wc -l \"{}\"')",
+      "Bash(sort -k2)"
     ]
   }
 }

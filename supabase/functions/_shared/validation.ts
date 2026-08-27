@@ -254,6 +254,16 @@ export function validateFormateurAction(body: Record<string, unknown>) {
   return body as { user_id: string; action: "assign" | "revoke" };
 }
 
+export function validateFormateurRequestReview(body: Record<string, unknown>) {
+  if (!body.request_id || typeof body.request_id !== "string") {
+    throw new Error("request_id is required and must be a string");
+  }
+  if (body.admin_notes !== undefined && typeof body.admin_notes !== "string") {
+    throw new Error("admin_notes must be a string if provided");
+  }
+  return body as { request_id: string; admin_notes?: string };
+}
+
 export function validateInvitationId(body: Record<string, unknown>) {
   if (!body.invitation_id || typeof body.invitation_id !== "string") {
     throw new Error("invitation_id is required and must be a string");

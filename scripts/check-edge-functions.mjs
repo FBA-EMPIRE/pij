@@ -8,6 +8,8 @@ const fns = [
   "admin-invite-resend",
   "admin-invite-revoke",
   "admin-invite-validate",
+  "formateur-request-approve",
+  "formateur-request-reject",
   "kyc-approve", // known-working control, for comparison
 ];
 

@@ -1,6 +1,20 @@
 export type AccountType = "savings" | "current";
 
-export type AdminRole = "super_admin" | "admin";
+export type AdminRole = "super_admin" | "admin" | "formateur";
+
+export type FormateurRequestStatus = "pending" | "approved" | "rejected";
+
+export interface FormateurRequest {
+  id: string;
+  user_id: string;
+  message: string;
+  status: FormateurRequestStatus;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Admin {
   id: string;
@@ -131,7 +145,7 @@ export type Frequency = "weekly" | "monthly" | "daily" | "quarterly";
 export type TontineMemberStatus = "pending" | "active" | "removed";
 export type ContributionStatus = "paid" | "unpaid";
 export type RoundStatus = "pending" | "paid";
-export type NotificationType = "kyc_status" | "contribution_reminder" | "payout_alert" | "system" | "general";
+export type NotificationType = "kyc_status" | "contribution_reminder" | "payout_alert" | "system" | "general" | "role_change";
 
 export interface TontineMember {
   id: string;
