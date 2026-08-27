@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ArrowLeft, BookOpen, CheckCircle, FileText, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle, FileText, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { useAppContext } from "../context/AppContext";
 import { formationsApi, type Formation } from "../lib/api/formations";
+import { trainerService, type PendingFormateurRequest } from "../lib/api/trainers";
+import TrainerRequestDetailModal from "./modals/TrainerRequestDetailModal";
 
 export default function FormationsDashboard() {
   const navigate = useNavigate();
@@ -12,10 +14,14 @@ export default function FormationsDashboard() {
   const { lang, userProfile } = useAppContext();
   const fr = lang === "fr";
   const isFormateur = userProfile?.role === "formateur";
+  // Formateurs review no one's application but their own promotion --
+  // the requests tab is admin/super_admin territory only.
+  const canReviewRequests = !isFormateur;
   // Mounted at both /admin/formations (admins) and /trainer/formations
   // (trainers, who never see the admin portal at all) -- link targets
   // must follow whichever base the page is actually running under.
   const basePath = location.pathname.startsWith("/trainer") ? "/trainer/formations" : "/admin/formations";
+  const [tab, setTab] = useState<"formations" | "requests">("formations");
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -74,7 +80,7 @@ export default function FormationsDashboard() {
     draft: formations.filter((f: any) => f.status === "Draft").length,
   };
 
-  if (loading) {
+  if (loading && tab === "formations") {
     return (
       <div className="p-4 lg:p-6 flex items-center justify-center">
         <Loader2 className="animate-spin" size={24} />
@@ -91,11 +97,34 @@ export default function FormationsDashboard() {
         <h2 style={{ fontFamily: "DM Sans, sans-serif", fontWeight: 700 }}>
           {isFormateur ? (fr ? "Mes Formations" : "My Formations") : (fr ? "Gestion des Formations" : "Formation Management")}
         </h2>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium shrink-0" style={{ background: "#4CAF68" }}>
-          <Plus size={16} /> {fr ? "Créer une formation" : "Create a formation"}
-        </button>
+        {tab === "formations" && (
+          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium shrink-0" style={{ background: "#4CAF68" }}>
+            <Plus size={16} /> {fr ? "Créer une formation" : "Create a formation"}
+          </button>
+        )}
       </div>
 
+      {canReviewRequests && (
+        <div className="flex gap-2 mb-5">
+          <button
+            onClick={() => setTab("formations")}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${tab === "formations" ? "bg-[#4CAF68] text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+          >
+            {fr ? "Formations" : "Formations"}
+          </button>
+          <button
+            onClick={() => setTab("requests")}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${tab === "requests" ? "bg-[#4CAF68] text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+          >
+            {fr ? "Candidatures Formateur" : "Trainer Requests"}
+          </button>
+        </div>
+      )}
+
+      {tab === "requests" && canReviewRequests ? (
+        <TrainerRequestsTab fr={fr} />
+      ) : (
+      <>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { label: fr ? "Total formations" : "Total formations", value: counts.total, icon: BookOpen },
@@ -204,7 +233,86 @@ export default function FormationsDashboard() {
           ))}
         </div>
       )}
+      </>
+      )}
     </div>
+  );
+}
+
+function TrainerRequestsTab({ fr }: { fr: boolean }) {
+  const [requests, setRequests] = useState<PendingFormateurRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<PendingFormateurRequest | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await trainerService.listPendingRequests();
+      setRequests(data);
+    } catch (err: any) {
+      toast.error(err?.message || (fr ? "Échec du chargement des candidatures" : "Failed to load trainer requests"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleDone = () => {
+    setSelected(null);
+    toast.success(fr ? "Candidature traitée" : "Application processed");
+    load();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="animate-spin" size={24} />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {requests.length === 0 ? (
+        <div className="bg-card rounded-2xl border border-border p-10 text-center">
+          <UserPlus size={32} className="mx-auto mb-3 text-muted-foreground" />
+          <p className="font-medium">{fr ? "Aucune candidature en attente" : "No pending applications"}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {requests.map((r) => {
+            const name = r.applicant_name
+              || [r.users?.profiles?.first_name, r.users?.profiles?.last_name].filter(Boolean).join(" ")
+              || r.users?.email || "—";
+            return (
+              <button key={r.id} onClick={() => setSelected(r)} className="text-left bg-card rounded-2xl border border-border p-5 hover:border-[#4CAF68]/40 transition-all">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-[#F0E8FF] dark:bg-[#2A1B3D] flex items-center justify-center shrink-0">
+                    <UserPlus size={18} color="#6E3A9A" />
+                  </div>
+                  <StatusBadge status={r.status as any} size="sm" />
+                </div>
+                <h3 className="text-sm font-semibold" style={{ fontFamily: "DM Sans, sans-serif" }}>{name}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{r.category}</p>
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-[10px] text-muted-foreground">{r.created_at.split("T")[0]}</p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <FileText size={10} /> {r.formateur_request_documents?.length ?? 0} {fr ? "documents" : "documents"}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {selected && (
+        <TrainerRequestDetailModal request={selected} onClose={() => setSelected(null)} onDone={handleDone} />
+      )}
+    </>
   );
 }
 

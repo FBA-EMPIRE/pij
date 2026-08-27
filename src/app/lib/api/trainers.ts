@@ -1,10 +1,15 @@
 import { supabase } from "../supabase/client";
 import { invokeEdgeFunction } from "./edgeFunction";
-import type { FormateurRequest } from "../../types";
+import type { FormateurRequest, FormateurRequestDocument } from "../../types";
 
 export interface FormateurActionResult {
   success: boolean;
   error?: string;
+}
+
+export interface PendingFormateurRequest extends FormateurRequest {
+  users: { email: string; profiles: { first_name: string; last_name: string } | null } | null;
+  formateur_request_documents: FormateurRequestDocument[];
 }
 
 async function callAssignFormateur(userId: string, action: "assign" | "revoke"): Promise<FormateurActionResult> {
@@ -65,16 +70,28 @@ export const trainerService = {
     return (data ?? []) as FormateurRequest[];
   },
 
-  listPendingRequests: async (): Promise<FormateurRequest[]> => {
+  listPendingRequests: async (): Promise<PendingFormateurRequest[]> => {
     const { data, error } = await supabase
-      .from("formateur_requests").select("*, users(email, profiles(first_name, last_name))")
+      .from("formateur_requests")
+      .select("*, users(email, profiles(first_name, last_name)), formateur_request_documents(*)")
       .eq("status", "pending").order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []) as FormateurRequest[];
+    return (data ?? []) as PendingFormateurRequest[];
   },
 
   approveRequest: (requestId: string, adminNotes?: string) =>
     reviewFormateurRequest("formateur-request-approve", requestId, adminNotes),
   rejectRequest: (requestId: string, adminNotes?: string) =>
     reviewFormateurRequest("formateur-request-reject", requestId, adminNotes),
+
+  // The admin's own session can call this directly -- the
+  // formateur-applications bucket's read RLS policy already grants
+  // is_admin() access, no Edge Function needed just to view a document.
+  getDocumentUrl: async (storagePath: string): Promise<string> => {
+    const { data, error } = await supabase.storage
+      .from("formateur-applications")
+      .createSignedUrl(storagePath, 300);
+    if (error) throw error;
+    return data.signedUrl;
+  },
 };

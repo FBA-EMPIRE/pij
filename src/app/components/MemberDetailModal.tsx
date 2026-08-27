@@ -103,7 +103,9 @@ export default function MemberDetailModal({ memberId, onClose }: MemberDetailMod
                 {goals.map((goal) => {
                   const current = goal.current_amount ?? 0;
                   const target = goal.target_amount ?? 1;
-                  const pct = Math.min(Math.round((current / target) * 100), 100);
+                  // One decimal place -- a whole-number round made any small
+                  // but real progress (e.g. 0.1%) display as an empty 0% bar.
+                  const pct = Math.min(Number(((current / target) * 100).toFixed(1)), 100);
                   return (
                     <div key={goal.id} className="p-4 rounded-xl border border-border">
                       <div className="flex items-center gap-3 mb-3">

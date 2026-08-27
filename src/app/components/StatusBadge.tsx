@@ -1,9 +1,9 @@
-import { CheckCircle, Clock, XCircle, AlertCircle, ShieldCheck, Ban } from "lucide-react";
+import { CheckCircle, Clock, XCircle, AlertCircle, ShieldCheck, Ban, FileQuestion } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 
 type Status =
   | "Approved" | "Active" | "Paid" | "Completed" | "Open"
-  | "Pending" | "Almost Full"
+  | "Pending" | "NotSubmitted" | "Almost Full"
   | "Rejected" | "Suspended" | "Unpaid" | "Closed"
   | "High" | "Normal" | "Published" | "Draft" | "Archived" | "Scheduled";
 
@@ -21,6 +21,7 @@ const CONFIG: Record<Status, { label: string; labelEn: string; bg: string; text:
   Open: { label: "Ouvert", labelEn: "Open", bg: "bg-[#F0E8FF] dark:bg-[#2A1B3D]", text: "text-[#6E3A9A] dark:text-[#9B6FCA]", Icon: CheckCircle },
   Published: { label: "Publié", labelEn: "Published", bg: "bg-[#E8F5EC] dark:bg-[#1A3326]", text: "text-[#1F9D55] dark:text-[#4CAF68]", Icon: CheckCircle },
   Pending: { label: "En attente", labelEn: "Pending", bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-600 dark:text-amber-400", Icon: Clock },
+  NotSubmitted: { label: "Non soumis", labelEn: "Not submitted", bg: "bg-gray-100 dark:bg-gray-800", text: "text-gray-500 dark:text-gray-400", Icon: FileQuestion },
   Scheduled: { label: "Planifié", labelEn: "Scheduled", bg: "bg-[#F0E8FF] dark:bg-[#2A1B3D]", text: "text-[#6E3A9A] dark:text-[#9B6FCA]", Icon: Clock },
   "Almost Full": { label: "Presque complet", labelEn: "Almost full", bg: "bg-orange-50 dark:bg-orange-950/40", text: "text-orange-600 dark:text-orange-400", Icon: AlertCircle },
   Draft: { label: "Brouillon", labelEn: "Draft", bg: "bg-gray-100 dark:bg-gray-800", text: "text-gray-500 dark:text-gray-400", Icon: Clock },
@@ -34,7 +35,7 @@ const CONFIG: Record<Status, { label: string; labelEn: string; bg: string; text:
 };
 
 const STATUS_ALIASES: Record<string, Status> = {
-  not_submitted: "Pending",
+  not_submitted: "NotSubmitted",
   approved: "Approved", pending: "Pending", rejected: "Rejected", cancelled: "Rejected",
   active: "Active", suspended: "Suspended", deactivated: "Suspended", removed: "Rejected",
   paid: "Paid", unpaid: "Unpaid", completed: "Completed",
