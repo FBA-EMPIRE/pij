@@ -3,6 +3,7 @@ import { validateIdBody } from "../_shared/validators.ts";
 import { canManageCourse } from "../_shared/role-check.ts";
 import { logAudit } from "../_shared/admin-auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { errorMessage } from "../_shared/errors.ts";
 
 const BUCKET = "formation-assets";
 
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Internal server error";
+    const message = errorMessage(err);
     return new Response(
       JSON.stringify({ success: false, error: message }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
