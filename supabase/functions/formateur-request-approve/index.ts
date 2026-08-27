@@ -1,6 +1,6 @@
 import { getServiceClient } from "../_shared/supabase-client.ts";
 import { validateFormateurRequestReview } from "../_shared/validators.ts";
-import { getCallerAdmin, requireSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
+import { getCallerAdmin, requireAdminOrSuperAdmin, logAudit } from "../_shared/admin-auth.ts";
 import { assignFormateurRole } from "../_shared/formateur.ts";
 import { createNotification } from "../_shared/notifications.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
 
     const caller = await getCallerAdmin(authHeader, supabase);
-    requireSuperAdmin(caller);
+    requireAdminOrSuperAdmin(caller);
 
     const body = await req.json();
     const { request_id, admin_notes } = validateFormateurRequestReview(body);

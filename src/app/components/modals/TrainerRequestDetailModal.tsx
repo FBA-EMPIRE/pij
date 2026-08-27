@@ -11,15 +11,8 @@ interface TrainerRequestDetailModalProps {
 }
 
 export default function TrainerRequestDetailModal({ request, onClose, onDone }: TrainerRequestDetailModalProps) {
-  const { lang, userProfile } = useAppContext();
+  const { lang } = useAppContext();
   const fr = lang === "fr";
-  // Ambiguity B6 (corrective_implementation_plan.md): resolved as
-  // super_admin-only, matching the unchanged default carried over from
-  // the original plan's Ambiguity A1 (the approve/reject Edge Functions
-  // already enforce this server-side) -- a plain admin can view and open
-  // documents but the decision buttons are replaced with an explanatory
-  // note instead.
-  const canReview = userProfile?.role === "super_admin";
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState("");
@@ -119,44 +112,38 @@ export default function TrainerRequestDetailModal({ request, onClose, onDone }: 
             <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">{error}</div>
           )}
 
-          {canReview ? (
-            <div className="space-y-3 pt-2 border-t border-border">
-              <div>
-                <label className="text-sm font-medium">{fr ? "Note (optionnel)" : "Note (optional)"}</label>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  rows={2}
-                  placeholder={fr ? "Raison de la décision..." : "Reason for the decision..."}
-                  className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleReview("reject")}
-                  disabled={submitting !== null}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50"
-                  style={{ background: "#E5484D" }}
-                >
-                  {submitting === "reject" ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-                  {fr ? "Refuser" : "Reject"}
-                </button>
-                <button
-                  onClick={() => handleReview("approve")}
-                  disabled={submitting !== null}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50"
-                  style={{ background: "#4CAF68" }}
-                >
-                  {submitting === "approve" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                  {fr ? "Approuver" : "Approve"}
-                </button>
-              </div>
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div>
+              <label className="text-sm font-medium">{fr ? "Note (optionnel)" : "Note (optional)"}</label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={2}
+                placeholder={fr ? "Raison de la décision..." : "Reason for the decision..."}
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-input-background text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF68]/40 resize-none"
+              />
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-              {fr ? "Seul un Super Admin peut approuver ou refuser une candidature." : "Only a Super Admin can approve or reject an application."}
-            </p>
-          )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleReview("reject")}
+                disabled={submitting !== null}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50"
+                style={{ background: "#E5484D" }}
+              >
+                {submitting === "reject" ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                {fr ? "Refuser" : "Reject"}
+              </button>
+              <button
+                onClick={() => handleReview("approve")}
+                disabled={submitting !== null}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-50"
+                style={{ background: "#4CAF68" }}
+              >
+                {submitting === "approve" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {fr ? "Approuver" : "Approve"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

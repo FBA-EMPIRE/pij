@@ -36,6 +36,12 @@ export function requireSuperAdmin(caller: CallerAdmin) {
   }
 }
 
+export function requireAdminOrSuperAdmin(caller: CallerAdmin) {
+  if (caller.role !== "admin" && caller.role !== "super_admin") {
+    throw new Error("Only admins or super admins can perform this action");
+  }
+}
+
 export async function countActiveSuperAdmins(supabase: AnyClient): Promise<number> {
   const { data, error } = await supabase
     .from("admins")
