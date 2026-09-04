@@ -1,0 +1,33 @@
+name: Supabase Keep-Alive
+
+# Supabase's free tier auto-pauses a project after ~7 days with no API
+# activity, which took the hosted app's login down (see the "couldn't reach
+# our servers" incident). This workflow pings the project's REST gateway
+# every 3 days -- comfortably inside that 7-day window -- so it never goes
+# quiet long enough to be paused.
+
+on:
+  schedule:
+    - cron: "17 5 */3 * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: https://ktyzbrrbukpzrcokdmpu.supabase.co
+          # Public anon/publishable key -- safe to expose, it's the same
+          # fallback value already shipped in src/app/lib/supabase/client.ts.
+          SUPABASE_ANON_KEY: sb_publishable_qfdelJMXrWN0yFbsW74xhA_RGaME9OL
+        run: |
+          status=$(curl -s -o /tmp/body.txt -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/" \
+            -H "apikey: $SUPABASE_ANON_KEY")
+          echo "Supabase REST gateway responded with HTTP $status"
+          cat /tmp/body.txt
+          if [ "$status" -ge 500 ] || [ "$status" -eq 000 ]; then
+            echo "::error::Supabase keep-alive ping failed with HTTP $status -- project may be paused or unreachable"
+            exit 1
+          fi
